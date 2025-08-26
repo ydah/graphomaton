@@ -30,5 +30,5 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ['lib']
 
-  gem 'rexml', '~> 3.4'
+  spec.add_dependency 'rexml', '~> 3.4'
 end
