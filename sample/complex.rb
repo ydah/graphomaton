@@ -2,7 +2,6 @@
 
 require_relative '../lib/graphomaton'
 
-
 complex = Graphomaton.new
 
 complex.add_state('A')
