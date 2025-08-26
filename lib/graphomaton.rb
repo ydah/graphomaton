@@ -147,11 +147,12 @@ class Graphomaton
                           'd' => path_d
                         })
 
+        text_width = (trans[:label].length * 8) + 10
         svg.add_element('rect', {
                           'class' => 'label-bg',
-                          'x' => (cx - 20).to_s,
-                          'y' => (cy - loop_height + 5).to_s,
-                          'width' => '40',
+                          'x' => (cx - (text_width / 2)).to_s,
+                          'y' => (cy - loop_height - 5).to_s,
+                          'width' => text_width.to_s,
                           'height' => '20',
                           'rx' => '3'
                         })
@@ -159,11 +160,10 @@ class Graphomaton
         label = svg.add_element('text', {
                                   'class' => 'transition-label',
                                   'x' => cx.to_s,
-                                  'y' => (cy - loop_height + 20).to_s,
+                                  'y' => (cy - loop_height + 10).to_s,
                                   'text-anchor' => 'middle'
                                 })
       else
-
         x1 = from_state[:x]
         y1 = from_state[:y]
         x2 = to_state[:x]
@@ -187,42 +187,62 @@ class Graphomaton
         end_x = x2 - ((dx / dist) * radius)
         end_y = y2 - ((dy / dist) * radius)
 
-        mid_x = (start_x + end_x) / 2
-        mid_y = (start_y + end_y) / 2
+        state_names = @states.keys
+        from_index = state_names.index(trans[:from])
+        to_index = state_names.index(trans[:to])
 
-        curve_offset = 0
-        if parallel_count > 1
+        is_adjacent = (to_index - from_index).abs == 1
 
-          curve_offset = if trans[:from] < trans[:to]
+        if is_adjacent && x1 < x2
 
-                           -40 * (pair_index + 1)
+          svg.add_element('line', {
+                            'class' => 'transition-line',
+                            'x1' => start_x.to_s,
+                            'y1' => start_y.to_s,
+                            'x2' => end_x.to_s,
+                            'y2' => end_y.to_s
+                          })
+
+          label_x = (start_x + end_x) / 2
+          label_y = ((start_y + end_y) / 2) - 10
+        else
+
+          mid_x = (start_x + end_x) / 2
+          mid_y = (start_y + end_y) / 2
+          curve_offset = if parallel_count > 1
+
+                           if trans[:from] < trans[:to]
+
+                             -40 * (pair_index + 1)
+                           else
+
+                             40 * (pair_index + 1)
+                           end
+                         elsif x1 < x2
+
+                           -30
                          else
-
-                           40 * (pair_index + 1)
+                           30
                          end
-        elsif x1 != x2
 
-          curve_offset = -20 if x1 < x2
-          curve_offset = 20 if x1 > x2
+          control_x = if (x2 - x1).abs < 10
+                        mid_x + (50 * (pair_index.even? ? 1 : -1))
+                      else
+                        mid_x
+                      end
+          control_y = mid_y + curve_offset
+
+          path_d = "M #{start_x} #{start_y} Q #{control_x} #{control_y}, #{end_x} #{end_y}"
+
+          svg.add_element('path', {
+                            'class' => 'transition-line',
+                            'd' => path_d
+                          })
+
+          t = 0.5
+          label_x = ((1 - t) * (1 - t) * start_x) + (2 * (1 - t) * t * control_x) + (t * t * end_x)
+          label_y = ((1 - t) * (1 - t) * start_y) + (2 * (1 - t) * t * control_y) + (t * t * end_y)
         end
-
-        control_x = if (x2 - x1).abs < 10
-                      mid_x + (50 * (pair_index.even? ? 1 : -1))
-                    else
-                      mid_x
-                    end
-        control_y = mid_y + curve_offset
-
-        path_d = "M #{start_x} #{start_y} Q #{control_x} #{control_y}, #{end_x} #{end_y}"
-
-        svg.add_element('path', {
-                          'class' => 'transition-line',
-                          'd' => path_d
-                        })
-
-        t = 0.5
-        label_x = ((1 - t) * (1 - t) * start_x) + (2 * (1 - t) * t * control_x) + (t * t * end_x)
-        label_y = ((1 - t) * (1 - t) * start_y) + (2 * (1 - t) * t * control_y) + (t * t * end_y)
 
         text_width = (trans[:label].length * 8) + 10
         svg.add_element('rect', {
