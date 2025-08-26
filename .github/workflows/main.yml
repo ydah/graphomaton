@@ -1,12 +1,9 @@
 name: Ruby
-
 on:
   push:
     branches:
       - main
-
   pull_request:
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -14,8 +11,10 @@ jobs:
     strategy:
       matrix:
         ruby:
-          - '3.5.0'
-
+          - '3.2'
+          - '3.3'
+          - '3.4'
+          - 'head'
     steps:
       - uses: actions/checkout@v4
         with:

@@ -1,38 +1,61 @@
-# Graphomaton
+# Graphomaton [![Gem Version](https://badge.fury.io/rb/graphomaton.svg?icon=si%3Arubygems)](https://badge.fury.io/rb/graphomaton)
 
-TODO: Delete this and the text below, and describe your gem
+A tiny Ruby library for generating finite state machine (automaton) diagrams as SVG.
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/graphomaton`. To experiment with that code, run `bin/console` for an interactive prompt.
+![Image](https://github.com/user-attachments/assets/6907869c-1077-4a73-8394-4117f25adc17)
 
 ## Installation
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+Add this line to your application's Gemfile:
 
-Install the gem and add to the application's Gemfile by executing:
-
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```ruby
+gem 'graphomaton'
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+And then execute:
 
 ```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+bundle install
+```
+
+Or install it yourself as:
+
+```bash
+gem install graphomaton
 ```
 
 ## Usage
 
-TODO: Write usage instructions here
+```ruby
+require 'graphomaton'
 
-## Development
+# Create a DFA that accepts strings ending with 'ab'
+automaton = Graphomaton.new
 
-After checking out the repo, run `bin/setup` to install dependencies. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+# Add states
+automaton.add_state('q0')
+automaton.add_state('q1')
+automaton.add_state('q2')
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+# Set initial and final states
+automaton.set_initial('q0')
+automaton.add_final('q2')
+
+# Add transitions
+automaton.add_transition('q0', 'q1', 'a')
+automaton.add_transition('q1', 'q2', 'b')
+automaton.add_transition('q0', 'q0', 'b')
+automaton.add_transition('q1', 'q0', 'a')
+automaton.add_transition('q2', 'q0', 'b')
+automaton.add_transition('q2', 'q1', 'a')
+
+# Save as SVG
+automaton.save_svg('output.svg')
+```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/graphomaton. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/graphomaton/blob/main/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/ydah/graphomaton.
 
 ## License
 
@@ -40,4 +63,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the Graphomaton project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/graphomaton/blob/main/CODE_OF_CONDUCT.md).
+Everyone interacting in the Graphomaton project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/ydah/graphomaton/blob/main/CODE_OF_CONDUCT.md).
