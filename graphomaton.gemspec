@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.authors = ['Yudai Takada']
   spec.email = ['t.yudai92@gmail.com']
 
-  spec.summary = 'A tiny Ruby library for generating finite state machine (automaton) diagrams as SVG.'
-  spec.description = 'A tiny Ruby library for generating finite state machine (automaton) diagrams as SVG.'
+  spec.summary = 'A tiny Ruby library for generating finite state machine (automaton) diagrams.'
+  spec.description = 'Graphomaton is a lightweight Ruby library for creating and visualizing finite state machines. It supports multiple output formats including SVG, Mermaid.js, GraphViz DOT, and PlantUML, making it easy to generate professional automaton diagrams.'
   spec.homepage = 'https://github.com/ydah/graphomaton'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.2.0'

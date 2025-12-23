@@ -161,7 +161,7 @@ class Graphomaton
         x2 = to_state[:x]
         y2 = to_state[:y]
 
-        pair_key = [trans[:from], trans[:to]].sort.join('-')
+        pair_key = [trans[:from].to_s, trans[:to].to_s].sort.join('-')
         processed_pairs[pair_key] = 0 unless processed_pairs[pair_key]
 
         pair_index = processed_pairs[pair_key]
