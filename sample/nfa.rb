@@ -17,3 +17,12 @@ nfa.add_transition('q1', 'q2', 'b')
 
 nfa.save_svg('nfa_example.svg', 600, 400)
 puts 'Generated nfa_example.svg'
+
+nfa.save_html('nfa_example.html')
+puts 'Generated nfa_example.html'
+
+nfa.save_dot('nfa_example.dot')
+puts 'Generated nfa_example.dot'
+
+nfa.save_plantuml('nfa_example.puml')
+puts 'Generated nfa_example.puml'

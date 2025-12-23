@@ -21,3 +21,12 @@ complex.add_transition('B', 'B', 'loop')
 
 complex.save_svg('complex_transitions.svg')
 puts 'Generated complex_transitions.svg'
+
+complex.save_html('complex_transitions.html')
+puts 'Generated complex_transitions.html'
+
+complex.save_dot('complex_transitions.dot')
+puts 'Generated complex_transitions.dot'
+
+complex.save_plantuml('complex_transitions.puml')
+puts 'Generated complex_transitions.puml'

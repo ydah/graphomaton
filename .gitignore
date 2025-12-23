@@ -7,3 +7,9 @@
 /spec/reports/
 /tmp/
 Gemfile.lock
+
+# Generated output files
+*.svg
+*.html
+*.dot
+*.puml
