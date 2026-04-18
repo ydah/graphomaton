@@ -7,12 +7,53 @@ class Graphomaton
     class Svg
       STATE_RADIUS = 40
       STATE_INNER_RADIUS = 32
+      DEFAULT_THEME = :light
+
+      THEMES = {
+        light: {
+          background: nil,
+          state_fill: 'white',
+          stroke: '#333',
+          state_text: '#333',
+          transition_label: '#666',
+          label_background: 'white',
+          label_opacity: '0.9'
+        },
+        dark: {
+          background: '#111827',
+          state_fill: '#1f2937',
+          stroke: '#e5e7eb',
+          state_text: '#f9fafb',
+          transition_label: '#d1d5db',
+          label_background: '#111827',
+          label_opacity: '0.95'
+        },
+        forest: {
+          background: '#f0fdf4',
+          state_fill: '#ecfdf5',
+          stroke: '#166534',
+          state_text: '#14532d',
+          transition_label: '#15803d',
+          label_background: '#f0fdf4',
+          label_opacity: '0.95'
+        },
+        ocean: {
+          background: '#eff6ff',
+          state_fill: '#f8fafc',
+          stroke: '#0369a1',
+          state_text: '#0c4a6e',
+          transition_label: '#0284c7',
+          label_background: '#eff6ff',
+          label_opacity: '0.95'
+        }
+      }.freeze
 
       def initialize(automaton)
         @automaton = automaton
       end
 
-      def export(width = 800, height = 600)
+      def export(width = 800, height = 600, theme: DEFAULT_THEME)
+        @theme = resolve_theme(theme)
         @automaton.auto_layout(width, height)
 
         doc = REXML::Document.new
@@ -25,6 +66,7 @@ class Graphomaton
 
         add_defs(svg)
         add_style(svg)
+        add_background(svg, width, height)
         add_transitions(svg)
         add_initial_arrow(svg) if @automaton.initial_state
         add_states(svg)
@@ -33,6 +75,14 @@ class Graphomaton
       end
 
       private
+
+      def resolve_theme(theme)
+        theme_name = theme.to_s.to_sym
+        THEMES.fetch(theme_name)
+      rescue KeyError
+        available_themes = THEMES.keys.join(', ')
+        raise ArgumentError, "Unknown SVG theme: #{theme.inspect}. Available themes: #{available_themes}"
+      end
 
       def calculate_text_width(text)
         ascii_chars = text.chars.count { |c| c.ascii_only? }
@@ -71,21 +121,35 @@ class Graphomaton
                                   })
         marker.add_element('polygon', {
                              'points' => '0 0, 10 3, 0 6',
-                             'fill' => '#333'
+                             'fill' => @theme[:stroke]
                            })
       end
 
       def add_style(svg)
         style = svg.add_element('style')
+        background = @theme[:background] || 'transparent'
         style.text = <<-CSS
-      .state-circle { fill: white; stroke: #333; stroke-width: 2; }
+      .diagram-background { fill: #{background}; }
+      .state-circle { fill: #{@theme[:state_fill]}; stroke: #{@theme[:stroke]}; stroke-width: 2; }
       .final-state { stroke-width: 4; }
-      .state-text { font-family: Arial, sans-serif; text-anchor: middle; }
-      .transition-line { stroke: #333; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
-      .transition-label { font-family: Arial, sans-serif; font-size: 14px; fill: #666; }
-      .initial-arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
-      .label-bg { fill: white; opacity: 0.9; }
+      .state-text { font-family: Arial, sans-serif; text-anchor: middle; fill: #{@theme[:state_text]}; }
+      .transition-line { stroke: #{@theme[:stroke]}; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+      .transition-label { font-family: Arial, sans-serif; font-size: 14px; fill: #{@theme[:transition_label]}; }
+      .initial-arrow { stroke: #{@theme[:stroke]}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .label-bg { fill: #{@theme[:label_background]}; opacity: #{@theme[:label_opacity]}; }
         CSS
+      end
+
+      def add_background(svg, width, height)
+        return unless @theme[:background]
+
+        svg.add_element('rect', {
+                          'class' => 'diagram-background',
+                          'x' => '0',
+                          'y' => '0',
+                          'width' => width.to_s,
+                          'height' => height.to_s
+                        })
       end
 
       def add_transitions(svg)

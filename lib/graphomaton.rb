@@ -76,20 +76,20 @@ class Graphomaton
     index
   end
 
-  def to_svg(width = 800, height = 600)
-    Exporters::Svg.new(self).export(width, height)
+  def to_svg(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME)
+    Exporters::Svg.new(self).export(width, height, theme: theme)
   end
 
-  def save_svg(filename, width = 800, height = 600)
-    File.write(filename, to_svg(width, height))
+  def save_svg(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME)
+    File.write(filename, to_svg(width, height, theme: theme))
   end
 
-  def to_png(width = 800, height = 600)
-    Exporters::Png.new(self).export(width, height)
+  def to_png(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME)
+    Exporters::Png.new(self).export(width, height, theme: theme)
   end
 
-  def save_png(filename, width = 800, height = 600)
-    File.binwrite(filename, to_png(width, height))
+  def save_png(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME)
+    File.binwrite(filename, to_png(width, height, theme: theme))
   end
 
   def to_mermaid

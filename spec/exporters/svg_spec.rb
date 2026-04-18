@@ -34,6 +34,44 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(svg.attributes['width']).to eq('1000')
         expect(svg.attributes['height']).to eq('800')
       end
+
+      it 'uses the light theme by default' do
+        svg_output = svg_exporter.export
+        doc = REXML::Document.new(svg_output)
+        style = REXML::XPath.first(doc, '//style')
+        background = REXML::XPath.first(doc, '//rect[@class="diagram-background"]')
+
+        expect(style.text).to include('stroke: #333')
+        expect(background).to be_nil
+      end
+
+      it 'accepts named themes' do
+        svg_output = svg_exporter.export(theme: :dark)
+        doc = REXML::Document.new(svg_output)
+        style = REXML::XPath.first(doc, '//style')
+        background = REXML::XPath.first(doc, '//rect[@class="diagram-background"]')
+        arrowhead = REXML::XPath.first(doc, '//marker[@id="arrowhead"]/polygon')
+
+        expect(style.text).to include('stroke: #e5e7eb')
+        expect(background.attributes['width']).to eq('800')
+        expect(background.attributes['height']).to eq('600')
+        expect(arrowhead.attributes['fill']).to eq('#e5e7eb')
+      end
+
+      it 'accepts string theme names' do
+        svg_output = svg_exporter.export(theme: 'forest')
+        doc = REXML::Document.new(svg_output)
+        style = REXML::XPath.first(doc, '//style')
+
+        expect(style.text).to include('stroke: #166534')
+      end
+
+      it 'raises an error for unknown themes' do
+        expect { svg_exporter.export(theme: :unknown) }.to raise_error(
+          ArgumentError,
+          /Unknown SVG theme: :unknown/
+        )
+      end
     end
 
     context 'with states and transitions' do

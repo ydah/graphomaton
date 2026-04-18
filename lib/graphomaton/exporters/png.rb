@@ -21,11 +21,11 @@ class Graphomaton
         @automaton = automaton
       end
 
-      def export(width = 800, height = 600)
+      def export(width = 800, height = 600, theme: Svg::DEFAULT_THEME)
         command = available_command
         raise ConversionError, missing_converter_message unless command
 
-        svg = Svg.new(@automaton).export(width, height)
+        svg = Svg.new(@automaton).export(width, height, theme: theme)
         png, error, status = Open3.capture3(*command, stdin_data: svg, binmode: true)
         png = png.b
 

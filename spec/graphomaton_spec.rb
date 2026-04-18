@@ -236,6 +236,16 @@ RSpec.describe Graphomaton do
       expect(style.text).to include('state-circle')
     end
 
+    it 'applies custom themes' do
+      svg_output = automaton.to_svg(theme: :ocean)
+      doc = REXML::Document.new(svg_output)
+      style = REXML::XPath.first(doc, '//style')
+      background = REXML::XPath.first(doc, '//rect[@class="diagram-background"]')
+
+      expect(style.text).to include('stroke: #0369a1')
+      expect(background).not_to be_nil
+    end
+
     it 'creates circles for each state' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)
@@ -336,6 +346,13 @@ RSpec.describe Graphomaton do
       expect(svg.attributes['width']).to eq('1200')
       expect(svg.attributes['height']).to eq('900')
     end
+
+    it 'respects custom themes' do
+      automaton.save_svg(temp_file, theme: :forest)
+      content = File.read(temp_file)
+
+      expect(content).to include('#166534')
+    end
   end
 
   describe '#to_png' do
@@ -350,9 +367,9 @@ RSpec.describe Graphomaton do
       png_exporter = instance_double(Graphomaton::Exporters::Png)
 
       expect(Graphomaton::Exporters::Png).to receive(:new).with(automaton).and_return(png_exporter)
-      expect(png_exporter).to receive(:export).with(1000, 800).and_return(png_output)
+      expect(png_exporter).to receive(:export).with(1000, 800, theme: :dark).and_return(png_output)
 
-      expect(automaton.to_png(1000, 800)).to eq(png_output)
+      expect(automaton.to_png(1000, 800, theme: :dark)).to eq(png_output)
     end
   end
 
@@ -371,9 +388,9 @@ RSpec.describe Graphomaton do
 
     it 'saves PNG bytes to file' do
       png_output = Graphomaton::Exporters::Png::PNG_SIGNATURE + 'png-data'.b
-      allow(automaton).to receive(:to_png).with(1200, 900).and_return(png_output)
+      allow(automaton).to receive(:to_png).with(1200, 900, theme: :forest).and_return(png_output)
 
-      automaton.save_png(temp_file, 1200, 900)
+      automaton.save_png(temp_file, 1200, 900, theme: :forest)
 
       expect(File.binread(temp_file)).to eq(png_output)
     end

@@ -47,6 +47,18 @@ RSpec.describe Graphomaton::Exporters::Png do
       png_exporter.export(1000, 800)
     end
 
+    it 'passes custom themes to the SVG renderer' do
+      expect(Open3).to receive(:capture3) do |*args|
+        options = args.last
+        expect(options[:stdin_data]).to include('diagram-background')
+        expect(options[:stdin_data]).to include('#111827')
+
+        [png_data, '', successful_status]
+      end
+
+      png_exporter.export(theme: :dark)
+    end
+
     it 'raises a conversion error when no converter is available' do
       allow(png_exporter).to receive(:available_command).and_return(nil)
 

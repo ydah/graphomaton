@@ -57,19 +57,30 @@ automaton.save_dot('output.dot')              # GraphViz DOT format
 automaton.save_plantuml('output.puml')        # PlantUML format
 ```
 
+### Themes
+
+Native SVG and PNG output can be rendered with a named theme:
+
+```ruby
+automaton.save_svg('output_dark.svg', theme: :dark)
+automaton.save_png('output_forest.png', theme: :forest)
+```
+
+Available themes: `:light`, `:dark`, `:forest`, `:ocean`.
+
 ### Output Formats
 
 Graphomaton supports multiple output formats:
 
 #### 1. SVG (Native)
 ```ruby
-automaton.save_svg('diagram.svg', width = 800, height = 600)
+automaton.save_svg('diagram.svg', 800, 600, theme: :light)
 ```
 Generates a standalone SVG file with custom rendering.
 
 #### 2. PNG
 ```ruby
-automaton.save_png('diagram.png', width = 800, height = 600)
+automaton.save_png('diagram.png', 800, 600, theme: :dark)
 ```
 Generates a PNG file by converting Graphomaton's native SVG output. Requires one of these commands to be available on `PATH`: `rsvg-convert`, `magick`, or `convert`.
 
