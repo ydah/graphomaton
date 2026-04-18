@@ -84,6 +84,14 @@ class Graphomaton
     File.write(filename, to_svg(width, height))
   end
 
+  def to_png(width = 800, height = 600)
+    Exporters::Png.new(self).export(width, height)
+  end
+
+  def save_png(filename, width = 800, height = 600)
+    File.binwrite(filename, to_png(width, height))
+  end
+
   def to_mermaid
     Exporters::Mermaid.new(self).export
   end

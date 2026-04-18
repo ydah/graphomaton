@@ -338,6 +338,47 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe '#to_png' do
+    before do
+      automaton.add_state('q0')
+      automaton.add_state('q1')
+      automaton.add_transition('q0', 'q1', 'a')
+    end
+
+    it 'generates PNG bytes' do
+      png_output = Graphomaton::Exporters::Png::PNG_SIGNATURE + 'png-data'.b
+      png_exporter = instance_double(Graphomaton::Exporters::Png)
+
+      expect(Graphomaton::Exporters::Png).to receive(:new).with(automaton).and_return(png_exporter)
+      expect(png_exporter).to receive(:export).with(1000, 800).and_return(png_output)
+
+      expect(automaton.to_png(1000, 800)).to eq(png_output)
+    end
+  end
+
+  describe '#save_png' do
+    let(:temp_file) { 'test_output.png' }
+
+    after do
+      FileUtils.rm_f(temp_file)
+    end
+
+    before do
+      automaton.add_state('q0')
+      automaton.add_state('q1')
+      automaton.add_transition('q0', 'q1', 'a')
+    end
+
+    it 'saves PNG bytes to file' do
+      png_output = Graphomaton::Exporters::Png::PNG_SIGNATURE + 'png-data'.b
+      allow(automaton).to receive(:to_png).with(1200, 900).and_return(png_output)
+
+      automaton.save_png(temp_file, 1200, 900)
+
+      expect(File.binread(temp_file)).to eq(png_output)
+    end
+  end
+
   describe 'complex automaton example' do
     it 'handles a complete DFA correctly' do
       # Create a DFA that accepts strings ending with 'ab'

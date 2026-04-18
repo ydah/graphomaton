@@ -1,6 +1,6 @@
 # Graphomaton [![Gem Version](https://badge.fury.io/rb/graphomaton.svg?icon=si%3Arubygems)](https://badge.fury.io/rb/graphomaton) [![CI](https://github.com/ydah/graphomaton/actions/workflows/ci.yml/badge.svg)](https://github.com/ydah/graphomaton/actions/workflows/ci.yml)
 
-A tiny Ruby library for generating finite state machine (automaton) diagrams in multiple formats: SVG, HTML (Mermaid.js), GraphViz (DOT), and PlantUML.
+A tiny Ruby library for generating finite state machine (automaton) diagrams in multiple formats: SVG, PNG, HTML (Mermaid.js), GraphViz (DOT), and PlantUML.
 
 ![Image](https://github.com/user-attachments/assets/6907869c-1077-4a73-8394-4117f25adc17)
 
@@ -51,6 +51,7 @@ automaton.add_transition('q2', 'q1', 'a')
 
 # Save in different formats
 automaton.save_svg('output.svg')              # SVG format
+automaton.save_png('output.png')              # PNG format (requires a converter)
 automaton.save_html('output.html')            # HTML with Mermaid.js (requires internet)
 automaton.save_dot('output.dot')              # GraphViz DOT format
 automaton.save_plantuml('output.puml')        # PlantUML format
@@ -66,7 +67,13 @@ automaton.save_svg('diagram.svg', width = 800, height = 600)
 ```
 Generates a standalone SVG file with custom rendering.
 
-#### 2. HTML (Mermaid.js)
+#### 2. PNG
+```ruby
+automaton.save_png('diagram.png', width = 800, height = 600)
+```
+Generates a PNG file by converting Graphomaton's native SVG output. Requires one of these commands to be available on `PATH`: `rsvg-convert`, `magick`, or `convert`.
+
+#### 3. HTML (Mermaid.js)
 ```ruby
 automaton.save_html('diagram.html')
 ```
@@ -74,7 +81,7 @@ Generates an HTML file with embedded Mermaid.js state diagram. The diagram is re
 
 **Note:** Requires internet connection to load Mermaid.js from CDN. Does not work in offline environments.
 
-#### 3. GraphViz (DOT)
+#### 4. GraphViz (DOT)
 ```ruby
 automaton.save_dot('diagram.dot')
 ```
@@ -85,7 +92,7 @@ dot -Tsvg diagram.dot -o diagram.svg
 dot -Tpdf diagram.dot -o diagram.pdf
 ```
 
-#### 4. PlantUML
+#### 5. PlantUML
 ```ruby
 automaton.save_plantuml('diagram.puml')
 ```

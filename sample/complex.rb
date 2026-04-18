@@ -22,6 +22,9 @@ complex.add_transition('B', 'B', 'loop')
 complex.save_svg('complex_transitions.svg')
 puts 'Generated complex_transitions.svg'
 
+complex.save_png('complex_transitions.png')
+puts 'Generated complex_transitions.png'
+
 complex.save_html('complex_transitions.html')
 puts 'Generated complex_transitions.html'
 

@@ -18,6 +18,9 @@ nfa.add_transition('q1', 'q2', 'b')
 nfa.save_svg('nfa_example.svg', 600, 400)
 puts 'Generated nfa_example.svg'
 
+nfa.save_png('nfa_example.png', 600, 400)
+puts 'Generated nfa_example.png'
+
 nfa.save_html('nfa_example.html')
 puts 'Generated nfa_example.html'
 

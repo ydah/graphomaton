@@ -21,3 +21,6 @@ automaton.add_transition('D', 'A', 'back to start')
 
 automaton.save_svg('skip_states.svg')
 puts 'Generated skip_states.svg'
+
+automaton.save_png('skip_states.png')
+puts 'Generated skip_states.png'

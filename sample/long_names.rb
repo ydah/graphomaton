@@ -18,3 +18,6 @@ automaton.add_transition('Medium Name', 'VeryLongStateName', 'final')
 
 automaton.save_svg('long_names.svg')
 puts 'Generated long_names.svg'
+
+automaton.save_png('long_names.png')
+puts 'Generated long_names.png'
