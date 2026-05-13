@@ -44,6 +44,7 @@ automaton.add_final('q2')
 # Add transitions
 automaton.add_transition('q0', 'q1', 'a')
 automaton.add_transition('q1', 'q2', 'b')
+automaton.add_transition('q0', 'q2', ['a', 'b'])
 automaton.add_transition('q0', 'q0', 'b')
 automaton.add_transition('q1', 'q0', 'a')
 automaton.add_transition('q2', 'q0', 'b')

@@ -77,6 +77,12 @@ RSpec.describe Graphomaton do
       automaton.add_transition('q0', 'q0', 'loop')
       expect(automaton.transitions).to include({ from: 'q0', to: 'q0', label: 'loop' })
     end
+
+    it 'normalizes array labels' do
+      automaton.add_transition('q0', 'q1', %w[a b])
+
+      expect(automaton.transitions).to include({ from: 'q0', to: 'q1', label: 'a, b' })
+    end
   end
 
   describe '#set_initial' do

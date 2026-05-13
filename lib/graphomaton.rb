@@ -41,7 +41,7 @@ class Graphomaton
   end
 
   def add_transition(from, to, label)
-    @transitions << { from: from, to: to, label: label }
+    @transitions << { from: from, to: to, label: normalize_transition_label(label) }
   end
 
   def set_initial(state)
@@ -879,6 +879,12 @@ class Graphomaton
     return resolved if FORMAT_OPTIONS.include?(resolved)
 
     raise ArgumentError, "Unknown format: #{format.inspect}. Available formats: #{FORMAT_OPTIONS.join(', ')}"
+  end
+
+  def normalize_transition_label(label)
+    return label.map(&:to_s).join(', ') if label.is_a?(Array)
+
+    label
   end
 
   def arrange_auto_states(auto_states, initial_position:, final_position:)
