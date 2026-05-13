@@ -77,6 +77,14 @@ class Graphomaton
     raise ValidationError, errors.join("\n")
   end
 
+  def reachable_states
+    layered_distances.keys
+  end
+
+  def unreachable_states
+    @states.keys - reachable_states
+  end
+
   def layout_positions(width = 800, height = 600, layout: :linear, direction: :lr,
                       state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
                       node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
@@ -693,6 +701,7 @@ class Graphomaton
              max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, state_wrap: false,
              max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH,
              label_background: Exporters::Svg::DEFAULT_LABEL_BACKGROUND,
+             highlight_unreachable: false,
              title: nil, description: nil)
     Exporters::Svg.new(self).export(
       width,
@@ -713,6 +722,7 @@ class Graphomaton
       final_position: final_position,
       merge_parallel_transitions: merge_parallel_transitions,
       label_background: label_background,
+      highlight_unreachable: highlight_unreachable,
       wrap: wrap,
       max_transition_label_width: max_transition_label_width,
       state_wrap: state_wrap,
@@ -732,6 +742,7 @@ class Graphomaton
                max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, state_wrap: false,
                max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH,
                label_background: Exporters::Svg::DEFAULT_LABEL_BACKGROUND,
+               highlight_unreachable: false,
                title: nil, description: nil)
     File.write(
       filename,
@@ -754,6 +765,7 @@ class Graphomaton
         final_position: final_position,
         merge_parallel_transitions: merge_parallel_transitions,
         label_background: label_background,
+        highlight_unreachable: highlight_unreachable,
         wrap: wrap,
         max_transition_label_width: max_transition_label_width,
         state_wrap: state_wrap,

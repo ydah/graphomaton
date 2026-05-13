@@ -12,6 +12,7 @@ class Graphomaton
       DEFAULT_MERGE_PARALLEL_TRANSITIONS = true
       DEFAULT_WRAP = false
       DEFAULT_LABEL_BACKGROUND = true
+      DEFAULT_HIGHLIGHT_UNREACHABLE = false
       DEFAULT_PADDING = 80
       DEFAULT_NODE_SPACING = 120
       DEFAULT_RANK_SPACING = 120
@@ -97,6 +98,7 @@ class Graphomaton
                  initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
                  label_background: DEFAULT_LABEL_BACKGROUND,
+                 highlight_unreachable: DEFAULT_HIGHLIGHT_UNREACHABLE,
                  title: nil, description: nil)
         @state_radius = state_radius.to_f
         @arrow_size = [arrow_size.to_f, 1.0].max
@@ -105,6 +107,8 @@ class Graphomaton
         @direction = resolve_direction(direction)
         @merge_parallel_transitions = merge_parallel_transitions
         @label_background = label_background
+        @highlight_unreachable = highlight_unreachable
+        @unreachable_states = @highlight_unreachable ? @automaton.unreachable_states : []
         @padding = padding
         @node_spacing = node_spacing
         @rank_spacing = rank_spacing
@@ -302,6 +306,7 @@ class Graphomaton
       .transition-label { font-family: Arial, sans-serif; font-size: 14px; fill: #{@theme[:transition_label]}; }
       .initial-arrow { stroke: #{@theme[:stroke]}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; }
       .label-bg { fill: #{@theme[:label_background]}; opacity: #{@theme[:label_opacity]}; }
+      .unreachable-state { opacity: 0.45; }
         CSS
       end
 
@@ -880,8 +885,11 @@ class Graphomaton
       end
 
       def state_group_attributes(name)
+        classes = ['state']
+        classes << 'unreachable-state' if @unreachable_states.include?(name)
+
         {
-          'class' => 'state',
+          'class' => classes.join(' '),
           'id' => unique_svg_id("state-#{svg_id_component(name)}"),
           'data-state' => name.to_s
         }

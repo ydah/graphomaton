@@ -138,6 +138,19 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe '#reachable_states and #unreachable_states' do
+    it 'reports states reachable from the initial state' do
+      automaton.add_state('q0')
+      automaton.add_state('q1')
+      automaton.add_state('q2')
+      automaton.set_initial('q0')
+      automaton.add_transition('q0', 'q1', 'a')
+
+      expect(automaton.reachable_states).to contain_exactly('q0', 'q1')
+      expect(automaton.unreachable_states).to eq(['q2'])
+    end
+  end
+
   describe '#auto_layout' do
     context 'with empty states' do
       it 'does not raise error' do
@@ -579,6 +592,15 @@ RSpec.describe Graphomaton do
 
       expect(REXML::XPath.match(doc, '//rect[@class="label-bg"]')).to be_empty
       expect(REXML::XPath.match(doc, '//text[@class="transition-label"]')).not_to be_empty
+    end
+
+    it 'can highlight unreachable states' do
+      automaton.add_state('q3')
+      svg_output = automaton.to_svg(highlight_unreachable: true)
+      doc = REXML::Document.new(svg_output)
+      unreachable = REXML::XPath.first(doc, '//g[@id="state-q3"]')
+
+      expect(unreachable.attributes['class']).to include('unreachable-state')
     end
 
     it 'supports force layout' do

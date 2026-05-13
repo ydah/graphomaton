@@ -121,6 +121,7 @@ You can also control label display behavior:
 ```ruby
 automaton.save_svg('diagram.svg', 800, 600, wrap: true, max_transition_label_width: 120)
 automaton.save_svg('diagram.svg', 800, 600, label_background: false)
+automaton.save_svg('diagram.svg', 800, 600, highlight_unreachable: true)
 ```
 
 #### 2. PNG
