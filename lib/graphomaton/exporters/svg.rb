@@ -22,6 +22,7 @@ class Graphomaton
       DEFAULT_XML_DECLARATION = false
       DEFAULT_CSS_VARIABLES = false
       DEFAULT_PRETTY = false
+      DEFAULT_STATE_EFFECT = :none
       DEFAULT_LOOP_POSITION = :auto
       DEFAULT_EDGE_STYLE = :auto
       DEFAULT_SHOW_FINAL_ARROWS = false
@@ -41,6 +42,7 @@ class Graphomaton
       LOOP_POSITION_OPTIONS = %i[auto top right bottom left].freeze
       EDGE_STYLE_OPTIONS = %i[auto straight curved orthogonal].freeze
       STATE_SHAPE_OPTIONS = %i[circle ellipse rounded_rect].freeze
+      STATE_EFFECT_OPTIONS = %i[none shadow glow].freeze
 
       THEMES = {
         light: {
@@ -132,6 +134,7 @@ class Graphomaton
                  xml_declaration: DEFAULT_XML_DECLARATION,
                  css_variables: DEFAULT_CSS_VARIABLES,
                  pretty: DEFAULT_PRETTY,
+                 state_effect: DEFAULT_STATE_EFFECT,
                  loop_position: DEFAULT_LOOP_POSITION,
                  edge_style: DEFAULT_EDGE_STYLE,
                  show_final_arrows: DEFAULT_SHOW_FINAL_ARROWS,
@@ -145,6 +148,7 @@ class Graphomaton
         @direction = resolve_direction(direction)
         @loop_position = resolve_loop_position(loop_position)
         @edge_style = resolve_edge_style(edge_style)
+        @state_effect = resolve_state_effect(state_effect)
         @show_final_arrows = show_final_arrows
         @merge_parallel_transitions = merge_parallel_transitions
         @label_background = label_background
@@ -285,6 +289,13 @@ class Graphomaton
         raise ArgumentError, "Unknown state_shape: #{state_shape.inspect}. Available values: #{STATE_SHAPE_OPTIONS.join(', ')}"
       end
 
+      def resolve_state_effect(state_effect)
+        resolved = state_effect.to_sym
+        return resolved if STATE_EFFECT_OPTIONS.include?(resolved)
+
+        raise ArgumentError, "Unknown state_effect: #{state_effect.inspect}. Available values: #{STATE_EFFECT_OPTIONS.join(', ')}"
+      end
+
       def auto_size_canvas(width, height)
         x_values = @positions.values.map { |position| position[:x].to_f }
         y_values = @positions.values.map { |position| position[:y].to_f }
@@ -400,7 +411,7 @@ class Graphomaton
         style.text = <<-CSS
 #{css_variables_css}      
       .diagram-background { fill: #{background}; }
-      .state-circle { fill: #{theme_css_value(:state_fill)}; stroke: #{theme_css_value(:stroke)}; stroke-width: 2; vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; }
+      .state-circle { fill: #{theme_css_value(:state_fill)}; stroke: #{theme_css_value(:stroke)}; stroke-width: 2; vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; #{state_effect_css} }
       .final-state { stroke-width: 4; }
       .state-text { font-family: Arial, sans-serif; text-anchor: middle; fill: #{theme_css_value(:state_text)}; text-rendering: geometricPrecision; }
       .transition-line { stroke: #{theme_css_value(:stroke)}; stroke-width: 1.5; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
@@ -456,6 +467,17 @@ class Graphomaton
 
       def css_variable_name(key)
         key.to_s.tr('_', '-')
+      end
+
+      def state_effect_css
+        case @state_effect
+        when :shadow
+          'filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.25));'
+        when :glow
+          "filter: drop-shadow(0 0 8px #{theme_css_value(:stroke)});"
+        else
+          ''
+        end
       end
 
       def add_background(svg, width, height)

@@ -663,6 +663,14 @@ RSpec.describe Graphomaton do
       expect(svg_output).to include('stroke: #000000')
     end
 
+    it 'supports optional SVG state effects' do
+      svg_output = automaton.to_svg(state_effect: :shadow)
+      doc = REXML::Document.new(svg_output)
+      style = REXML::XPath.first(doc, '//style')
+
+      expect(style.text).to include('filter: drop-shadow')
+    end
+
     it 'supports automatic dark mode with prefers-color-scheme' do
       svg_output = automaton.to_svg(theme: :auto)
       doc = REXML::Document.new(svg_output)
