@@ -818,6 +818,22 @@ RSpec.describe Graphomaton do
       expect(transition_title.text).to eq('a very long transition label')
     end
 
+    it 'escapes XML special characters in SVG labels and metadata' do
+      local = described_class.new
+      local.add_state('q<0>', label: 'A&B "state"', metadata: { tooltip: 'Use <entry> & "quoted" text' })
+      local.add_state('q1')
+      local.add_transition('q<0>', 'q1', 'a < b & c > d')
+
+      svg_output = local.to_svg(label_tooltips: true)
+      doc = REXML::Document.new(svg_output)
+      state = REXML::XPath.match(doc, '//g[@data-state]').find { |node| node.attributes['data-state'] == 'q<0>' }
+      transition = REXML::XPath.match(doc, '//g[@data-label]').find { |node| node.attributes['data-label'] == 'a < b & c > d' }
+
+      expect(state).not_to be_nil
+      expect(transition).not_to be_nil
+      expect(svg_output).to include('A&amp;B')
+    end
+
     it 'uses state metadata URL as an SVG link' do
       local = described_class.new
       local.add_state('docs', metadata: { url: 'https://example.com/docs', tooltip: 'Docs' })
@@ -1047,6 +1063,21 @@ RSpec.describe Graphomaton do
       expect((x_positions.uniq.size > 1) || (y_positions.uniq.size > 1)).to be true
     end
 
+    it 'renders many states without invalid SVG' do
+      local = described_class.new
+      50.times do |index|
+        local.add_state("q#{index}")
+        local.add_transition("q#{index - 1}", "q#{index}", index.to_s) if index.positive?
+      end
+      local.set_initial('q0')
+      local.add_final('q49')
+
+      svg_output = local.to_svg(1600, 1000, layout: :grid)
+
+      expect { REXML::Document.new(svg_output) }.not_to raise_error
+      expect(REXML::XPath.match(REXML::Document.new(svg_output), '//g[@data-state]').size).to eq(50)
+    end
+
     it 'supports straight edge style' do
       local = described_class.new
       local.add_state('q0')
@@ -1072,6 +1103,19 @@ RSpec.describe Graphomaton do
       path = REXML::XPath.first(doc, '//path[@class="transition-line"]')
 
       expect(path.attributes['d']).to include(' L ')
+    end
+
+    it 'handles transitions between states at the same coordinate' do
+      local = described_class.new
+      local.add_state('q0', 200, 200)
+      local.add_state('q1', 200, 200)
+      local.add_transition('q0', 'q1', 'same point')
+
+      svg_output = local.to_svg(layout: :manual)
+      doc = REXML::Document.new(svg_output)
+      path = REXML::XPath.first(doc, '//path[@class="transition-line"]')
+
+      expect(path.attributes['d']).to include('C')
     end
 
     context 'with self-loop' do
