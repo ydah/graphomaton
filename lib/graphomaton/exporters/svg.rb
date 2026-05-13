@@ -6,6 +6,7 @@ class Graphomaton
   module Exporters
     class Svg
       DEFAULT_STATE_RADIUS = 40
+      DEFAULT_STATE_SHAPE = :circle
       DEFAULT_THEME = :light
       DEFAULT_LAYOUT = :linear
       DEFAULT_DIRECTION = :lr
@@ -34,6 +35,7 @@ class Graphomaton
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
       LOOP_POSITION_OPTIONS = %i[auto top right bottom left].freeze
       EDGE_STYLE_OPTIONS = %i[auto straight curved orthogonal].freeze
+      STATE_SHAPE_OPTIONS = %i[circle ellipse rounded_rect].freeze
 
       THEMES = {
         light: {
@@ -108,7 +110,8 @@ class Graphomaton
       end
 
       def export(width = 800, height = 600, theme: DEFAULT_THEME, layout: DEFAULT_LAYOUT, direction: DEFAULT_DIRECTION, responsive: false,
-                 state_radius: DEFAULT_STATE_RADIUS, wrap: DEFAULT_WRAP, max_transition_label_width: DEFAULT_MAX_LABEL_WIDTH,
+                 state_radius: DEFAULT_STATE_RADIUS, state_shape: DEFAULT_STATE_SHAPE,
+                 wrap: DEFAULT_WRAP, max_transition_label_width: DEFAULT_MAX_LABEL_WIDTH,
                  state_wrap: DEFAULT_STATE_WRAP, max_state_label_width: DEFAULT_MAX_STATE_LABEL_WIDTH,
                  padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                  force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil, auto_size: DEFAULT_AUTO_SIZE,
@@ -125,6 +128,7 @@ class Graphomaton
                  edge_style: DEFAULT_EDGE_STYLE,
                  title: nil, description: nil)
         @state_radius = state_radius.to_f
+        @state_shape = resolve_state_shape(state_shape)
         @arrow_size = [arrow_size.to_f, 1.0].max
         @theme = resolve_theme(theme)
         @layout = resolve_layout(layout)
@@ -239,6 +243,13 @@ class Graphomaton
         return resolved if EDGE_STYLE_OPTIONS.include?(resolved)
 
         raise ArgumentError, "Unknown edge_style: #{edge_style.inspect}. Available values: #{EDGE_STYLE_OPTIONS.join(', ')}"
+      end
+
+      def resolve_state_shape(state_shape)
+        resolved = state_shape.to_sym
+        return resolved if STATE_SHAPE_OPTIONS.include?(resolved)
+
+        raise ArgumentError, "Unknown state_shape: #{state_shape.inspect}. Available values: #{STATE_SHAPE_OPTIONS.join(', ')}"
       end
 
       def auto_size_canvas(width, height)
@@ -954,14 +965,15 @@ class Graphomaton
           position = state_position(name) || state
           state_node = svg.add_element('g', state_group_attributes(name))
           add_state_tooltip(state_node, state)
+          shape = state_shape(state)
           circle_class = 'state-circle'
           circle_class += ' final-state' if @automaton.final_states.include?(name)
 
-          state_node.add_element('circle', state_circle_attributes(circle_class, position, state))
+          state_node.add_element(state_shape_element(shape), state_shape_attributes(shape, circle_class, position, state))
 
           if @automaton.final_states.include?(name)
             inner_radius = [@state_radius - 8, 8].max
-            state_node.add_element('circle', state_circle_attributes('state-circle', position, state, radius: inner_radius))
+            state_node.add_element(state_shape_element(shape), state_shape_attributes(shape, 'state-circle', position, state, radius: inner_radius))
           end
 
           font_size = calculate_state_font_size(label.to_s)
@@ -995,6 +1007,12 @@ class Graphomaton
         state.fetch(:label, name)
       end
 
+      def state_shape(state)
+        return @state_shape unless state[:shape]
+
+        resolve_state_shape(state[:shape])
+      end
+
       def add_state_tooltip(state_node, state)
         tooltip = state_tooltip(state)
         return unless tooltip
@@ -1010,13 +1028,40 @@ class Graphomaton
         metadata[:tooltip] || metadata['tooltip'] || metadata[:description] || metadata['description']
       end
 
-      def state_circle_attributes(circle_class, position, state, radius: @state_radius)
-        attributes = {
-          'class' => circle_class,
-          'cx' => position[:x].to_s,
-          'cy' => position[:y].to_s,
-          'r' => radius.to_s
-        }
+      def state_shape_element(shape)
+        return 'ellipse' if shape == :ellipse
+        return 'rect' if shape == :rounded_rect
+
+        'circle'
+      end
+
+      def state_shape_attributes(shape, shape_class, position, state, radius: @state_radius)
+        attributes = case shape
+                     when :ellipse
+                       {
+                         'class' => shape_class,
+                         'cx' => position[:x].to_s,
+                         'cy' => position[:y].to_s,
+                         'rx' => (radius * 1.25).to_s,
+                         'ry' => (radius * 0.8).to_s
+                       }
+                     when :rounded_rect
+                       {
+                         'class' => shape_class,
+                         'x' => (position[:x] - radius).to_s,
+                         'y' => (position[:y] - radius).to_s,
+                         'width' => (radius * 2).to_s,
+                         'height' => (radius * 2).to_s,
+                         'rx' => '10'
+                       }
+                     else
+                       {
+                         'class' => shape_class,
+                         'cx' => position[:x].to_s,
+                         'cy' => position[:y].to_s,
+                         'r' => radius.to_s
+                       }
+                     end
         style = css_style(state[:style])
         attributes['style'] = style unless style.empty?
         attributes

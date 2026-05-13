@@ -36,7 +36,7 @@ automaton = Graphomaton.new
 automaton.add_state('q0')
 automaton.add_state('q1')
 automaton.add_state('q2')
-automaton.add_state('q_named', label: 'Named State', style: { fill: '#fee2e2' }, metadata: { tooltip: 'Shown in SVG' })
+automaton.add_state('q_named', label: 'Named State', style: { fill: '#fee2e2' }, metadata: { tooltip: 'Shown in SVG' }, shape: :rounded_rect)
 
 # Set initial and final states
 automaton.set_initial('q0')
@@ -132,6 +132,7 @@ automaton.save_svg('diagram.svg', 800, 600, highlight_transitions: [{ from: 'q0'
 automaton.save_svg('diagram.svg', 800, 600, xml_declaration: true)
 automaton.save_svg('diagram.svg', 800, 600, loop_position: :right)
 automaton.save_svg('diagram.svg', 800, 600, edge_style: :orthogonal)
+automaton.save_svg('diagram.svg', 800, 600, state_shape: :ellipse)
 ```
 
 #### 2. PNG

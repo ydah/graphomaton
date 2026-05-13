@@ -56,12 +56,13 @@ RSpec.describe Graphomaton do
     end
 
     it 'supports optional display label, style, and metadata' do
-      automaton.add_state('q0', label: 'Start', style: { fill: '#fee2e2' }, metadata: { role: 'entry' })
+      automaton.add_state('q0', label: 'Start', style: { fill: '#fee2e2' }, metadata: { role: 'entry' }, shape: :ellipse)
 
       expect(automaton.states['q0']).to include(
         label: 'Start',
         style: { fill: '#fee2e2' },
-        metadata: { role: 'entry' }
+        metadata: { role: 'entry' },
+        shape: :ellipse
       )
     end
   end
@@ -616,6 +617,18 @@ RSpec.describe Graphomaton do
       title = REXML::XPath.first(doc, '//g[@id="state-q0"]/title')
 
       expect(title.text).to eq('Entry point')
+    end
+
+    it 'supports global and per-state SVG shapes' do
+      local = described_class.new
+      local.add_state('q0')
+      local.add_state('q1', shape: :rounded_rect)
+
+      svg_output = local.to_svg(state_shape: :ellipse)
+      doc = REXML::Document.new(svg_output)
+
+      expect(REXML::XPath.first(doc, '//g[@id="state-q0"]/ellipse')).not_to be_nil
+      expect(REXML::XPath.first(doc, '//g[@id="state-q1"]/rect')).not_to be_nil
     end
 
     it 'creates double circle for final states' do

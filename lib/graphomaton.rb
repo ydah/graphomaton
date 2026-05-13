@@ -38,12 +38,13 @@ class Graphomaton
     @manual_states = {}
   end
 
-  def add_state(name, x = nil, y = nil, label: nil, style: nil, metadata: nil)
+  def add_state(name, x = nil, y = nil, label: nil, style: nil, metadata: nil, shape: nil)
     @manual_states[name] = !x.nil? && !y.nil?
     state = { name: name, x: x, y: y }
     state[:label] = label unless label.nil?
     state[:style] = style unless style.nil?
     state[:metadata] = metadata unless metadata.nil?
+    state[:shape] = shape unless shape.nil?
     @states[name] = state
     name
   end
@@ -708,6 +709,7 @@ class Graphomaton
 
   def to_svg(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
              layout: :linear, direction: :lr, responsive: false, state_radius: DEFAULT_STATE_RADIUS,
+             state_shape: Exporters::Svg::DEFAULT_STATE_SHAPE,
              padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
              force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil, auto_size: false,
              arrow_size: Exporters::Svg::DEFAULT_ARROW_SIZE,
@@ -732,6 +734,7 @@ class Graphomaton
       direction: direction,
       responsive: responsive,
       state_radius: state_radius,
+      state_shape: state_shape,
       padding: padding,
       node_spacing: node_spacing,
       rank_spacing: rank_spacing,
@@ -761,6 +764,7 @@ class Graphomaton
 
   def save_svg(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
                layout: :linear, direction: :lr, responsive: false, state_radius: DEFAULT_STATE_RADIUS,
+               state_shape: Exporters::Svg::DEFAULT_STATE_SHAPE,
                padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil, auto_size: false,
                arrow_size: Exporters::Svg::DEFAULT_ARROW_SIZE,
@@ -787,6 +791,7 @@ class Graphomaton
         direction: direction,
         responsive: responsive,
         state_radius: state_radius,
+        state_shape: state_shape,
         padding: padding,
         node_spacing: node_spacing,
         rank_spacing: rank_spacing,
