@@ -159,6 +159,7 @@ automaton.save_svg(
 `initial_position` accepts `:auto` and `:start`. `:start` places the initial state near the start side of the layout.
 `final_position` accepts `:auto` and `:end`. `:end` moves final states toward the end side of the layout.
 `layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`, `:bfs`, `:force`, `:manual`.
+`preserve_manual_positions: false` lets automatic layouts reposition states that were added with explicit coordinates.
 `auto_size` expands SVG viewport automatically to the rendered positions when set to `true`.
 `arrow_size` controls SVG arrowhead size.
 `arrow_shape` accepts `:triangle`, `:vee`, and `:stealth`.

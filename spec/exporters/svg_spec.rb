@@ -225,6 +225,19 @@ RSpec.describe Graphomaton::Exporters::Svg do
 
         expect(circles.first.attributes['r'].to_f).to eq(22.0)
       end
+
+      it 'can render without preserving manual state positions' do
+        manual = Graphomaton.new
+        manual.add_state('A', 10, 10)
+        manual.add_state('B')
+        manual.set_initial('A')
+
+        svg_output = described_class.new(manual).export(800, 600, preserve_manual_positions: false)
+        doc = REXML::Document.new(svg_output)
+        state_a = REXML::XPath.first(doc, '//g[@id="state-a"]/circle')
+
+        expect(state_a.attributes['cx'].to_f).not_to eq(10.0)
+      end
     end
 
     context 'with skip states transitions' do

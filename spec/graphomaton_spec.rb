@@ -389,6 +389,15 @@ RSpec.describe Graphomaton do
         expect(automaton.states['q3'][:y]).to eq(400)
       end
 
+      it 'can include manual coordinates in automatic layout when requested' do
+        automaton.add_state('q3', 500, 400)
+
+        automaton.auto_layout(800, 600, preserve_manual_positions: false)
+
+        expect(automaton.states['q3'][:x]).not_to eq(500)
+        expect(automaton.states['q3'][:y]).to eq(300.0)
+      end
+
       it 'distributes states horizontally' do
         automaton.auto_layout(800, 600)
         y_values = automaton.states.values.map { |s| s[:y] }
@@ -548,6 +557,19 @@ RSpec.describe Graphomaton do
         expect(automaton.states['q0'][:x]).to eq(70)
         expect(automaton.states['q0'][:y]).to eq(120)
         expect(first).not_to eq(second)
+      end
+
+      it 'can calculate render-only positions without preserving manual coordinates' do
+        automaton = described_class.new
+        automaton.add_state('q0', 70, 120)
+        automaton.add_state('q1')
+        automaton.set_initial('q0')
+
+        positions = automaton.layout_positions(800, 600, preserve_manual_positions: false)
+
+        expect(positions['q0'][:x]).not_to eq(70)
+        expect(automaton.states['q0'][:x]).to eq(70)
+        expect(automaton.states['q0'][:y]).to eq(120)
       end
 
       it 'keeps auto layout non-destructive for render-only operations' do

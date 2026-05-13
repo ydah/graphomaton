@@ -15,6 +15,7 @@ class Graphomaton
   DEFAULT_NODE_SPACING = 120
   DEFAULT_RANK_SPACING = 120
   DEFAULT_FORCE_ITERATIONS = 120
+  DEFAULT_PRESERVE_MANUAL_POSITIONS = true
   LAYOUT_OPTIONS = %i[linear circle grid layered bfs force manual].freeze
   DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
   INITIAL_POSITION_OPTIONS = %i[auto start].freeze
@@ -281,7 +282,8 @@ class Graphomaton
                       state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
                       node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                       force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
-                      initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION)
+                      initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
+                      preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS)
     positions = layout_positions(
       width,
       height,
@@ -294,7 +296,8 @@ class Graphomaton
       force_iterations: force_iterations,
       layout_seed: layout_seed,
       initial_position: initial_position,
-      final_position: final_position
+      final_position: final_position,
+      preserve_manual_positions: preserve_manual_positions
     )
 
     canvas_warnings(positions, width, height, state_radius)
@@ -304,7 +307,8 @@ class Graphomaton
                       state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
                       node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                       force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
-                      initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION)
+                      initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
+                      preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS)
     return {} if @states.empty?
 
     resolved_layout = resolve_layout(layout)
@@ -314,6 +318,7 @@ class Graphomaton
     resolved_padding = [padding.to_f, 0].max
     resolved_node_spacing = [node_spacing.to_f, (state_radius * 2.5)].max
     resolved_rank_spacing = [rank_spacing.to_f, (state_radius * 2.5)].max
+    effective_preserve_manual_positions = preserve_manual_positions || resolved_layout == :manual
     ordered_states = ordered_state_names
 
     manual_positions = {}
@@ -321,7 +326,7 @@ class Graphomaton
 
     ordered_states.each do |name|
       state = @states[name]
-      if manual_position?(name)
+      if effective_preserve_manual_positions && manual_position?(name)
         manual_positions[name] = { x: state[:x], y: state[:y] }
       else
         auto_states << name
@@ -389,13 +394,17 @@ class Graphomaton
                  state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
                  node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                  force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
-                 initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION)
+                 initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
+                 preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS)
     return if @states.empty?
+
+    resolved_layout = resolve_layout(layout)
+    effective_preserve_manual_positions = preserve_manual_positions || resolved_layout == :manual
 
     layout_positions(
       width,
       height,
-      layout: layout,
+      layout: resolved_layout,
       direction: direction,
       state_radius: state_radius,
       padding: padding,
@@ -404,10 +413,11 @@ class Graphomaton
       force_iterations: force_iterations,
       layout_seed: layout_seed,
       initial_position: initial_position,
-      final_position: final_position
+      final_position: final_position,
+      preserve_manual_positions: effective_preserve_manual_positions
     ).each do |name, position|
       state = @states[name]
-      next if manual_position?(name)
+      next if effective_preserve_manual_positions && manual_position?(name)
 
       state[:x] = position[:x]
       state[:y] = position[:y]
@@ -954,6 +964,7 @@ class Graphomaton
              loop_position: Exporters::Svg::DEFAULT_LOOP_POSITION,
              edge_style: Exporters::Svg::DEFAULT_EDGE_STYLE,
              show_final_arrows: Exporters::Svg::DEFAULT_SHOW_FINAL_ARROWS,
+             preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
              title: nil, description: nil)
     Exporters::Svg.new(self).export(
       width,
@@ -999,6 +1010,7 @@ class Graphomaton
       loop_position: loop_position,
       edge_style: edge_style,
       show_final_arrows: show_final_arrows,
+      preserve_manual_positions: preserve_manual_positions,
       wrap: wrap,
       max_transition_label_width: max_transition_label_width,
       state_wrap: state_wrap,
@@ -1053,6 +1065,7 @@ class Graphomaton
                loop_position: Exporters::Svg::DEFAULT_LOOP_POSITION,
                edge_style: Exporters::Svg::DEFAULT_EDGE_STYLE,
                show_final_arrows: Exporters::Svg::DEFAULT_SHOW_FINAL_ARROWS,
+               preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
                title: nil, description: nil)
     File.write(
       filename,
@@ -1100,6 +1113,7 @@ class Graphomaton
         loop_position: loop_position,
         edge_style: edge_style,
         show_final_arrows: show_final_arrows,
+        preserve_manual_positions: preserve_manual_positions,
         wrap: wrap,
         max_transition_label_width: max_transition_label_width,
         state_wrap: state_wrap,
