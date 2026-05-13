@@ -129,6 +129,7 @@ automaton.save_svg(
 `arrow_size` controls SVG arrowhead size.
 `arrow_shape` accepts `:triangle`, `:vee`, and `:stealth`.
 `initial_arrow_length` and `initial_arrow_label` control the native SVG initial arrow.
+`final_arrow_length` and `final_arrow_label` control optional native SVG final arrows.
 `force` accepts optional tuning keys `padding`, `node_spacing`, `rank_spacing`, `force_iterations`, and `layout_seed`.
 
 You can also control label display behavior:

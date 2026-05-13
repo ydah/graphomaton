@@ -42,6 +42,8 @@ class Graphomaton
       DEFAULT_ARROW_SHAPE = :triangle
       DEFAULT_INITIAL_ARROW_LENGTH = 30
       DEFAULT_INITIAL_ARROW_LABEL = 'start'
+      DEFAULT_FINAL_ARROW_LENGTH = 32
+      DEFAULT_FINAL_ARROW_LABEL = 'final'
       DEFAULT_INITIAL_POSITION = :auto
       DEFAULT_FINAL_POSITION = :auto
       DEFAULT_AUTO_SIZE = false
@@ -143,6 +145,8 @@ class Graphomaton
                  arrow_shape: DEFAULT_ARROW_SHAPE,
                  initial_arrow_length: DEFAULT_INITIAL_ARROW_LENGTH,
                  initial_arrow_label: DEFAULT_INITIAL_ARROW_LABEL,
+                 final_arrow_length: DEFAULT_FINAL_ARROW_LENGTH,
+                 final_arrow_label: DEFAULT_FINAL_ARROW_LABEL,
                  initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
                  label_background: DEFAULT_LABEL_BACKGROUND,
@@ -170,6 +174,8 @@ class Graphomaton
         @arrow_shape = resolve_arrow_shape(arrow_shape)
         @initial_arrow_length = [initial_arrow_length.to_f, 1.0].max
         @initial_arrow_label = initial_arrow_label
+        @final_arrow_length = [final_arrow_length.to_f, 1.0].max
+        @final_arrow_label = final_arrow_label
         @auto_dark_theme = false
         @theme = resolve_theme(theme)
         @layout = resolve_layout(layout)
@@ -1168,13 +1174,15 @@ class Graphomaton
                                    'x2' => x2.to_s,
                                    'y2' => y2.to_s
                                  })
+          next if @final_arrow_label.nil?
+
           label = final_node.add_element('text', {
                                           'class' => 'transition-label',
                                           'x' => label_x.to_s,
                                           'y' => label_y.to_s,
                                           'text-anchor' => anchor
                                         })
-          label.text = 'final'
+          label.text = @final_arrow_label
         end
       end
 
@@ -1182,7 +1190,7 @@ class Graphomaton
         x = state[:x].to_f
         y = state[:y].to_f
         radius = @state_radius
-        length = 32
+        length = @final_arrow_length
 
         case @direction
         when :rl

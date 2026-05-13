@@ -825,6 +825,16 @@ RSpec.describe Graphomaton do
       expect(final_label).not_to be_nil
     end
 
+    it 'supports final arrow length and label options' do
+      svg_output = automaton.to_svg(show_final_arrows: true, final_arrow_length: 44, final_arrow_label: 'done')
+      doc = REXML::Document.new(svg_output)
+      final_arrow = REXML::XPath.first(doc, '//line[@class="final-arrow"]')
+      label = REXML::XPath.match(doc, '//text[@class="transition-label"]').find { |node| node.text == 'done' }
+
+      expect(final_arrow.attributes['x2'].to_f - final_arrow.attributes['x1'].to_f).to eq(44.0)
+      expect(label).not_to be_nil
+    end
+
     it 'creates paths for transitions' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)
