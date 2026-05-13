@@ -128,6 +128,7 @@ automaton.save_svg(
 `auto_size` expands SVG viewport automatically to the rendered positions when set to `true`.
 `arrow_size` controls SVG arrowhead size.
 `arrow_shape` accepts `:triangle`, `:vee`, and `:stealth`.
+`initial_arrow_length` and `initial_arrow_label` control the native SVG initial arrow.
 `force` accepts optional tuning keys `padding`, `node_spacing`, `rank_spacing`, `force_iterations`, and `layout_seed`.
 
 You can also control label display behavior:

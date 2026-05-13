@@ -805,6 +805,16 @@ RSpec.describe Graphomaton do
       expect(initial_arrow).not_to be_nil
     end
 
+    it 'supports initial arrow length and label options' do
+      svg_output = automaton.to_svg(initial_arrow_length: 48, initial_arrow_label: 'entry')
+      doc = REXML::Document.new(svg_output)
+      initial_arrow = REXML::XPath.first(doc, '//line[@class="initial-arrow"]')
+      label = REXML::XPath.match(doc, '//text[@class="transition-label"]').find { |node| node.text == 'entry' }
+
+      expect(initial_arrow.attributes['x2'].to_f - initial_arrow.attributes['x1'].to_f).to eq(48.0)
+      expect(label).not_to be_nil
+    end
+
     it 'can create final arrows' do
       svg_output = automaton.to_svg(show_final_arrows: true)
       doc = REXML::Document.new(svg_output)

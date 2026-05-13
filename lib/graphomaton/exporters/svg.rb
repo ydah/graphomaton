@@ -40,6 +40,8 @@ class Graphomaton
       DEFAULT_FORCE_ITERATIONS = 120
       DEFAULT_ARROW_SIZE = 10
       DEFAULT_ARROW_SHAPE = :triangle
+      DEFAULT_INITIAL_ARROW_LENGTH = 30
+      DEFAULT_INITIAL_ARROW_LABEL = 'start'
       DEFAULT_INITIAL_POSITION = :auto
       DEFAULT_FINAL_POSITION = :auto
       DEFAULT_AUTO_SIZE = false
@@ -139,6 +141,8 @@ class Graphomaton
                  force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil, auto_size: DEFAULT_AUTO_SIZE,
                  arrow_size: DEFAULT_ARROW_SIZE,
                  arrow_shape: DEFAULT_ARROW_SHAPE,
+                 initial_arrow_length: DEFAULT_INITIAL_ARROW_LENGTH,
+                 initial_arrow_label: DEFAULT_INITIAL_ARROW_LABEL,
                  initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
                  label_background: DEFAULT_LABEL_BACKGROUND,
@@ -164,6 +168,8 @@ class Graphomaton
         @transition_stroke_width = [transition_stroke_width.to_f, 0.1].max
         @arrow_size = [arrow_size.to_f, 1.0].max
         @arrow_shape = resolve_arrow_shape(arrow_shape)
+        @initial_arrow_length = [initial_arrow_length.to_f, 1.0].max
+        @initial_arrow_label = initial_arrow_label
         @auto_dark_theme = false
         @theme = resolve_theme(theme)
         @layout = resolve_layout(layout)
@@ -1123,21 +1129,25 @@ class Graphomaton
                                          'data-to' => @automaton.initial_state.to_s
                                        })
 
+        arrow_end_x = init[:x] - 30
+        arrow_start_x = arrow_end_x - @initial_arrow_length
         initial_node.add_element('line', {
                                    'class' => 'initial-arrow',
-                                   'x1' => (init[:x] - 60).to_s,
+                                   'x1' => arrow_start_x.to_s,
                                    'y1' => init[:y].to_s,
-                                   'x2' => (init[:x] - 30).to_s,
+                                   'x2' => arrow_end_x.to_s,
                                    'y2' => init[:y].to_s
                                  })
 
+        return if @initial_arrow_label.nil?
+
         start_label = initial_node.add_element('text', {
                                                 'class' => 'transition-label',
-                                                'x' => (init[:x] - 70).to_s,
+                                                'x' => (arrow_start_x - 10).to_s,
                                                 'y' => (init[:y] - 10).to_s,
                                                 'text-anchor' => 'end'
                                               })
-        start_label.text = 'start'
+        start_label.text = @initial_arrow_label
       end
 
       def add_final_arrows(svg)
