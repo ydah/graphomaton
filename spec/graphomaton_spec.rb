@@ -478,6 +478,15 @@ RSpec.describe Graphomaton do
       expect(style.text).to include('vector-effect: non-scaling-stroke')
     end
 
+    it 'includes rendering hints for SVG shapes and text' do
+      svg_output = automaton.to_svg
+      doc = REXML::Document.new(svg_output)
+      style = REXML::XPath.first(doc, '//style')
+
+      expect(style.text).to include('shape-rendering: geometricPrecision')
+      expect(style.text).to include('text-rendering: geometricPrecision')
+    end
+
     it 'groups transitions and states for SVG styling' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)
