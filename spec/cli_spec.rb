@@ -133,6 +133,8 @@ RSpec.describe 'graphomaton CLI' do
         '--responsive',
         '--state-radius',
         '22',
+        '--fit',
+        'contain',
         '--no-preserve-manual-positions'
       )
 
