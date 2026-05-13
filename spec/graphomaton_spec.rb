@@ -793,6 +793,21 @@ RSpec.describe Graphomaton do
       expect(title.text).to eq('Entry point')
     end
 
+    it 'can use full labels as SVG tooltips' do
+      local = described_class.new
+      local.add_state('q0', label: 'A very long state label')
+      local.add_state('q1')
+      local.add_transition('q0', 'q1', 'a very long transition label')
+
+      svg_output = local.to_svg(label_tooltips: true)
+      doc = REXML::Document.new(svg_output)
+      state_title = REXML::XPath.first(doc, '//g[@id="state-q0"]/title')
+      transition_title = REXML::XPath.first(doc, '//g[@id="transition-q0-q1-a-very-long-transition-label"]/title')
+
+      expect(state_title.text).to eq('A very long state label')
+      expect(transition_title.text).to eq('a very long transition label')
+    end
+
     it 'uses state metadata URL as an SVG link' do
       local = described_class.new
       local.add_state('docs', metadata: { url: 'https://example.com/docs', tooltip: 'Docs' })

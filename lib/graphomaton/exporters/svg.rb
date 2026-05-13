@@ -16,6 +16,7 @@ class Graphomaton
       DEFAULT_MERGE_PARALLEL_TRANSITIONS = true
       DEFAULT_WRAP = false
       DEFAULT_SORT_LABELS = false
+      DEFAULT_LABEL_TOOLTIPS = false
       DEFAULT_LABEL_BACKGROUND = true
       DEFAULT_LABEL_BORDER = false
       DEFAULT_LABEL_PADDING = 10
@@ -140,6 +141,7 @@ class Graphomaton
                  wrap: DEFAULT_WRAP, max_transition_label_width: DEFAULT_MAX_LABEL_WIDTH,
                  state_wrap: DEFAULT_STATE_WRAP, max_state_label_width: DEFAULT_MAX_STATE_LABEL_WIDTH,
                  sort_labels: DEFAULT_SORT_LABELS,
+                 label_tooltips: DEFAULT_LABEL_TOOLTIPS,
                  font_family: DEFAULT_FONT_FAMILY,
                  state_font_weight: DEFAULT_STATE_FONT_WEIGHT,
                  transition_font_weight: DEFAULT_TRANSITION_FONT_WEIGHT,
@@ -214,6 +216,7 @@ class Graphomaton
         @max_state_label_width = max_state_label_width
         @max_transition_label_width = max_transition_label_width
         @sort_labels = sort_labels
+        @label_tooltips = label_tooltips
         @font_family = font_family
         @state_font_weight = state_font_weight
         @transition_font_weight = transition_font_weight
@@ -1248,7 +1251,7 @@ class Graphomaton
           lines = state_label_lines(label)
           position = state_position(name) || state
           state_node = svg.add_element('g', state_group_attributes(name))
-          add_state_tooltip(state_node, state)
+          add_state_tooltip(state_node, state, label)
           state_content = state_link_container(state_node, state)
           shape = state_shape(state)
           circle_class = 'state-circle'
@@ -1298,8 +1301,8 @@ class Graphomaton
         resolve_state_shape(state[:shape])
       end
 
-      def add_state_tooltip(state_node, state)
-        tooltip = state_tooltip(state)
+      def add_state_tooltip(state_node, state, label)
+        tooltip = state_tooltip(state, label)
         return unless tooltip
 
         title = state_node.add_element('title')
@@ -1324,11 +1327,16 @@ class Graphomaton
         metadata[:url] || metadata['url'] || metadata[:href] || metadata['href']
       end
 
-      def state_tooltip(state)
+      def state_tooltip(state, label)
         metadata = state[:metadata]
-        return nil unless metadata.is_a?(Hash)
+        if metadata.is_a?(Hash)
+          tooltip = metadata[:tooltip] || metadata['tooltip'] || metadata[:description] || metadata['description']
+          return tooltip if tooltip
+        end
 
-        metadata[:tooltip] || metadata['tooltip'] || metadata[:description] || metadata['description']
+        return nil unless @label_tooltips
+
+        label.to_s
       end
 
       def state_shape_element(shape)
@@ -1450,9 +1458,14 @@ class Graphomaton
 
       def transition_tooltip(transition)
         metadata = transition[:metadata]
-        return nil unless metadata.is_a?(Hash)
+        if metadata.is_a?(Hash)
+          tooltip = metadata[:tooltip] || metadata['tooltip'] || metadata[:description] || metadata['description']
+          return tooltip if tooltip
+        end
 
-        metadata[:tooltip] || metadata['tooltip'] || metadata[:description] || metadata['description']
+        return nil unless @label_tooltips
+
+        transition[:label].to_s
       end
 
       def highlighted_transition?(transition)
