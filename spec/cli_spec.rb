@@ -102,6 +102,49 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'passes SVG layout options through the CLI' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+              initial: true
+              x: 10
+              y: 10
+            - id: q1
+              final: true
+          transitions:
+            - from: q0
+              to: q1
+              label: a
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--responsive',
+        '--state-radius',
+        '22',
+        '--no-preserve-manual-positions'
+      )
+
+      content = File.read(output)
+      expect(status).to be_success, stderr
+      expect(content).to include("width='100%'")
+      expect(content).to include("height='auto'")
+      expect(content).to include("r='22.0'")
+      expect(content).not_to include("cx='10'")
+    end
+  end
+
   it 'passes Mermaid HTML options through the CLI' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
