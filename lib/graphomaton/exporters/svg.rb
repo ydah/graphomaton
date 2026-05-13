@@ -544,10 +544,14 @@ class Graphomaton
                                   'y' => (box[:y] + 12).to_s,
                                   'text-anchor' => 'middle'
                                 })
-        lines.each_with_index do |line, index|
-          tspan = label.add_element('tspan', { 'x' => x.to_s })
-          tspan.text = line
-          tspan.attributes['dy'] = index.zero? ? '0' : '16'
+        if lines.size == 1
+          label.text = lines.first
+        else
+          lines.each_with_index do |line, index|
+            tspan = label.add_element('tspan', { 'x' => x.to_s })
+            tspan.text = line
+            tspan.attributes['dy'] = index.zero? ? '0' : '16'
+          end
         end
       end
 
