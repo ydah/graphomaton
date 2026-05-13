@@ -11,6 +11,7 @@ class Graphomaton
       DEFAULT_DIRECTION = :lr
       DEFAULT_MERGE_PARALLEL_TRANSITIONS = true
       DEFAULT_WRAP = false
+      DEFAULT_LABEL_BACKGROUND = true
       DEFAULT_PADDING = 80
       DEFAULT_NODE_SPACING = 120
       DEFAULT_RANK_SPACING = 120
@@ -95,6 +96,7 @@ class Graphomaton
                  arrow_size: DEFAULT_ARROW_SIZE,
                  initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
+                 label_background: DEFAULT_LABEL_BACKGROUND,
                  title: nil, description: nil)
         @state_radius = state_radius.to_f
         @arrow_size = [arrow_size.to_f, 1.0].max
@@ -102,6 +104,7 @@ class Graphomaton
         @layout = resolve_layout(layout)
         @direction = resolve_direction(direction)
         @merge_parallel_transitions = merge_parallel_transitions
+        @label_background = label_background
         @padding = padding
         @node_spacing = node_spacing
         @rank_spacing = rank_spacing
@@ -408,14 +411,16 @@ class Graphomaton
 
         text_width = calculate_text_width(trans[:label])
         label_y_shift = loop_offset * (loop_index.odd? ? -1 : 1)
-        transition_node.add_element('rect', {
-                                      'class' => 'label-bg',
-                                      'x' => (cx + loop_specs[:label_offset][:x] - (text_width / 2)).to_s,
-                                      'y' => (cy + loop_specs[:label_offset][:y] - 5 + label_y_shift).to_s,
-                                      'width' => text_width.to_s,
-                                      'height' => '20',
-                                      'rx' => '3'
-                                    })
+        if @label_background
+          transition_node.add_element('rect', {
+                                        'class' => 'label-bg',
+                                        'x' => (cx + loop_specs[:label_offset][:x] - (text_width / 2)).to_s,
+                                        'y' => (cy + loop_specs[:label_offset][:y] - 5 + label_y_shift).to_s,
+                                        'width' => text_width.to_s,
+                                        'height' => '20',
+                                        'rx' => '3'
+                                      })
+        end
 
         label = transition_node.add_element('text', {
                                              'class' => 'transition-label',
@@ -764,14 +769,16 @@ class Graphomaton
         box = collision_free_label_box(base_box)
         @label_boxes << box
 
-        svg.add_element('rect', {
-                          'class' => 'label-bg',
-                          'x' => box[:x].to_s,
-                          'y' => box[:y].to_s,
-                          'width' => box[:width].to_s,
-                          'height' => box[:height].to_s,
-                          'rx' => '3'
-                        })
+        if @label_background
+          svg.add_element('rect', {
+                            'class' => 'label-bg',
+                            'x' => box[:x].to_s,
+                            'y' => box[:y].to_s,
+                            'width' => box[:width].to_s,
+                            'height' => box[:height].to_s,
+                            'rx' => '3'
+                          })
+        end
 
         label = svg.add_element('text', {
                                   'class' => 'transition-label',

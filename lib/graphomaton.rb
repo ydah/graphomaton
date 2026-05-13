@@ -623,7 +623,9 @@ class Graphomaton
              initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
              merge_parallel_transitions: true, wrap: Exporters::Svg::DEFAULT_WRAP,
              max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, state_wrap: false,
-             max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH, title: nil, description: nil)
+             max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH,
+             label_background: Exporters::Svg::DEFAULT_LABEL_BACKGROUND,
+             title: nil, description: nil)
     Exporters::Svg.new(self).export(
       width,
       height,
@@ -642,6 +644,7 @@ class Graphomaton
       initial_position: initial_position,
       final_position: final_position,
       merge_parallel_transitions: merge_parallel_transitions,
+      label_background: label_background,
       wrap: wrap,
       max_transition_label_width: max_transition_label_width,
       state_wrap: state_wrap,
@@ -659,7 +662,9 @@ class Graphomaton
                initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                merge_parallel_transitions: true, wrap: Exporters::Svg::DEFAULT_WRAP,
                max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, state_wrap: false,
-               max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH, title: nil, description: nil)
+               max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH,
+               label_background: Exporters::Svg::DEFAULT_LABEL_BACKGROUND,
+               title: nil, description: nil)
     File.write(
       filename,
       to_svg(
@@ -680,6 +685,7 @@ class Graphomaton
         initial_position: initial_position,
         final_position: final_position,
         merge_parallel_transitions: merge_parallel_transitions,
+        label_background: label_background,
         wrap: wrap,
         max_transition_label_width: max_transition_label_width,
         state_wrap: state_wrap,

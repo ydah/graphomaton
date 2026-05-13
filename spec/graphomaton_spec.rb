@@ -546,6 +546,14 @@ RSpec.describe Graphomaton do
       expect(labels.map(&:text)).to include('a', 'b')
     end
 
+    it 'can hide transition label backgrounds' do
+      svg_output = automaton.to_svg(label_background: false)
+      doc = REXML::Document.new(svg_output)
+
+      expect(REXML::XPath.match(doc, '//rect[@class="label-bg"]')).to be_empty
+      expect(REXML::XPath.match(doc, '//text[@class="transition-label"]')).not_to be_empty
+    end
+
     it 'supports force layout' do
       svg_output = automaton.to_svg(800, 600, layout: :force)
       doc = REXML::Document.new(svg_output)
