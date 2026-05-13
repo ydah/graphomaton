@@ -15,12 +15,12 @@ RSpec.describe Graphomaton::Exporters::Svg do
   describe '#export' do
     context 'with empty automaton' do
       it 'generates valid SVG' do
-        svg_output = svg_exporter.export
+        svg_output = svg_exporter.export(merge_parallel_transitions: false)
         expect { REXML::Document.new(svg_output) }.not_to raise_error
       end
 
       it 'uses default dimensions' do
-        svg_output = svg_exporter.export
+        svg_output = svg_exporter.export(merge_parallel_transitions: false)
         doc = REXML::Document.new(svg_output)
         svg = doc.root
         expect(svg.attributes['width']).to eq('800')
@@ -272,6 +272,43 @@ RSpec.describe Graphomaton::Exporters::Svg do
       end
     end
 
+    context 'with multiple self-loops' do
+      before do
+        automaton.add_state('B')
+        automaton.add_transition('B', 'B', 'loop-right')
+        automaton.add_transition('B', 'B', 'loop-bottom')
+        automaton.add_transition('B', 'B', 'loop-left')
+        automaton.add_transition('B', 'B', 'loop-top')
+      end
+
+      it 'distributes loops around state' do
+        svg_output = svg_exporter.export(merge_parallel_transitions: false)
+        doc = REXML::Document.new(svg_output)
+        paths = REXML::XPath.match(doc, '//path[@class="transition-line"]')
+
+        expect(paths.select { |p| p.attributes['d'].include?('C') }.size).to eq(4)
+
+        labels = REXML::XPath.match(doc, '//text[@class="transition-label"]')
+        loop_labels = labels.select { |label| label.text&.start_with?('loop') }
+        x_positions = loop_labels.map { |label| label.attributes['x'].to_f }
+        y_positions = loop_labels.map { |label| label.attributes['y'].to_f }
+
+        expect(x_positions.uniq.size).to be > 1
+        expect(y_positions.uniq.size).to be > 1
+      end
+
+      it 'merges parallel self-loops by default' do
+        svg_output = svg_exporter.export
+        doc = REXML::Document.new(svg_output)
+        paths = REXML::XPath.match(doc, '//path[@class="transition-line"]')
+        self_loop_labels = REXML::XPath.match(doc, '//text[@class="transition-label"]')
+
+        expect(paths.select { |path| path.attributes['d'].include?('C') }.size).to eq(1)
+        merged_labels = self_loop_labels.map(&:text).join(',')
+        expect(merged_labels).to include('loop-right', 'loop-bottom', 'loop-left', 'loop-top')
+      end
+    end
+
     context 'with long state names' do
       before do
         automaton.add_state('VeryLongStateName')
@@ -447,6 +484,7 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(height).to eq(20)
       end
     end
+  end
 
   context 'with transition label wrapping' do
     before do
@@ -464,5 +502,19 @@ RSpec.describe Graphomaton::Exporters::Svg do
       expect(has_wrapped_label).to be true
     end
   end
+
+  describe '#collision_free_label_box' do
+    it 'adjusts box position when overlap is detected' do
+      svg_exporter.send(:instance_variable_set, :@label_boxes, [
+        { x: 10.0, y: 10.0, width: 80.0, height: 20.0 }
+      ])
+      svg_exporter.send(:instance_variable_set, :@positions, {})
+
+      base_box = { x: 20.0, y: 15.0, width: 40.0, height: 20.0 }
+      resolved = svg_exporter.send(:collision_free_label_box, base_box)
+
+      moved = (resolved[:x] != base_box[:x]) || (resolved[:y] != base_box[:y])
+      expect(moved).to be true
+    end
   end
 end

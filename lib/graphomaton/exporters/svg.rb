@@ -239,19 +239,26 @@ class Graphomaton
           to_state = state_position(first[:to])
           next if from_state.nil? || to_state.nil?
 
-          transition = first.dup
-          transition[:label] = merged_label(group)
+          if @merge_parallel_transitions || group.size == 1
+            transition = first.dup
+            transition[:label] = merged_label(group)
 
-          if from_state == to_state
-            loop_index = self_loop_indices[first[:from]]
-            self_loop_indices[first[:from]] += 1
-            add_self_loop(svg, from_state, transition, loop_index)
+            if from_state == to_state
+              loop_index = self_loop_indices[first[:from]]
+              self_loop_indices[first[:from]] += 1
+              add_self_loop(svg, from_state, transition, loop_index)
+            else
+              from_state_indices[first[:from]] = 0 unless from_state_indices.key?(first[:from])
+              from_state_index = from_state_indices[first[:from]]
+              from_state_indices[first[:from]] += 1
+
+              add_transition(svg, from_state, to_state, transition, processed_pairs, from_state_index)
+            end
           else
-            from_state_indices[first[:from]] = 0 unless from_state_indices.key?(first[:from])
-            from_state_index = from_state_indices[first[:from]]
-            from_state_indices[first[:from]] += 1
-
-            add_transition(svg, from_state, to_state, transition, processed_pairs, from_state_index)
+            group.each do |transition|
+              add_self_loop(svg, from_state, transition, self_loop_indices[first[:from]])
+              self_loop_indices[first[:from]] += 1
+            end
           end
         end
       end
@@ -281,14 +288,18 @@ class Graphomaton
       def add_self_loop(svg, state, trans, loop_index = 0)
         cx = state[:x]
         cy = state[:y]
+        orientation, layer = self_loop_placement(loop_index)
+        loop_specs = self_loop_specs(
+          orientation,
+          layer: layer,
+          loop_index: loop_index
+        )
 
-        loop_height = 80 + (loop_index * 24)
-        loop_width = 45 + (loop_index * 8)
-        loop_offset = loop_index * 8
-        angle_shift = loop_index * 4
-
-        start_angle = (-135 + angle_shift) * Math::PI / 180
-        end_angle = (-45 - angle_shift) * Math::PI / 180
+        loop_height = loop_specs[:loop_height]
+        loop_width = loop_specs[:loop_width]
+        loop_offset = loop_specs[:loop_offset]
+        start_angle = loop_specs[:start_angle] * Math::PI / 180
+        end_angle = loop_specs[:end_angle] * Math::PI / 180
         radius = @state_radius
 
         start_x = cx + (radius * Math.cos(start_angle))
@@ -296,10 +307,10 @@ class Graphomaton
         end_x = cx + (radius * Math.cos(end_angle))
         end_y = cy + (radius * Math.sin(end_angle))
 
-        control1_x = cx - loop_width + (loop_offset * (loop_index.even? ? -1 : 1))
-        control1_y = cy - loop_height + loop_offset
-        control2_x = cx + loop_width + (loop_offset * (loop_index.odd? ? -1 : 1))
-        control2_y = cy - loop_height + loop_offset
+        control1_x = cx + loop_specs[:control1][:x]
+        control1_y = cy + loop_specs[:control1][:y]
+        control2_x = cx + loop_specs[:control2][:x]
+        control2_y = cy + loop_specs[:control2][:y]
 
         path_d = "M #{start_x} #{start_y} C #{control1_x} #{control1_y}, #{control2_x} #{control2_y}, #{end_x} #{end_y}"
 
@@ -312,8 +323,8 @@ class Graphomaton
         label_y_shift = loop_offset * (loop_index.odd? ? -1 : 1)
         svg.add_element('rect', {
                           'class' => 'label-bg',
-                          'x' => (cx - (text_width / 2)).to_s,
-                          'y' => (cy - loop_height - 5 + label_y_shift).to_s,
+                          'x' => (cx + loop_specs[:label_offset][:x] - (text_width / 2)).to_s,
+                          'y' => (cy + loop_specs[:label_offset][:y] - 5 + label_y_shift).to_s,
                           'width' => text_width.to_s,
                           'height' => '20',
                           'rx' => '3'
@@ -321,11 +332,70 @@ class Graphomaton
 
         label = svg.add_element('text', {
                                   'class' => 'transition-label',
-                                  'x' => cx.to_s,
-                                  'y' => (cy - loop_height + 10 + label_y_shift).to_s,
+                                  'x' => (cx + loop_specs[:label_offset][:x]).to_s,
+                                  'y' => (cy + loop_specs[:label_offset][:y] + 10 + label_y_shift).to_s,
                                   'text-anchor' => 'middle'
                                 })
         label.text = trans[:label]
+      end
+
+      def self_loop_placement(loop_index)
+        orientations = %i[top right bottom left]
+        [orientations[loop_index % orientations.size], loop_index / orientations.size]
+      end
+
+      def self_loop_specs(orientation, layer:, loop_index:)
+        angle_shift = loop_index.even? ? 0 : 4
+        loop_height = (@state_radius * 2.0) + (layer * 20)
+        loop_width = @state_radius + 5 + (layer * 10)
+        loop_offset = layer * 8
+
+        case orientation
+        when :top
+          {
+            loop_height: loop_height,
+            loop_width: loop_width,
+            loop_offset: loop_offset,
+            start_angle: -145 + angle_shift,
+            end_angle: -35 - angle_shift,
+            control1: { x: -loop_width - loop_offset, y: -loop_height - loop_offset },
+            control2: { x: loop_width + loop_offset, y: -loop_height - loop_offset },
+            label_offset: { x: 0.0, y: -(loop_height + 8) }
+          }
+        when :right
+          {
+            loop_height: loop_height,
+            loop_width: loop_width,
+            loop_offset: loop_offset,
+            start_angle: -35 + angle_shift,
+            end_angle: 55 - angle_shift,
+            control1: { x: loop_height + loop_offset, y: -loop_width - loop_offset },
+            control2: { x: loop_height + loop_offset, y: loop_width + loop_offset },
+            label_offset: { x: loop_height + 10, y: 0.0 }
+          }
+        when :bottom
+          {
+            loop_height: loop_height,
+            loop_width: loop_width,
+            loop_offset: loop_offset,
+            start_angle: 35 + angle_shift,
+            end_angle: 145 - angle_shift,
+            control1: { x: -loop_width - loop_offset, y: loop_height + loop_offset },
+            control2: { x: loop_width + loop_offset, y: loop_height + loop_offset },
+            label_offset: { x: 0.0, y: loop_height + 8 }
+          }
+        else
+          {
+            loop_height: loop_height,
+            loop_width: loop_width,
+            loop_offset: loop_offset,
+            start_angle: 125 + angle_shift,
+            end_angle: 235 - angle_shift,
+            control1: { x: -(loop_height + loop_offset), y: -loop_width - loop_offset },
+            control2: { x: -(loop_height + loop_offset), y: loop_width + loop_offset },
+            label_offset: { x: -(loop_height + 10), y: 0.0 }
+          }
+        end
       end
 
       def transition_label_lines(label)
@@ -408,11 +478,31 @@ class Graphomaton
       def collision_free_label_box(base_box)
         box = base_box.dup
         attempts = 0
-        while (label_box_overlap?(box) || label_box_overlaps_state?(box)) && attempts < 24
-          box[:y] += 8
+        max_attempts = 32
+        while (label_box_overlap?(box) || label_box_overlaps_state?(box)) && attempts < max_attempts
+          offset_x, offset_y = label_box_offset(attempts)
+          box = {
+            x: base_box[:x] + offset_x,
+            y: base_box[:y] + offset_y,
+            width: base_box[:width],
+            height: base_box[:height]
+          }
           attempts += 1
         end
         box
+      end
+
+      def label_box_offset(attempt)
+        return [0, 0] if attempt.zero?
+
+        step = 8
+        directions = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+        ring = attempt / directions.size
+        index = attempt % directions.size
+        direction = directions[index]
+
+        multiplier = [1, ring + 1].max
+        [direction[0] * step * multiplier, direction[1] * step * multiplier]
       end
 
       def label_box_overlap?(box)
@@ -597,7 +687,7 @@ class Graphomaton
 
         label = svg.add_element('text', {
                                   'class' => 'transition-label',
-                                  'x' => x.to_s,
+                                  'x' => (box[:x] + (box[:width] / 2)).to_s,
                                   'y' => (box[:y] + 12).to_s,
                                   'text-anchor' => 'middle'
                                 })
@@ -605,7 +695,7 @@ class Graphomaton
           label.text = lines.first
         else
           lines.each_with_index do |line, index|
-            tspan = label.add_element('tspan', { 'x' => x.to_s })
+            tspan = label.add_element('tspan', { 'x' => (box[:x] + (box[:width] / 2)).to_s })
             tspan.text = line
             tspan.attributes['dy'] = index.zero? ? '0' : '16'
           end
