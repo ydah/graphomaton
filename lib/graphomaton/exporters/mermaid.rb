@@ -7,6 +7,7 @@ class Graphomaton
       DEFAULT_THEME = :default
       DEFAULT_CDN = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
       DEFAULT_LANG = 'ja'
+      DEFAULT_SHOW_SOURCE = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
 
       def initialize(automaton, direction: DEFAULT_DIRECTION)
@@ -34,7 +35,8 @@ class Graphomaton
         lines.join("\n")
       end
 
-      def export_html(theme: DEFAULT_THEME, cdn: DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil, lang: DEFAULT_LANG)
+      def export_html(theme: DEFAULT_THEME, cdn: DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil, lang: DEFAULT_LANG,
+                      show_source: DEFAULT_SHOW_SOURCE)
         mermaid_code = export
         title_text = title || '状態図 - Graphomaton'
         language = lang || DEFAULT_LANG
@@ -72,6 +74,13 @@ class Graphomaton
                       border-radius: 4px;
                       margin-bottom: 20px;
                   }
+                  pre.mermaid-source {
+                      background: #f8fafc;
+                      border: 1px solid #ddd;
+                      border-radius: 8px;
+                      overflow-x: auto;
+                      padding: 16px;
+                  }
               </style>
           </head>
           <body>
@@ -82,6 +91,7 @@ class Graphomaton
               <div class="mermaid">
           #{mermaid_code}
               </div>
+              #{source_block(mermaid_code, show_source: show_source)}
           </body>
           </html>
         HTML
@@ -128,6 +138,14 @@ class Graphomaton
         else
           raise ArgumentError, "Unable to inline Mermaid script from: #{path_or_url}"
         end
+      end
+
+      def source_block(mermaid_code, show_source:)
+        return '' unless show_source
+
+        <<~HTML
+          <pre class="mermaid-source"><code>#{escape_text(mermaid_code)}</code></pre>
+        HTML
       end
 
       def escape_attribute(text)

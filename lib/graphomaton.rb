@@ -793,19 +793,22 @@ class Graphomaton
   end
 
   def to_html(direction: Exporters::Mermaid::DEFAULT_DIRECTION, theme: Exporters::Mermaid::DEFAULT_THEME,
-              cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil, lang: Exporters::Mermaid::DEFAULT_LANG)
+              cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil,
+              lang: Exporters::Mermaid::DEFAULT_LANG, show_source: Exporters::Mermaid::DEFAULT_SHOW_SOURCE)
     Exporters::Mermaid.new(self, direction: direction).export_html(
       theme: theme,
       cdn: cdn,
       inline_mermaid: inline_mermaid,
       offline: offline,
       title: title,
-      lang: lang
+      lang: lang,
+      show_source: show_source
     )
   end
 
   def save_html(filename, direction: Exporters::Mermaid::DEFAULT_DIRECTION, theme: Exporters::Mermaid::DEFAULT_THEME,
-                cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil, lang: Exporters::Mermaid::DEFAULT_LANG)
+                cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil,
+                lang: Exporters::Mermaid::DEFAULT_LANG, show_source: Exporters::Mermaid::DEFAULT_SHOW_SOURCE)
     File.write(
       filename,
       to_html(
@@ -815,7 +818,8 @@ class Graphomaton
         inline_mermaid: inline_mermaid,
         offline: offline,
         title: title,
-        lang: lang
+        lang: lang,
+        show_source: show_source
       )
     )
   end

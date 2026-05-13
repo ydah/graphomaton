@@ -717,6 +717,13 @@ RSpec.describe Graphomaton do
       expect(html_output).to include('<script src="/assets/mermaid.min.js"></script>')
     end
 
+    it 'can include the Mermaid source code in HTML output' do
+      html_output = automaton.to_html(show_source: true)
+
+      expect(html_output).to include('class="mermaid-source"')
+      expect(html_output).to include('stateDiagram-v2')
+    end
+
     it 'saves HTML to file' do
       automaton.save_html(temp_file, theme: :forest, title: 'Saved')
       content = File.read(temp_file)
