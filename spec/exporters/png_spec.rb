@@ -6,6 +6,7 @@ RSpec.describe Graphomaton::Exporters::Png do
   let(:automaton) { Graphomaton.new }
   let(:png_exporter) { described_class.new(automaton) }
   let(:command) { ['rsvg-convert', '--format', 'png', '-'] }
+  let(:magick_command) { ['magick', 'svg:-', 'png:-'] }
   let(:png_data) { described_class::PNG_SIGNATURE + 'png-data'.b }
   let(:successful_status) { instance_double(Process::Status, success?: true) }
   let(:failed_status) { instance_double(Process::Status, success?: false) }
@@ -34,6 +35,12 @@ RSpec.describe Graphomaton::Exporters::Png do
 
       expect(described_class.available?).to be false
     end
+
+    it 'checks a specific converter when requested' do
+      allow(described_class).to receive(:available_command).with(converter: :magick).and_return(magick_command)
+
+      expect(described_class.available?(converter: :magick)).to be true
+    end
   end
 
   describe '#export' do
@@ -47,6 +54,15 @@ RSpec.describe Graphomaton::Exporters::Png do
         .and_return([png_data, '', successful_status])
 
       expect(png_exporter.export).to eq(png_data)
+    end
+
+    it 'uses a requested converter command' do
+      expect(png_exporter).to receive(:available_command).with(converter: :magick).and_return(magick_command)
+      expect(Open3).to receive(:capture3)
+        .with(*magick_command, stdin_data: a_string_including('<svg'), binmode: true)
+        .and_return([png_data, '', successful_status])
+
+      expect(png_exporter.export(converter: :magick)).to eq(png_data)
     end
 
     it 'passes custom dimensions to the SVG renderer' do
@@ -90,7 +106,16 @@ RSpec.describe Graphomaton::Exporters::Png do
 
       expect { png_exporter.export }.to raise_error(
         described_class::ConversionError,
-        /requires rsvg-convert, magick, or convert/
+        /requires rsvg-convert, magick, or convert.*brew install librsvg/
+      )
+    end
+
+    it 'raises a conversion error when a requested converter is unavailable' do
+      allow(png_exporter).to receive(:available_command).with(converter: :magick).and_return(nil)
+
+      expect { png_exporter.export(converter: :magick) }.to raise_error(
+        described_class::ConversionError,
+        /requires magick to be installed/
       )
     end
 

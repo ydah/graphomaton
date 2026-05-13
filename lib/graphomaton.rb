@@ -25,8 +25,8 @@ class Graphomaton
   DEFAULT_FINAL_POSITION = :auto
   attr_accessor :states, :transitions, :initial_state, :final_states
 
-  def self.png_available?
-    Exporters::Png.available?
+  def self.png_available?(converter: Exporters::Png::DEFAULT_CONVERTER)
+    Exporters::Png.available?(converter: converter)
   end
 
   def initialize
@@ -803,12 +803,14 @@ class Graphomaton
     )
   end
 
-  def to_png(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME, scale: Exporters::Png::DEFAULT_SCALE, **svg_options)
-    Exporters::Png.new(self).export(width, height, theme: theme, scale: scale, **svg_options)
+  def to_png(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
+             scale: Exporters::Png::DEFAULT_SCALE, converter: Exporters::Png::DEFAULT_CONVERTER, **svg_options)
+    Exporters::Png.new(self).export(width, height, theme: theme, scale: scale, converter: converter, **svg_options)
   end
 
-  def save_png(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME, scale: Exporters::Png::DEFAULT_SCALE, **svg_options)
-    File.binwrite(filename, to_png(width, height, theme: theme, scale: scale, **svg_options))
+  def save_png(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
+               scale: Exporters::Png::DEFAULT_SCALE, converter: Exporters::Png::DEFAULT_CONVERTER, **svg_options)
+    File.binwrite(filename, to_png(width, height, theme: theme, scale: scale, converter: converter, **svg_options))
   end
 
   def to_mermaid(direction: Exporters::Mermaid::DEFAULT_DIRECTION)

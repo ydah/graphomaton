@@ -11,28 +11,34 @@ class Graphomaton
 
       PNG_SIGNATURE = "\x89PNG\r\n\x1A\n".b.freeze
       DEFAULT_SCALE = 1.0
+      DEFAULT_CONVERTER = :auto
 
-      CONVERTER_COMMANDS = [
-        ['rsvg-convert', '--format', 'png', '-'],
-        ['magick', 'svg:-', 'png:-'],
-        ['convert', 'svg:-', 'png:-']
-      ].freeze
+      CONVERTER_COMMANDS = {
+        rsvg: ['rsvg-convert', '--format', 'png', '-'],
+        magick: ['magick', 'svg:-', 'png:-'],
+        convert: ['convert', 'svg:-', 'png:-']
+      }.freeze
+      CONVERTER_OPTIONS = ([:auto] + CONVERTER_COMMANDS.keys).freeze
 
-      def self.available?
-        !available_command.nil?
+      def self.available?(converter: DEFAULT_CONVERTER)
+        !available_command(converter: converter).nil?
       end
 
-      def self.available_command
-        CONVERTER_COMMANDS.find { |command| executable?(command.first) }
+      def self.available_command(converter: DEFAULT_CONVERTER)
+        resolved_converter = resolve_converter(converter)
+        return CONVERTER_COMMANDS[resolved_converter] if resolved_converter != :auto && executable?(CONVERTER_COMMANDS[resolved_converter].first)
+        return nil if resolved_converter != :auto
+
+        CONVERTER_COMMANDS.values.find { |command| executable?(command.first) }
       end
 
       def initialize(automaton)
         @automaton = automaton
       end
 
-      def export(width = 800, height = 600, theme: Svg::DEFAULT_THEME, scale: DEFAULT_SCALE, **svg_options)
-        command = available_command
-        raise ConversionError, missing_converter_message unless command
+      def export(width = 800, height = 600, theme: Svg::DEFAULT_THEME, scale: DEFAULT_SCALE, converter: DEFAULT_CONVERTER, **svg_options)
+        command = available_command(converter: converter)
+        raise ConversionError, missing_converter_message(converter) unless command
 
         resolved_scale = [scale.to_f, 0.1].max
         svg = Svg.new(@automaton).export(
@@ -52,8 +58,8 @@ class Graphomaton
 
       private
 
-      def available_command
-        self.class.available_command
+      def available_command(converter: DEFAULT_CONVERTER)
+        self.class.available_command(converter: converter)
       end
 
       def executable?(command)
@@ -67,6 +73,13 @@ class Graphomaton
         end
       end
 
+      def self.resolve_converter(converter)
+        resolved = converter.to_sym
+        return resolved if CONVERTER_OPTIONS.include?(resolved)
+
+        raise ArgumentError, "Unknown PNG converter: #{converter.inspect}. Available converters: #{CONVERTER_OPTIONS.join(', ')}"
+      end
+
       def scaled_dimension(value, scale)
         scaled = value.to_f * scale
         return scaled.to_i if scaled == scaled.to_i
@@ -78,8 +91,19 @@ class Graphomaton
         ENV.fetch('PATH', '').split(File::PATH_SEPARATOR)
       end
 
-      def missing_converter_message
-        'PNG export requires rsvg-convert, magick, or convert to be installed'
+      def missing_converter_message(converter)
+        resolved_converter = self.class.resolve_converter(converter)
+        required = if resolved_converter == :auto
+                     'rsvg-convert, magick, or convert'
+                   else
+                     CONVERTER_COMMANDS[resolved_converter].first
+                   end
+
+        "PNG export requires #{required} to be installed. #{install_hint}"
+      end
+
+      def install_hint
+        'Install hints: macOS: brew install librsvg or imagemagick; Debian/Ubuntu: apt install librsvg2-bin or imagemagick; Windows: install ImageMagick.'
       end
 
       def failed_conversion_message(command, error)

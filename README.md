@@ -136,7 +136,8 @@ automaton.save_svg('diagram.svg', 800, 600, loop_position: :right)
 ```ruby
 automaton.save_png('diagram.png', 800, 600, theme: :dark)
 automaton.save_png('diagram@2x.png', 800, 600, scale: 2.0)
-Graphomaton.png_available? #=> true when a PNG converter is installed
+automaton.save_png('diagram.png', 800, 600, converter: :magick)
+Graphomaton.png_available?(converter: :auto) #=> true when a PNG converter is installed
 ```
 Generates a PNG file by converting Graphomaton's native SVG output. Requires one of these commands to be available on `PATH`: `rsvg-convert`, `magick`, or `convert`.
 

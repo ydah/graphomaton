@@ -26,9 +26,9 @@ RSpec.describe Graphomaton do
 
   describe '.png_available?' do
     it 'delegates to the PNG exporter availability check' do
-      allow(Graphomaton::Exporters::Png).to receive(:available?).and_return(true)
+      allow(Graphomaton::Exporters::Png).to receive(:available?).with(converter: :magick).and_return(true)
 
-      expect(described_class.png_available?).to be true
+      expect(described_class.png_available?(converter: :magick)).to be true
     end
   end
 
@@ -855,7 +855,7 @@ RSpec.describe Graphomaton do
       png_exporter = instance_double(Graphomaton::Exporters::Png)
 
       expect(Graphomaton::Exporters::Png).to receive(:new).with(automaton).and_return(png_exporter)
-      expect(png_exporter).to receive(:export).with(1000, 800, theme: :dark, scale: 1.0).and_return(png_output)
+      expect(png_exporter).to receive(:export).with(1000, 800, theme: :dark, scale: 1.0, converter: :auto).and_return(png_output)
 
       expect(automaton.to_png(1000, 800, theme: :dark)).to eq(png_output)
     end
@@ -865,7 +865,7 @@ RSpec.describe Graphomaton do
       png_exporter = instance_double(Graphomaton::Exporters::Png)
 
       expect(Graphomaton::Exporters::Png).to receive(:new).with(automaton).and_return(png_exporter)
-      expect(png_exporter).to receive(:export).with(1000, 800, theme: :dark, scale: 2.0).and_return(png_output)
+      expect(png_exporter).to receive(:export).with(1000, 800, theme: :dark, scale: 2.0, converter: :auto).and_return(png_output)
 
       expect(automaton.to_png(1000, 800, theme: :dark, scale: 2.0)).to eq(png_output)
     end
@@ -886,7 +886,7 @@ RSpec.describe Graphomaton do
 
     it 'saves PNG bytes to file' do
       png_output = Graphomaton::Exporters::Png::PNG_SIGNATURE + 'png-data'.b
-      allow(automaton).to receive(:to_png).with(1200, 900, theme: :forest, scale: 1.0).and_return(png_output)
+      allow(automaton).to receive(:to_png).with(1200, 900, theme: :forest, scale: 1.0, converter: :auto).and_return(png_output)
 
       automaton.save_png(temp_file, 1200, 900, theme: :forest)
 
