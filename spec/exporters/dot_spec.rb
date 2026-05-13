@@ -57,6 +57,14 @@ RSpec.describe Graphomaton::Exporters::Dot do
         expect(dot_output).to include('"q_named" [label="Named State"];')
       end
 
+      it 'exports state metadata URL and tooltip attributes' do
+        automaton.add_state('docs', metadata: { url: 'https://example.com/state', tooltip: 'State docs' })
+
+        dot_output = dot_exporter.export
+
+        expect(dot_output).to include('"docs" [URL="https://example.com/state", tooltip="State docs"];')
+      end
+
       it 'marks final states with double circle' do
         automaton.add_final('C')
         dot_output = dot_exporter.export
@@ -107,6 +115,14 @@ RSpec.describe Graphomaton::Exporters::Dot do
         dot_output = described_class.new(automaton, theme: :forest).export
 
         expect(dot_output).to include('"A" -> "B" [label="input_a", color="#166534", fontcolor="#15803d"]')
+      end
+
+      it 'exports transition metadata URL and tooltip attributes' do
+        automaton.add_transition('A', 'B', 'docs', metadata: { url: 'https://example.com/edge', tooltip: 'Edge docs' })
+
+        dot_output = dot_exporter.export
+
+        expect(dot_output).to include('"A" -> "B" [label="docs", URL="https://example.com/edge", tooltip="Edge docs"];')
       end
 
       it 'handles self-loops' do

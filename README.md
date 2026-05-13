@@ -165,6 +165,8 @@ automaton.save_dot('diagram.dot')
 automaton.save_dot('diagram.dot', theme: :ocean)
 ```
 Generates a DOT file that can be converted to images using GraphViz:
+State and transition metadata keys `url`/`href` and `tooltip`/`description` are emitted as DOT `URL` and `tooltip` attributes.
+
 ```bash
 dot -Tpng diagram.dot -o diagram.png
 dot -Tsvg diagram.dot -o diagram.svg

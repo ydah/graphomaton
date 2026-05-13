@@ -18,8 +18,9 @@ class Graphomaton
         lines << "    graph [bgcolor=\"#{escape_label(@theme[:background])}\"];" if @theme && @theme[:background]
         lines << "    node [#{node_attributes('circle')}];"
         lines << ''
-        lines.concat(state_label_lines)
-        lines << '' if state_label_lines.any?
+        state_attributes = state_attribute_lines
+        lines.concat(state_attributes)
+        lines << '' if state_attributes.any?
 
         if @automaton.initial_state
           lines << '    __start__ [shape=point];'
@@ -37,8 +38,7 @@ class Graphomaton
         @automaton.transitions.each do |trans|
           from = escape_label(trans[:from])
           to = escape_label(trans[:to])
-          label = escape_label(trans[:label])
-          lines << "    \"#{from}\" -> \"#{to}\" [#{edge_attributes(label)}];"
+          lines << "    \"#{from}\" -> \"#{to}\" [#{edge_attributes(trans)}];"
         end
 
         lines << '}'
@@ -84,8 +84,9 @@ class Graphomaton
         ].join(', ')
       end
 
-      def edge_attributes(label)
-        attributes = ["label=\"#{label}\""]
+      def edge_attributes(transition)
+        attributes = ["label=\"#{escape_label(transition[:label])}\""]
+        add_metadata_attributes(attributes, transition[:metadata])
         if @theme
           attributes << "color=\"#{escape_label(@theme[:stroke])}\""
           attributes << "fontcolor=\"#{escape_label(@theme[:transition_label])}\""
@@ -93,13 +94,40 @@ class Graphomaton
         attributes.join(', ')
       end
 
-      def state_label_lines
-        @state_label_lines ||= @automaton.states.filter_map do |name, state|
-          label = state[:label]
-          next if label.nil? || label.to_s == name.to_s
+      def state_attribute_lines
+        @state_attribute_lines ||= @automaton.states.filter_map do |name, state|
+          attributes = state_attributes(name, state)
+          next if attributes.empty?
 
-          "    \"#{escape_label(name)}\" [label=\"#{escape_label(label)}\"];"
+          "    \"#{escape_label(name)}\" [#{attributes.join(', ')}];"
         end
+      end
+
+      def state_attributes(name, state)
+        attributes = []
+          label = state[:label]
+        attributes << "label=\"#{escape_label(label)}\"" unless label.nil? || label.to_s == name.to_s
+        add_metadata_attributes(attributes, state[:metadata])
+        attributes
+      end
+
+      def add_metadata_attributes(attributes, metadata)
+        return unless metadata.is_a?(Hash)
+
+        url = metadata_value(metadata, :url, :href)
+        tooltip = metadata_value(metadata, :tooltip, :description)
+
+        attributes << "URL=\"#{escape_label(url)}\"" if url
+        attributes << "tooltip=\"#{escape_label(tooltip)}\"" if tooltip
+      end
+
+      def metadata_value(metadata, *keys)
+        keys.each do |key|
+          value = metadata[key] || metadata[key.to_s]
+          return value if value
+        end
+
+        nil
       end
 
       def rankdir
