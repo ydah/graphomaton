@@ -231,6 +231,7 @@ automaton.save_dot('diagram.dot', rank_constraints: true)
 ```
 Generates a DOT file that can be converted to images using GraphViz:
 State and transition metadata keys `url`/`href` and `tooltip`/`description` are emitted as DOT `URL` and `tooltip` attributes.
+Transition `line_style: :dashed` and `line_style: :dotted` are emitted as DOT edge `style` attributes.
 
 ```bash
 dot -Tpng diagram.dot -o diagram.png

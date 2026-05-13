@@ -6,6 +6,7 @@ class Graphomaton
       DEFAULT_DIRECTION = :lr
       DEFAULT_RANK_CONSTRAINTS = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
+      LINE_STYLE_OPTIONS = %i[solid dashed dotted].freeze
 
       def initialize(automaton, direction: DEFAULT_DIRECTION, theme: nil, rank_constraints: DEFAULT_RANK_CONSTRAINTS)
         @automaton = automaton
@@ -93,6 +94,7 @@ class Graphomaton
       def edge_attributes(transition)
         attributes = ["label=\"#{escape_label(transition[:label])}\""]
         add_metadata_attributes(attributes, transition[:metadata])
+        add_line_style_attributes(attributes, transition[:line_style])
         if @theme
           attributes << "color=\"#{escape_label(@theme[:stroke])}\""
           attributes << "fontcolor=\"#{escape_label(@theme[:transition_label])}\""
@@ -125,6 +127,17 @@ class Graphomaton
 
         attributes << "URL=\"#{escape_label(url)}\"" if url
         attributes << "tooltip=\"#{escape_label(tooltip)}\"" if tooltip
+      end
+
+      def add_line_style_attributes(attributes, line_style)
+        return unless line_style
+
+        resolved = line_style.to_sym
+        unless LINE_STYLE_OPTIONS.include?(resolved)
+          raise ArgumentError, "Unknown DOT transition line_style: #{line_style.inspect}. Available values: #{LINE_STYLE_OPTIONS.join(', ')}"
+        end
+
+        attributes << "style=\"#{resolved}\"" unless resolved == :solid
       end
 
       def metadata_value(metadata, *keys)

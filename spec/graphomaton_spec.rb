@@ -32,6 +32,22 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe '.pdf_available?' do
+    it 'delegates to the PDF exporter availability check' do
+      allow(Graphomaton::Exporters::Pdf).to receive(:available?).with(converter: :magick).and_return(true)
+
+      expect(described_class.pdf_available?(converter: :magick)).to be true
+    end
+  end
+
+  describe '.webp_available?' do
+    it 'delegates to the WebP exporter availability check' do
+      allow(Graphomaton::Exporters::Webp).to receive(:available?).with(converter: :magick).and_return(true)
+
+      expect(described_class.webp_available?(converter: :magick)).to be true
+    end
+  end
+
   describe '.from_hash, .from_json, and .from_yaml' do
     let(:input_hash) do
       {

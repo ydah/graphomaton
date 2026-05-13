@@ -135,6 +135,22 @@ RSpec.describe Graphomaton::Exporters::Dot do
         expect(dot_output).to include('"A" -> "B" [label="docs", URL="https://example.com/edge", tooltip="Edge docs"];')
       end
 
+      it 'exports transition line styles as DOT edge styles' do
+        automaton.add_transition('A', 'B', 'dashed', line_style: :dashed)
+        automaton.add_transition('B', 'C', 'dotted', line_style: 'dotted')
+
+        dot_output = dot_exporter.export
+
+        expect(dot_output).to include('"A" -> "B" [label="dashed", style="dashed"];')
+        expect(dot_output).to include('"B" -> "C" [label="dotted", style="dotted"];')
+      end
+
+      it 'rejects unsupported transition line styles' do
+        automaton.add_transition('A', 'B', 'bad', line_style: :wavy)
+
+        expect { dot_exporter.export }.to raise_error(ArgumentError, /Unknown DOT transition line_style/)
+      end
+
       it 'handles self-loops' do
         automaton.add_transition('B', 'B', 'loop')
         dot_output = dot_exporter.export
