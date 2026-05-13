@@ -1,6 +1,6 @@
 # Graphomaton [![Gem Version](https://badge.fury.io/rb/graphomaton.svg?icon=si%3Arubygems)](https://badge.fury.io/rb/graphomaton) [![CI](https://github.com/ydah/graphomaton/actions/workflows/ci.yml/badge.svg)](https://github.com/ydah/graphomaton/actions/workflows/ci.yml)
 
-A tiny Ruby library for generating finite state machine (automaton) diagrams in multiple formats: SVG, PNG, HTML (Mermaid.js), GraphViz (DOT), and PlantUML.
+A tiny Ruby library for generating finite state machine (automaton) diagrams in multiple formats: SVG, PNG, PDF, HTML (Mermaid.js), GraphViz (DOT), and PlantUML.
 
 ![Image](https://github.com/user-attachments/assets/6907869c-1077-4a73-8394-4117f25adc17)
 
