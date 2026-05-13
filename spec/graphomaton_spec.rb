@@ -858,9 +858,11 @@ RSpec.describe Graphomaton do
 
   describe '#render and #save' do
     let(:temp_file) { 'test_output.render.dot' }
+    let(:mermaid_file) { 'test_output.render.mmd' }
 
     after do
       FileUtils.rm_f(temp_file)
+      FileUtils.rm_f(mermaid_file)
     end
 
     before do
@@ -887,6 +889,12 @@ RSpec.describe Graphomaton do
       automaton.save(temp_file, direction: :rl)
 
       expect(File.read(temp_file)).to include('rankdir=RL')
+    end
+
+    it 'supports common Mermaid filename extension aliases' do
+      automaton.save(mermaid_file)
+
+      expect(File.read(mermaid_file)).to include('stateDiagram-v2')
     end
 
     it 'rejects unknown render formats' do

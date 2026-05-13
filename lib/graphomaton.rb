@@ -16,7 +16,11 @@ class Graphomaton
   DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
   INITIAL_POSITION_OPTIONS = %i[auto start].freeze
   FINAL_POSITION_OPTIONS = %i[auto end].freeze
-  FORMAT_OPTIONS = %i[svg png html mermaid dot plantuml puml].freeze
+  FORMAT_OPTIONS = %i[svg png html mermaid mmd dot plantuml puml].freeze
+  FORMAT_ALIASES = {
+    mmd: :mermaid,
+    puml: :plantuml
+  }.freeze
   DEFAULT_INITIAL_POSITION = :auto
   DEFAULT_FINAL_POSITION = :auto
   attr_accessor :states, :transitions, :initial_state, :final_states
@@ -675,7 +679,7 @@ class Graphomaton
       to_mermaid(**options)
     when :dot
       to_dot(**options)
-    when :plantuml, :puml
+    when :plantuml
       to_plantuml(**options)
     end
   end
@@ -694,7 +698,7 @@ class Graphomaton
       File.write(filename, to_mermaid(**options))
     when :dot
       save_dot(filename, **options)
-    when :plantuml, :puml
+    when :plantuml
       save_plantuml(filename, **options)
     end
   end
@@ -884,6 +888,7 @@ class Graphomaton
 
   def resolve_format(format)
     resolved = format.to_s.delete_prefix('.').to_sym
+    resolved = FORMAT_ALIASES.fetch(resolved, resolved)
     return resolved if FORMAT_OPTIONS.include?(resolved)
 
     raise ArgumentError, "Unknown format: #{format.inspect}. Available formats: #{FORMAT_OPTIONS.join(', ')}"
