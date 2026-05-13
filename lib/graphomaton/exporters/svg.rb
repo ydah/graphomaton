@@ -8,6 +8,8 @@ class Graphomaton
     class Svg
       DEFAULT_STATE_RADIUS = 40
       DEFAULT_STATE_SHAPE = :circle
+      DEFAULT_STATE_STROKE_WIDTH = 2
+      DEFAULT_TRANSITION_STROKE_WIDTH = 1.5
       DEFAULT_THEME = :light
       DEFAULT_LAYOUT = :linear
       DEFAULT_DIRECTION = :lr
@@ -120,6 +122,8 @@ class Graphomaton
 
       def export(width = 800, height = 600, theme: DEFAULT_THEME, layout: DEFAULT_LAYOUT, direction: DEFAULT_DIRECTION, responsive: false,
                  state_radius: DEFAULT_STATE_RADIUS, state_shape: DEFAULT_STATE_SHAPE,
+                 state_stroke_width: DEFAULT_STATE_STROKE_WIDTH,
+                 transition_stroke_width: DEFAULT_TRANSITION_STROKE_WIDTH,
                  wrap: DEFAULT_WRAP, max_transition_label_width: DEFAULT_MAX_LABEL_WIDTH,
                  state_wrap: DEFAULT_STATE_WRAP, max_state_label_width: DEFAULT_MAX_STATE_LABEL_WIDTH,
                  padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
@@ -145,6 +149,8 @@ class Graphomaton
                  title: nil, description: nil)
         @state_radius = state_radius.to_f
         @state_shape = resolve_state_shape(state_shape)
+        @state_stroke_width = [state_stroke_width.to_f, 0.1].max
+        @transition_stroke_width = [transition_stroke_width.to_f, 0.1].max
         @arrow_size = [arrow_size.to_f, 1.0].max
         @auto_dark_theme = false
         @theme = resolve_theme(theme)
@@ -417,13 +423,13 @@ class Graphomaton
         style.text = <<-CSS
 #{css_variables_css}      
       .diagram-background { fill: #{background}; }
-      .state-circle { fill: #{theme_css_value(:state_fill)}; stroke: #{theme_css_value(:stroke)}; stroke-width: 2; vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; #{state_effect_css} }
-      .final-state { stroke-width: 4; }
+      .state-circle { fill: #{theme_css_value(:state_fill)}; stroke: #{theme_css_value(:stroke)}; stroke-width: #{@state_stroke_width}; vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; #{state_effect_css} }
+      .final-state { stroke-width: #{final_state_stroke_width}; }
       .state-text { font-family: Arial, sans-serif; text-anchor: middle; fill: #{theme_css_value(:state_text)}; text-rendering: geometricPrecision; }
-      .transition-line { stroke: #{theme_css_value(:stroke)}; stroke-width: 1.5; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      .transition-line { stroke: #{theme_css_value(:stroke)}; stroke-width: #{@transition_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .transition-label { font-family: Arial, sans-serif; font-size: 14px; fill: #{theme_css_value(:transition_label)}; text-rendering: geometricPrecision; }
-      .initial-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: 2; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
-      .final-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: 2; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      .initial-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      .final-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .label-bg { fill: #{theme_css_value(:label_background)}; opacity: #{theme_css_value(:label_opacity)}; #{label_border_css} }
       .unreachable-state { opacity: 0.45; }
       .initial-state .state-circle { fill: #dbeafe; }
@@ -431,7 +437,7 @@ class Graphomaton
       .dead-state { opacity: 0.65; }
       .dead-state .state-circle { stroke-dasharray: 6 4; }
       .trap-state .state-circle { stroke-dasharray: 2 4; }
-      .highlighted-transition .transition-line { stroke: #ef4444; stroke-width: 2.5; }
+      .highlighted-transition .transition-line { stroke: #ef4444; stroke-width: #{highlighted_transition_stroke_width}; }
       .inactive-transition { opacity: 0.25; }
         CSS
       end
@@ -486,6 +492,18 @@ class Graphomaton
         else
           ''
         end
+      end
+
+      def final_state_stroke_width
+        @state_stroke_width * 2
+      end
+
+      def arrow_stroke_width
+        @transition_stroke_width + 0.5
+      end
+
+      def highlighted_transition_stroke_width
+        @transition_stroke_width + 1.0
       end
 
       def add_background(svg, width, height)

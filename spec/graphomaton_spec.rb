@@ -545,6 +545,15 @@ RSpec.describe Graphomaton do
       expect(marker.attributes['markerUnits']).to eq('strokeWidth')
     end
 
+    it 'supports custom state and transition stroke widths' do
+      svg_output = automaton.to_svg(state_stroke_width: 3, transition_stroke_width: 2)
+      doc = REXML::Document.new(svg_output)
+      style = REXML::XPath.first(doc, '//style')
+
+      expect(style.text).to include('stroke-width: 3.0')
+      expect(style.text).to include('stroke-width: 2.0')
+    end
+
     it 'includes styles' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)

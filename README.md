@@ -103,6 +103,7 @@ automaton.save_svg('diagram.svg', 800, 600, layout: :layered, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :bfs, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :force, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :manual)
+automaton.save_svg('diagram.svg', 800, 600, state_stroke_width: 3, transition_stroke_width: 2)
 automaton.save_svg(
   'diagram.svg',
   800,
