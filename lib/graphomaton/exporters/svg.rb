@@ -287,12 +287,12 @@ class Graphomaton
         background = @theme[:background] || 'transparent'
         style.text = <<-CSS
       .diagram-background { fill: #{background}; }
-      .state-circle { fill: #{@theme[:state_fill]}; stroke: #{@theme[:stroke]}; stroke-width: 2; }
+      .state-circle { fill: #{@theme[:state_fill]}; stroke: #{@theme[:stroke]}; stroke-width: 2; vector-effect: non-scaling-stroke; }
       .final-state { stroke-width: 4; }
       .state-text { font-family: Arial, sans-serif; text-anchor: middle; fill: #{@theme[:state_text]}; }
-      .transition-line { stroke: #{@theme[:stroke]}; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+      .transition-line { stroke: #{@theme[:stroke]}; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; }
       .transition-label { font-family: Arial, sans-serif; font-size: 14px; fill: #{@theme[:transition_label]}; }
-      .initial-arrow { stroke: #{@theme[:stroke]}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+      .initial-arrow { stroke: #{@theme[:stroke]}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; }
       .label-bg { fill: #{@theme[:label_background]}; opacity: #{@theme[:label_opacity]}; }
         CSS
       end

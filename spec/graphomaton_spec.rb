@@ -407,6 +407,14 @@ RSpec.describe Graphomaton do
       expect(style.text).to include('state-circle')
     end
 
+    it 'keeps stroke widths stable when SVG is scaled' do
+      svg_output = automaton.to_svg(responsive: true)
+      doc = REXML::Document.new(svg_output)
+      style = REXML::XPath.first(doc, '//style')
+
+      expect(style.text).to include('vector-effect: non-scaling-stroke')
+    end
+
     it 'groups transitions and states for SVG styling' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)
