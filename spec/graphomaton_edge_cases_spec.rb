@@ -246,6 +246,25 @@ RSpec.describe Graphomaton, 'edge cases' do
     end
   end
 
+  describe 'overlapping state coordinates' do
+    before do
+      automaton.add_state('A', 100, 100)
+      automaton.add_state('B', 100, 100)
+      automaton.add_transition('A', 'B', 'overlap')
+    end
+
+    it 'generates valid SVG without dividing by zero' do
+      svg_output = automaton.to_svg
+      doc = REXML::Document.new(svg_output)
+
+      paths = REXML::XPath.match(doc, '//path[@class="transition-line"]')
+      labels = REXML::XPath.match(doc, '//text[@class="transition-label"]')
+
+      expect(paths).not_to be_empty
+      expect(labels.map(&:text)).to include('overlap')
+    end
+  end
+
   describe 'very large automaton' do
     before do
       # Create 20 states

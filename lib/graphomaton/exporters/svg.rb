@@ -688,6 +688,10 @@ class Graphomaton
         dx = x2 - x1
         dy = y2 - y1
         dist = Math.sqrt((dx**2) + (dy**2))
+        if dist <= 0
+          add_overlapping_state_transition(transition_node, x1, y1, trans)
+          return
+        end
 
         radius = @state_radius
         start_x = x1 + ((dx / dist) * radius)
@@ -789,6 +793,24 @@ class Graphomaton
         label_y = ((1 - t) * (1 - t) * start_y) + (2 * (1 - t) * t * control_y) + (t * t * end_y)
 
         add_label(svg, label_x, label_y, trans[:label])
+      end
+
+      def add_overlapping_state_transition(svg, x, y, trans)
+        radius = @state_radius
+        loop_height = radius * 2.0
+        loop_width = radius + 10
+        start_x = x + radius
+        start_y = y
+        end_x = x
+        end_y = y - radius
+        control1_x = x + loop_width
+        control1_y = y - loop_height
+        control2_x = x + loop_height
+        control2_y = y - loop_width
+        path_d = "M #{start_x} #{start_y} C #{control1_x} #{control1_y}, #{control2_x} #{control2_y}, #{end_x} #{end_y}"
+
+        svg.add_element('path', transition_line_attributes(trans, 'd' => path_d))
+        add_label(svg, x + loop_width, y - loop_height, trans[:label])
       end
 
       def add_label(svg, x, y, text)
