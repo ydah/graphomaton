@@ -204,6 +204,13 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
       expect(html_output).to include("theme: 'forest'")
     end
 
+    it 'supports automatic dark mode theme in HTML output' do
+      html_output = mermaid_exporter.export_html(theme: :auto)
+
+      expect(html_output).to include("prefers-color-scheme: dark")
+      expect(html_output).to include("? 'dark' : 'default'")
+    end
+
     it 'supports offline script source override' do
       html_output = mermaid_exporter.export_html(offline: true, cdn: '/assets/mermaid.min.js')
       expect(html_output).to include('<script src="/assets/mermaid.min.js"></script>')

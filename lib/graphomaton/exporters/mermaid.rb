@@ -89,6 +89,7 @@ class Graphomaton
                       overflow-x: auto;
                       padding: 16px;
                   }
+                  #{auto_theme_css(theme)}
               </style>
           </head>
           <body>
@@ -114,6 +115,7 @@ class Graphomaton
       def script_block(cdn:, theme:, inline_mermaid:, offline:)
         escaped_theme = resolve_theme(theme)
         escaped_cdn = escape_attribute(cdn)
+        theme_expression = mermaid_theme_expression(escaped_theme)
         if inline_mermaid
           return mermaid_inline_script(escaped_cdn, escaped_theme)
         end
@@ -122,30 +124,62 @@ class Graphomaton
           <<~SCRIPT
             <script src="#{escaped_cdn}"></script>
             <script>
-              mermaid.initialize({ startOnLoad: true, theme: '#{escaped_theme}' });
+              mermaid.initialize({ startOnLoad: true, theme: #{theme_expression} });
             </script>
           SCRIPT
         else
           <<~SCRIPT
             <script type="module">
                 import mermaid from '#{escaped_cdn}';
-                mermaid.initialize({ startOnLoad: true, theme: '#{escaped_theme}' });
+                mermaid.initialize({ startOnLoad: true, theme: #{theme_expression} });
             </script>
           SCRIPT
         end
       end
 
       def mermaid_inline_script(path_or_url, theme)
+        theme_expression = mermaid_theme_expression(theme)
         if File.file?(path_or_url)
           <<~SCRIPT
             <script>
               #{File.read(path_or_url)}
-              mermaid.initialize({ startOnLoad: true, theme: '#{theme}' });
+              mermaid.initialize({ startOnLoad: true, theme: #{theme_expression} });
             </script>
           SCRIPT
         else
           raise ArgumentError, "Unable to inline Mermaid script from: #{path_or_url}"
         end
+      end
+
+      def mermaid_theme_expression(theme)
+        return "'#{theme}'" unless theme == 'auto'
+
+        "(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default')"
+      end
+
+      def auto_theme_css(theme)
+        return '' unless resolve_theme(theme) == 'auto'
+
+        <<~CSS
+          @media (prefers-color-scheme: dark) {
+                      body {
+                          background: #111827;
+                          color: #f9fafb;
+                      }
+                      .mermaid {
+                          background: #1f2937;
+                          border-color: #374151;
+                      }
+                      .info,
+                      pre.mermaid-source {
+                          background: #1f2937;
+                          border-color: #374151;
+                      }
+                      h1 {
+                          color: #f9fafb;
+                      }
+                  }
+        CSS
       end
 
       def source_block(mermaid_code, show_source:)
