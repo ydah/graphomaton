@@ -18,6 +18,7 @@ class Graphomaton
       DEFAULT_LABEL_BACKGROUND = true
       DEFAULT_LABEL_BORDER = false
       DEFAULT_LABEL_PADDING = 10
+      DEFAULT_LABEL_RADIUS = 3
       DEFAULT_FONT_FAMILY = 'Arial, sans-serif'
       DEFAULT_STATE_FONT_WEIGHT = nil
       DEFAULT_TRANSITION_FONT_WEIGHT = nil
@@ -152,6 +153,7 @@ class Graphomaton
                  label_background: DEFAULT_LABEL_BACKGROUND,
                  label_border: DEFAULT_LABEL_BORDER,
                  label_padding: DEFAULT_LABEL_PADDING,
+                 label_radius: DEFAULT_LABEL_RADIUS,
                  highlight_unreachable: DEFAULT_HIGHLIGHT_UNREACHABLE,
                  highlight_dead_states: DEFAULT_HIGHLIGHT_DEAD_STATES,
                  highlight_initial_state: DEFAULT_HIGHLIGHT_INITIAL_STATE,
@@ -188,6 +190,7 @@ class Graphomaton
         @label_background = label_background
         @label_border = label_border
         @label_padding = [label_padding.to_f, 0].max
+        @label_radius = [label_radius.to_f, 0].max
         @highlight_unreachable = highlight_unreachable
         @highlight_dead_states = highlight_dead_states
         @highlight_initial_state = highlight_initial_state
@@ -679,7 +682,7 @@ class Graphomaton
                                            'y' => (cy + loop_specs[:label_offset][:y] - 5 + label_y_shift).to_s,
                                            'width' => text_width.to_s,
                                            'height' => '20',
-                                           'rx' => '3'
+                                           'rx' => @label_radius.to_s
                                          })
         end
 
@@ -1101,7 +1104,7 @@ class Graphomaton
                             'y' => box[:y].to_s,
                             'width' => box[:width].to_s,
                             'height' => box[:height].to_s,
-                            'rx' => '3'
+                            'rx' => @label_radius.to_s
                           })
         end
 

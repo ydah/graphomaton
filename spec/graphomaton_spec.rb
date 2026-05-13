@@ -905,14 +905,15 @@ RSpec.describe Graphomaton do
       expect(REXML::XPath.match(doc, '//text[@class="transition-label"]')).not_to be_empty
     end
 
-    it 'supports transition label padding and borders' do
-      svg_output = automaton.to_svg(label_padding: 40, label_border: true)
+    it 'supports transition label padding, radius, and borders' do
+      svg_output = automaton.to_svg(label_padding: 40, label_radius: 8, label_border: true)
       doc = REXML::Document.new(svg_output)
       style = REXML::XPath.first(doc, '//style')
       label_bg = REXML::XPath.first(doc, '//rect[@class="label-bg"]')
 
       expect(style.text).to include('stroke-width: 1')
       expect(label_bg.attributes['width'].to_f).to be > 80
+      expect(label_bg.attributes['rx']).to eq('8.0')
     end
 
     it 'can highlight unreachable states' do
