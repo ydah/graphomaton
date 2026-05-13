@@ -159,6 +159,33 @@ RSpec.describe Graphomaton do
         expect(automaton.states['q1'][:y]).to be < automaton.states['q2'][:y]
       end
 
+      it 'supports circle layout' do
+        automaton.auto_layout(800, 600, layout: :circle)
+        x_values = automaton.states.values.map { |s| s[:x] }
+        y_values = automaton.states.values.map { |s| s[:y] }
+
+        expect(x_values.uniq.size).to be > 1
+        expect(y_values.uniq.size).to be > 1
+      end
+
+      it 'supports grid layout' do
+        automaton.auto_layout(800, 600, layout: :grid)
+        x_values = automaton.states.values.map { |s| s[:x] }
+        y_values = automaton.states.values.map { |s| s[:y] }
+
+        expect(x_values.uniq.size).to be > 1
+        expect(y_values.uniq.size).to be > 1
+      end
+
+      it 'supports layered layout' do
+        automaton.add_transition('q0', 'q1', 'a')
+        automaton.auto_layout(800, 600, layout: :layered)
+
+        expect(automaton.states['q0'][:x]).not_to be_nil
+        expect(automaton.states['q1'][:x]).not_to be_nil
+        expect(automaton.states['q2'][:x]).not_to be_nil
+      end
+
       it 'keeps manual coordinates with directional layout' do
         automaton.add_state('q3', 500, 400)
         automaton.auto_layout(800, 600, direction: :bt)
@@ -166,6 +193,22 @@ RSpec.describe Graphomaton do
         expect(automaton.states['q3'][:x]).to eq(500)
         expect(automaton.states['q3'][:y]).to eq(400)
         expect(automaton.states['q0'][:y]).to be > automaton.states['q1'][:y]
+      end
+
+      it 'keeps auto layout non-destructive for render-only operations' do
+        automaton = described_class.new
+        automaton.add_state('q0')
+        automaton.add_state('q1')
+        automaton.set_initial('q0')
+        automaton.add_transition('q0', 'q1', 'a')
+
+        _first = automaton.to_svg(800, 600)
+        _second = automaton.to_svg(1200, 900)
+
+        expect(automaton.states['q0'][:x]).to be_nil
+        expect(automaton.states['q0'][:y]).to be_nil
+        expect(automaton.states['q1'][:x]).to be_nil
+        expect(automaton.states['q1'][:y]).to be_nil
       end
     end
   end

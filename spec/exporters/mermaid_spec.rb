@@ -45,6 +45,11 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
         mermaid_output = mermaid_exporter.export
         expect(mermaid_output).to include('[*] --> Start')
       end
+
+      it 'accepts direction option' do
+        mermaid_output = described_class.new(automaton, direction: :tb).export
+        expect(mermaid_output).to include('direction TB')
+      end
     end
 
     context 'with transitions' do

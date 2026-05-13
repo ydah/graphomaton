@@ -82,10 +82,19 @@ You can also control layout direction and responsive sizing:
 ```ruby
 automaton.save_svg('diagram.svg', 800, 600, direction: :tb, responsive: true)
 automaton.save_svg('diagram.svg', 800, 600, layout: :linear, direction: :lr)
+automaton.save_svg('diagram.svg', 800, 600, layout: :circle, direction: :tb)
+automaton.save_svg('diagram.svg', 800, 600, layout: :grid, direction: :lr)
+automaton.save_svg('diagram.svg', 800, 600, layout: :layered, direction: :lr)
 ```
 
 `direction` accepts `:lr`, `:tb`, `:rl`, `:bt` for left-right, top-bottom, right-left, and bottom-top layouts.
-`layout` currently supports `:linear`.
+`layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`.
+
+You can also control label display behavior:
+
+```ruby
+automaton.save_svg('diagram.svg', 800, 600, wrap: true, max_transition_label_width: 120)
+```
 
 #### 2. PNG
 ```ruby

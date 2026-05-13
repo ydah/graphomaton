@@ -14,6 +14,14 @@ RSpec.describe Graphomaton::Exporters::Dot do
         expect(dot_output).to include('rankdir=LR')
       end
 
+      it 'accepts direction option' do
+        dot_output = dot_exporter.export
+        dot_output_tb = described_class.new(automaton, direction: :tb).export
+
+        expect(dot_output).to include('rankdir=LR')
+        expect(dot_output_tb).to include('rankdir=TB')
+      end
+
       it 'includes basic graph attributes' do
         dot_output = dot_exporter.export
         expect(dot_output).to match(/node\s+\[shape\s+=\s+circle\]/)

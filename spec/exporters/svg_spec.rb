@@ -119,6 +119,36 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(circles[0].attributes['cy'].to_f).to be < circles[1].attributes['cy'].to_f
       end
 
+      it 'supports circle layout' do
+        svg_output = svg_exporter.export(800, 600, layout: :circle)
+        doc = REXML::Document.new(svg_output)
+        circles = REXML::XPath.match(doc, '//circle[@class="state-circle"]')
+        x_values = circles.map { |c| c.attributes['cx'].to_f }.uniq
+        y_values = circles.map { |c| c.attributes['cy'].to_f }.uniq
+
+        expect(x_values.size).to be > 1
+        expect(y_values.size).to be > 1
+      end
+
+      it 'supports grid layout' do
+        svg_output = svg_exporter.export(800, 600, layout: :grid)
+        doc = REXML::Document.new(svg_output)
+        circles = REXML::XPath.match(doc, '//circle[@class="state-circle"]')
+        x_values = circles.map { |c| c.attributes['cx'].to_f }.uniq
+        y_values = circles.map { |c| c.attributes['cy'].to_f }.uniq
+
+        expect(x_values.size).to be > 1
+        expect(y_values.size).to be > 1
+      end
+
+      it 'supports layered layout' do
+        svg_output = svg_exporter.export(800, 600, layout: :layered)
+        doc = REXML::Document.new(svg_output)
+        circles = REXML::XPath.match(doc, '//circle[@class="state-circle"]')
+
+        expect(circles.size).to be >= 3
+      end
+
       it 'includes state labels' do
         svg_output = svg_exporter.export
         doc = REXML::Document.new(svg_output)
@@ -374,5 +404,22 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(height).to eq(20)
       end
     end
+
+  context 'with transition label wrapping' do
+    before do
+      automaton.add_state('A')
+      automaton.add_state('B')
+      automaton.add_transition('A', 'B', 'this label should be wrapped into multiple rows when configured')
+    end
+
+    it 'adds wrapped transition labels with multiple tspans' do
+      svg_output = svg_exporter.export(wrap: true, max_transition_label_width: 90)
+      doc = REXML::Document.new(svg_output)
+      labels = REXML::XPath.match(doc, '//text[@class="transition-label"]')
+
+      has_wrapped_label = labels.any? { |label| !label.get_elements('tspan').empty? }
+      expect(has_wrapped_label).to be true
+    end
+  end
   end
 end

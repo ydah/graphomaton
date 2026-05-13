@@ -10,7 +10,10 @@ class Graphomaton
       DEFAULT_THEME = :light
       DEFAULT_LAYOUT = :linear
       DEFAULT_DIRECTION = :lr
-      LAYOUT_OPTIONS = %i[linear].freeze
+      DEFAULT_MERGE_PARALLEL_TRANSITIONS = true
+      DEFAULT_WRAP = false
+      DEFAULT_MAX_LABEL_WIDTH = 120
+      LAYOUT_OPTIONS = %i[linear circle grid layered].freeze
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
 
       THEMES = {
@@ -56,17 +59,28 @@ class Graphomaton
         @automaton = automaton
       end
 
-      def export(width = 800, height = 600, theme: DEFAULT_THEME, layout: DEFAULT_LAYOUT, direction: DEFAULT_DIRECTION, responsive: false)
+      def export(width = 800, height = 600, theme: DEFAULT_THEME, layout: DEFAULT_LAYOUT, direction: DEFAULT_DIRECTION, responsive: false,
+                 merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
+                 wrap: DEFAULT_WRAP, max_transition_label_width: DEFAULT_MAX_LABEL_WIDTH,
+                 title: nil, description: nil)
         @theme = resolve_theme(theme)
         @layout = resolve_layout(layout)
         @direction = resolve_direction(direction)
+        @merge_parallel_transitions = merge_parallel_transitions
+        @wrap_labels = wrap
+        @max_transition_label_width = max_transition_label_width
         @positions = @automaton.layout_positions(width, height, layout: @layout, direction: @direction)
+        @label_boxes = []
+        @title_text = title
+        @description_text = description
+        @svg_id = "graphomaton-#{object_id}"
 
         doc = REXML::Document.new
         svg = doc.add_element('svg', svg_root_attributes(width, height, responsive: responsive))
 
         add_defs(svg)
         add_style(svg)
+        add_accessibility_metadata(svg)
         add_background(svg, width, height)
         add_transitions(svg)
         add_initial_arrow(svg) if @automaton.initial_state
@@ -100,21 +114,30 @@ class Graphomaton
       end
 
       def svg_root_attributes(width, height, responsive:)
-        attributes = {
+        {
           'xmlns' => 'http://www.w3.org/2000/svg',
           'viewBox' => "0 0 #{width} #{height}",
-          'preserveAspectRatio' => 'xMidYMid meet'
+          'preserveAspectRatio' => 'xMidYMid meet',
+          'role' => 'img',
+          'aria-labelledby' => "#{@svg_id}-title #{@svg_id}-desc",
+          'width' => (responsive ? '100%' : width.to_s),
+          'height' => (responsive ? 'auto' : height.to_s)
         }
+      end
 
-        if responsive
-          attributes['width'] = '100%'
-          attributes['height'] = 'auto'
-        else
-          attributes['width'] = width.to_s
-          attributes['height'] = height.to_s
-        end
+      def add_accessibility_metadata(svg)
+        title = svg.add_element('title', { 'id' => "#{@svg_id}-title" })
+        title.text = @title_text || 'Finite state machine diagram'
 
-        attributes
+        description = svg.add_element('desc', { 'id' => "#{@svg_id}-desc" })
+        description.text = @description_text || generated_description
+      end
+
+      def generated_description
+        state_count = @automaton.states.size
+        transition_count = @automaton.transitions.size
+
+        "Automaton with #{state_count} states and #{transition_count} transitions."
       end
 
       def calculate_text_width(text)
@@ -188,33 +211,64 @@ class Graphomaton
       def add_transitions(svg)
         processed_pairs = {}
         from_state_indices = {}
+        self_loop_indices = Hash.new(0)
 
-        @automaton.transitions.each_with_index do |trans, _idx|
-          from_state = state_position(trans[:from])
-          to_state = state_position(trans[:to])
+        transition_groups.each do |group|
+          first = group.first
+          from_state = state_position(first[:from])
+          to_state = state_position(first[:to])
           next if from_state.nil? || to_state.nil?
 
-          if from_state == to_state
-            add_self_loop(svg, from_state, trans)
-          else
-            from_state_indices[trans[:from]] = 0 unless from_state_indices[trans[:from]]
-            from_state_index = from_state_indices[trans[:from]]
-            from_state_indices[trans[:from]] += 1
+          transition = first.dup
+          transition[:label] = merged_label(group)
 
-            add_transition(svg, from_state, to_state, trans, processed_pairs, from_state_index)
+          if from_state == to_state
+            loop_index = self_loop_indices[first[:from]]
+            self_loop_indices[first[:from]] += 1
+            add_self_loop(svg, from_state, transition, loop_index)
+          else
+            from_state_indices[first[:from]] = 0 unless from_state_indices.key?(first[:from])
+            from_state_index = from_state_indices[first[:from]]
+            from_state_indices[first[:from]] += 1
+
+            add_transition(svg, from_state, to_state, transition, processed_pairs, from_state_index)
           end
         end
       end
 
-      def add_self_loop(svg, state, trans)
+      def transition_groups
+        return @automaton.transitions.map { |transition| [transition] } unless @merge_parallel_transitions
+
+        grouped = {}
+        @automaton.transitions.each do |transition|
+          grouped[transition_key(transition)] ||= []
+          grouped[transition_key(transition)] << transition
+        end
+        grouped.values
+      end
+
+      def transition_key(transition)
+        [transition[:from], transition[:to]]
+      end
+
+      def merged_label(group)
+        return group.first[:label] if group.size == 1
+
+        labels = group.map { |transition| transition[:label].to_s }
+        labels.uniq.join(', ')
+      end
+
+      def add_self_loop(svg, state, trans, loop_index = 0)
         cx = state[:x]
         cy = state[:y]
 
-        loop_height = 80
-        loop_width = 45
+        loop_height = 80 + (loop_index * 24)
+        loop_width = 45 + (loop_index * 8)
+        loop_offset = loop_index * 8
+        angle_shift = loop_index * 4
 
-        start_angle = -135 * Math::PI / 180
-        end_angle = -45 * Math::PI / 180
+        start_angle = (-135 + angle_shift) * Math::PI / 180
+        end_angle = (-45 - angle_shift) * Math::PI / 180
         radius = STATE_RADIUS
 
         start_x = cx + (radius * Math.cos(start_angle))
@@ -222,10 +276,10 @@ class Graphomaton
         end_x = cx + (radius * Math.cos(end_angle))
         end_y = cy + (radius * Math.sin(end_angle))
 
-        control1_x = cx - loop_width
-        control1_y = cy - loop_height
-        control2_x = cx + loop_width
-        control2_y = cy - loop_height
+        control1_x = cx - loop_width + (loop_offset * (loop_index.even? ? -1 : 1))
+        control1_y = cy - loop_height + loop_offset
+        control2_x = cx + loop_width + (loop_offset * (loop_index.odd? ? -1 : 1))
+        control2_y = cy - loop_height + loop_offset
 
         path_d = "M #{start_x} #{start_y} C #{control1_x} #{control1_y}, #{control2_x} #{control2_y}, #{end_x} #{end_y}"
 
@@ -235,10 +289,11 @@ class Graphomaton
                         })
 
         text_width = calculate_text_width(trans[:label])
+        label_y_shift = loop_offset * (loop_index.odd? ? -1 : 1)
         svg.add_element('rect', {
                           'class' => 'label-bg',
                           'x' => (cx - (text_width / 2)).to_s,
-                          'y' => (cy - loop_height - 5).to_s,
+                          'y' => (cy - loop_height - 5 + label_y_shift).to_s,
                           'width' => text_width.to_s,
                           'height' => '20',
                           'rx' => '3'
@@ -247,10 +302,97 @@ class Graphomaton
         label = svg.add_element('text', {
                                   'class' => 'transition-label',
                                   'x' => cx.to_s,
-                                  'y' => (cy - loop_height + 10).to_s,
+                                  'y' => (cy - loop_height + 10 + label_y_shift).to_s,
                                   'text-anchor' => 'middle'
                                 })
         label.text = trans[:label]
+      end
+
+      def transition_label_lines(label)
+        text = label.to_s
+        return [text] unless @wrap_labels
+
+        max_width = @max_transition_label_width.to_f
+        return [text] if max_width <= 0
+
+        lines = []
+        current = +''
+        words = text.split(/\s+/)
+        words.each do |word|
+          if calculate_text_width(word) > max_width
+            lines << current unless current.empty?
+            lines << word
+            current = +''
+            next
+          end
+
+          candidate = current.empty? ? word : "#{current} #{word}"
+          if calculate_text_width(candidate) > max_width && !current.empty?
+            lines << current
+            current = word
+          else
+            current = candidate
+          end
+        end
+
+        lines << current unless current.empty?
+        lines = [''] if lines.empty?
+        lines
+      end
+
+      def transition_label_box_lines_width(lines)
+        lines.map { |line| calculate_text_width(line) }.max || 60
+      end
+
+      def transition_label_box_height(lines)
+        [16 * [lines.size, 1].max, 20].max
+      end
+
+      def collision_free_label_box(base_box)
+        box = base_box.dup
+        attempts = 0
+        while (label_box_overlap?(box) || label_box_overlaps_state?(box)) && attempts < 24
+          box[:y] += 8
+          attempts += 1
+        end
+        box
+      end
+
+      def label_box_overlap?(box)
+        @label_boxes.any? do |existing|
+          !(box[:x] + box[:width] < existing[:x] ||
+            box[:x] > existing[:x] + existing[:width] ||
+            box[:y] + box[:height] < existing[:y] ||
+            box[:y] > existing[:y] + existing[:height])
+        end
+      end
+
+      def label_box_overlaps_state?(box)
+        @positions.each_value do |state|
+          next if state[:x].nil? || state[:y].nil?
+
+          closest_x = if state[:x] < box[:x]
+                        box[:x]
+                      elsif state[:x] > (box[:x] + box[:width])
+                        box[:x] + box[:width]
+                      else
+                        state[:x]
+                      end
+
+          closest_y = if state[:y] < box[:y]
+                        box[:y]
+                      elsif state[:y] > (box[:y] + box[:height])
+                        box[:y] + box[:height]
+                      else
+                        state[:y]
+                      end
+
+          dx = state[:x] - closest_x
+          dy = state[:y] - closest_y
+          return true if (dx * dx + dy * dy) < (STATE_RADIUS * STATE_RADIUS)
+        end
+
+        false
       end
 
       def add_transition(svg, from_state, to_state, trans, processed_pairs, from_state_index)
@@ -270,10 +412,6 @@ class Graphomaton
         dx = x2 - x1
         dy = y2 - y1
         dist = Math.sqrt((dx**2) + (dy**2))
-        if dist.zero?
-          add_self_loop(svg, from_state, trans)
-          return
-        end
 
         radius = STATE_RADIUS
         start_x = x1 + ((dx / dist) * radius)
@@ -378,23 +516,39 @@ class Graphomaton
       end
 
       def add_label(svg, x, y, text)
-        text_width = calculate_text_width(text)
+        lines = transition_label_lines(text)
+        text_width = transition_label_box_lines_width(lines)
+        text_height = transition_label_box_height(lines)
+
+        base_box = {
+          x: x - (text_width / 2),
+          y: y - (text_height / 2),
+          width: text_width,
+          height: text_height
+        }
+        box = collision_free_label_box(base_box)
+        @label_boxes << box
+
         svg.add_element('rect', {
                           'class' => 'label-bg',
-                          'x' => (x - (text_width / 2)).to_s,
-                          'y' => (y - 10).to_s,
-                          'width' => text_width.to_s,
-                          'height' => '20',
+                          'x' => box[:x].to_s,
+                          'y' => box[:y].to_s,
+                          'width' => box[:width].to_s,
+                          'height' => box[:height].to_s,
                           'rx' => '3'
                         })
 
         label = svg.add_element('text', {
                                   'class' => 'transition-label',
                                   'x' => x.to_s,
-                                  'y' => (y + 5).to_s,
+                                  'y' => (box[:y] + 12).to_s,
                                   'text-anchor' => 'middle'
                                 })
-        label.text = text
+        lines.each_with_index do |line, index|
+          tspan = label.add_element('tspan', { 'x' => x.to_s })
+          tspan.text = line
+          tspan.attributes['dy'] = index.zero? ? '0' : '16'
+        end
       end
 
       def add_initial_arrow(svg)

@@ -3,12 +3,17 @@
 class Graphomaton
   module Exporters
     class Mermaid
-      def initialize(automaton)
+      DEFAULT_DIRECTION = :lr
+      DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
+
+      def initialize(automaton, direction: DEFAULT_DIRECTION)
         @automaton = automaton
+        @direction = resolve_direction(direction)
       end
 
       def export
         lines = ['stateDiagram-v2']
+        lines << "    direction #{direction_keyword}"
 
         lines << "    [*] --> #{sanitize_state_name(@automaton.initial_state)}" if @automaton.initial_state
 
@@ -87,6 +92,26 @@ class Graphomaton
           "\"#{sanitized}\""
         else
           sanitized
+        end
+      end
+
+      def resolve_direction(direction)
+        resolved = direction.to_sym
+        return resolved if DIRECTION_OPTIONS.include?(resolved)
+
+        raise ArgumentError, "Unknown direction: #{direction.inspect}. Available directions: #{DIRECTION_OPTIONS.join(', ')}"
+      end
+
+      def direction_keyword
+        case @direction
+        when :tb
+          'TB'
+        when :bt
+          'BT'
+        when :rl
+          'RL'
+        else
+          'LR'
         end
       end
     end

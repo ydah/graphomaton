@@ -3,13 +3,17 @@
 class Graphomaton
   module Exporters
     class Dot
-      def initialize(automaton)
+      DEFAULT_DIRECTION = :lr
+      DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
+
+      def initialize(automaton, direction: DEFAULT_DIRECTION)
         @automaton = automaton
+        @direction = resolve_direction(direction)
       end
 
       def export
         lines = ['digraph finite_state_machine {']
-        lines << '    rankdir=LR;'
+        lines << "    rankdir=#{rankdir};"
         lines << '    node [shape = circle];'
         lines << ''
 
@@ -38,6 +42,26 @@ class Graphomaton
       end
 
       private
+
+      def resolve_direction(direction)
+        resolved = direction.to_sym
+        return resolved if DIRECTION_OPTIONS.include?(resolved)
+
+        raise ArgumentError, "Unknown direction: #{direction.inspect}. Available directions: #{DIRECTION_OPTIONS.join(', ')}"
+      end
+
+      def rankdir
+        case @direction
+        when :tb
+          'TB'
+        when :bt
+          'BT'
+        when :rl
+          'RL'
+        else
+          'LR'
+        end
+      end
 
       def escape_label(label)
         label.to_s.gsub('"', '\\"')
