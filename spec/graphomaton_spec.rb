@@ -560,6 +560,17 @@ RSpec.describe Graphomaton do
       expect(style.text).to include('vector-effect: non-scaling-stroke')
     end
 
+    it 'can expose SVG theme values as CSS variables' do
+      svg_output = automaton.to_svg(css_variables: true)
+      doc = REXML::Document.new(svg_output)
+      svg = doc.root
+      style = REXML::XPath.first(doc, '//style')
+
+      expect(svg.attributes['id']).to include('graphomaton-')
+      expect(style.text).to include('--graphomaton-state-fill')
+      expect(style.text).to include('var(--graphomaton-state-fill')
+    end
+
     it 'includes rendering hints for SVG shapes and text' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)

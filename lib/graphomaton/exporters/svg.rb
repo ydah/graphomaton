@@ -19,6 +19,7 @@ class Graphomaton
       DEFAULT_HIGHLIGHT_DEAD_STATES = false
       DEFAULT_HIGHLIGHT_TRANSITIONS = [].freeze
       DEFAULT_XML_DECLARATION = false
+      DEFAULT_CSS_VARIABLES = false
       DEFAULT_LOOP_POSITION = :auto
       DEFAULT_EDGE_STYLE = :auto
       DEFAULT_SHOW_FINAL_ARROWS = false
@@ -127,6 +128,7 @@ class Graphomaton
                  highlight_dead_states: DEFAULT_HIGHLIGHT_DEAD_STATES,
                  highlight_transitions: DEFAULT_HIGHLIGHT_TRANSITIONS,
                  xml_declaration: DEFAULT_XML_DECLARATION,
+                 css_variables: DEFAULT_CSS_VARIABLES,
                  loop_position: DEFAULT_LOOP_POSITION,
                  edge_style: DEFAULT_EDGE_STYLE,
                  show_final_arrows: DEFAULT_SHOW_FINAL_ARROWS,
@@ -147,6 +149,7 @@ class Graphomaton
         @highlight_unreachable = highlight_unreachable
         @highlight_dead_states = highlight_dead_states
         @highlight_transitions = Array(highlight_transitions)
+        @css_variables = css_variables
         @unreachable_states = @highlight_unreachable ? @automaton.unreachable_states : []
         @dead_states = @highlight_dead_states ? @automaton.dead_states : []
         @trap_states = @highlight_dead_states ? @automaton.trap_states : []
@@ -294,6 +297,7 @@ class Graphomaton
       def svg_root_attributes(width, height, responsive:)
         {
           'xmlns' => 'http://www.w3.org/2000/svg',
+          'id' => @svg_id,
           'viewBox' => "0 0 #{width} #{height}",
           'preserveAspectRatio' => 'xMidYMid meet',
           'role' => 'img',
@@ -366,23 +370,24 @@ class Graphomaton
                                   })
         marker.add_element('polygon', {
                              'points' => "0 0, #{@arrow_size} #{marker_height / 2}, 0 #{marker_height}",
-                             'fill' => @theme[:stroke]
+                             'fill' => theme_css_value(:stroke)
                            })
       end
 
       def add_style(svg)
         style = svg.add_element('style')
-        background = @theme[:background] || 'transparent'
+        background = theme_css_value(:background, fallback: 'transparent')
         style.text = <<-CSS
+#{css_variables_css}      
       .diagram-background { fill: #{background}; }
-      .state-circle { fill: #{@theme[:state_fill]}; stroke: #{@theme[:stroke]}; stroke-width: 2; vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; }
+      .state-circle { fill: #{theme_css_value(:state_fill)}; stroke: #{theme_css_value(:stroke)}; stroke-width: 2; vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; }
       .final-state { stroke-width: 4; }
-      .state-text { font-family: Arial, sans-serif; text-anchor: middle; fill: #{@theme[:state_text]}; text-rendering: geometricPrecision; }
-      .transition-line { stroke: #{@theme[:stroke]}; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
-      .transition-label { font-family: Arial, sans-serif; font-size: 14px; fill: #{@theme[:transition_label]}; text-rendering: geometricPrecision; }
-      .initial-arrow { stroke: #{@theme[:stroke]}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
-      .final-arrow { stroke: #{@theme[:stroke]}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
-      .label-bg { fill: #{@theme[:label_background]}; opacity: #{@theme[:label_opacity]}; #{label_border_css} }
+      .state-text { font-family: Arial, sans-serif; text-anchor: middle; fill: #{theme_css_value(:state_text)}; text-rendering: geometricPrecision; }
+      .transition-line { stroke: #{theme_css_value(:stroke)}; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      .transition-label { font-family: Arial, sans-serif; font-size: 14px; fill: #{theme_css_value(:transition_label)}; text-rendering: geometricPrecision; }
+      .initial-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      .final-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      .label-bg { fill: #{theme_css_value(:label_background)}; opacity: #{theme_css_value(:label_opacity)}; #{label_border_css} }
       .unreachable-state { opacity: 0.45; }
       .dead-state { opacity: 0.65; }
       .dead-state .state-circle { stroke-dasharray: 6 4; }
@@ -395,7 +400,32 @@ class Graphomaton
       def label_border_css
         return 'stroke: none;' unless @label_border
 
-        "stroke: #{@theme[:stroke]}; stroke-width: 1; vector-effect: non-scaling-stroke;"
+        "stroke: #{theme_css_value(:stroke)}; stroke-width: 1; vector-effect: non-scaling-stroke;"
+      end
+
+      def css_variables_css
+        return '' unless @css_variables
+
+        variable_keys = %i[background state_fill stroke state_text transition_label label_background label_opacity]
+        declarations = variable_keys.filter_map do |key|
+          value = @theme[key] || (key == :background ? 'transparent' : nil)
+          next unless value
+
+          "        --graphomaton-#{css_variable_name(key)}: #{value};"
+        end.join("\n")
+
+        "      ##{@svg_id} {\n#{declarations}\n      }\n"
+      end
+
+      def theme_css_value(key, fallback: nil)
+        value = @theme[key] || fallback
+        return value unless @css_variables
+
+        "var(--graphomaton-#{css_variable_name(key)}, #{value})"
+      end
+
+      def css_variable_name(key)
+        key.to_s.tr('_', '-')
       end
 
       def add_background(svg, width, height)
