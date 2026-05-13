@@ -60,7 +60,7 @@ RSpec.describe Graphomaton::Exporters::Svg do
         doc = REXML::Document.new(svg_output)
         style = REXML::XPath.first(doc, '//style')
         background = REXML::XPath.first(doc, '//rect[@class="diagram-background"]')
-        arrowhead = REXML::XPath.first(doc, '//marker[@id="arrowhead"]/polygon')
+        arrowhead = REXML::XPath.first(doc, '//marker/polygon')
 
         expect(style.text).to include('stroke: #e5e7eb')
         expect(background.attributes['width']).to eq('800')
@@ -82,7 +82,7 @@ RSpec.describe Graphomaton::Exporters::Svg do
         doc = REXML::Document.new(svg_output)
         style = REXML::XPath.first(doc, '//style')
         background = REXML::XPath.first(doc, '//rect[@class="diagram-background"]')
-        arrowhead = REXML::XPath.first(doc, '//marker[@id="arrowhead"]/polygon')
+        arrowhead = REXML::XPath.first(doc, '//marker/polygon')
 
         expect(style.text).to include('stroke: #ff0000')
         expect(style.text).to include('fill: #f0f0f0')

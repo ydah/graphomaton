@@ -184,6 +184,7 @@ class Graphomaton
         @title_text = title
         @description_text = description
         @svg_id = "graphomaton-#{object_id}"
+        @arrowhead_id = "#{@svg_id}-arrowhead"
         @element_id_counts = Hash.new(0)
 
         doc = REXML::Document.new
@@ -366,7 +367,7 @@ class Graphomaton
         defs = svg.add_element('defs')
         marker_height = @arrow_size * 0.6
         marker = defs.add_element('marker', {
-                                    'id' => 'arrowhead',
+                                    'id' => @arrowhead_id,
                                     'markerWidth' => @arrow_size.to_s,
                                     'markerHeight' => marker_height.to_s,
                                     'refX' => (@arrow_size * 0.9).to_s,
@@ -389,10 +390,10 @@ class Graphomaton
       .state-circle { fill: #{theme_css_value(:state_fill)}; stroke: #{theme_css_value(:stroke)}; stroke-width: 2; vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; }
       .final-state { stroke-width: 4; }
       .state-text { font-family: Arial, sans-serif; text-anchor: middle; fill: #{theme_css_value(:state_text)}; text-rendering: geometricPrecision; }
-      .transition-line { stroke: #{theme_css_value(:stroke)}; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      .transition-line { stroke: #{theme_css_value(:stroke)}; stroke-width: 1.5; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .transition-label { font-family: Arial, sans-serif; font-size: 14px; fill: #{theme_css_value(:transition_label)}; text-rendering: geometricPrecision; }
-      .initial-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
-      .final-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      .initial-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: 2; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      .final-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: 2; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .label-bg { fill: #{theme_css_value(:label_background)}; opacity: #{theme_css_value(:label_opacity)}; #{label_border_css} }
       .unreachable-state { opacity: 0.45; }
       .dead-state { opacity: 0.65; }
