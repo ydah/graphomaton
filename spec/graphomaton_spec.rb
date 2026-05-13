@@ -697,6 +697,18 @@ RSpec.describe Graphomaton do
       expect(title.text).to eq('Entry point')
     end
 
+    it 'uses state metadata URL as an SVG link' do
+      local = described_class.new
+      local.add_state('docs', metadata: { url: 'https://example.com/docs', tooltip: 'Docs' })
+
+      svg_output = local.to_svg
+      doc = REXML::Document.new(svg_output)
+      link = REXML::XPath.first(doc, '//g[@id="state-docs"]/a')
+
+      expect(link.attributes['href']).to eq('https://example.com/docs')
+      expect(link.attributes['target']).to eq('_blank')
+    end
+
     it 'supports global and per-state SVG shapes' do
       local = described_class.new
       local.add_state('q0')

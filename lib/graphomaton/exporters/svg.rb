@@ -1081,35 +1081,36 @@ class Graphomaton
           position = state_position(name) || state
           state_node = svg.add_element('g', state_group_attributes(name))
           add_state_tooltip(state_node, state)
+          state_content = state_link_container(state_node, state)
           shape = state_shape(state)
           circle_class = 'state-circle'
           circle_class += ' final-state' if @automaton.final_states.include?(name)
 
-          state_node.add_element(state_shape_element(shape), state_shape_attributes(shape, circle_class, position, state))
+          state_content.add_element(state_shape_element(shape), state_shape_attributes(shape, circle_class, position, state))
 
           if @automaton.final_states.include?(name)
             inner_radius = [@state_radius - 8, 8].max
-            state_node.add_element(state_shape_element(shape), state_shape_attributes(shape, 'state-circle', position, state, radius: inner_radius))
+            state_content.add_element(state_shape_element(shape), state_shape_attributes(shape, 'state-circle', position, state, radius: inner_radius))
           end
 
           font_size = calculate_state_font_size(label.to_s)
           if lines.size == 1
-            text = state_node.add_element('text', {
-                                            'class' => 'state-text',
-                                            'x' => position[:x].to_s,
-                                            'y' => (position[:y] + (font_size * 0.35)).to_s,
-                                            'font-size' => font_size.to_s
-                                          })
+            text = state_content.add_element('text', {
+                                               'class' => 'state-text',
+                                               'x' => position[:x].to_s,
+                                               'y' => (position[:y] + (font_size * 0.35)).to_s,
+                                               'font-size' => font_size.to_s
+                                             })
             text.text = lines.first
           else
             line_gap = font_size + 2
             text_start_y = position[:y].to_f - ((lines.size - 1) * line_gap / 2.0) + (line_gap * 0.35)
-            text = state_node.add_element('text', {
-                                            'class' => 'state-text',
-                                            'x' => position[:x].to_s,
-                                            'y' => text_start_y.to_s,
-                                            'font-size' => font_size.to_s
-                                          })
+            text = state_content.add_element('text', {
+                                               'class' => 'state-text',
+                                               'x' => position[:x].to_s,
+                                               'y' => text_start_y.to_s,
+                                               'font-size' => font_size.to_s
+                                             })
             lines.each_with_index do |line, index|
               tspan = text.add_element('tspan', { 'x' => position[:x].to_s })
               tspan.text = line
@@ -1135,6 +1136,24 @@ class Graphomaton
 
         title = state_node.add_element('title')
         title.text = tooltip
+      end
+
+      def state_link_container(state_node, state)
+        url = state_url(state)
+        return state_node unless url
+
+        state_node.add_element('a', {
+                                 'href' => url.to_s,
+                                 'target' => '_blank',
+                                 'rel' => 'noopener noreferrer'
+                               })
+      end
+
+      def state_url(state)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:url] || metadata['url'] || metadata[:href] || metadata['href']
       end
 
       def state_tooltip(state)
