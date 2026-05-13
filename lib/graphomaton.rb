@@ -4,6 +4,8 @@ require_relative 'graphomaton/exporters'
 require_relative 'graphomaton/version'
 
 class Graphomaton
+  class ValidationError < StandardError; end
+
   STATE_RADIUS = 40
   DEFAULT_STATE_RADIUS = STATE_RADIUS
   DEFAULT_PADDING = 80
@@ -44,6 +46,35 @@ class Graphomaton
 
   def add_final(state)
     @final_states << state unless @final_states.include?(state)
+  end
+
+  def validation_errors
+    errors = []
+    errors << "Initial state #{@initial_state.inspect} is not defined" if @initial_state && !@states.key?(@initial_state)
+
+    @final_states.each do |state|
+      errors << "Final state #{state.inspect} is not defined" unless @states.key?(state)
+    end
+
+    @transitions.each_with_index do |transition, index|
+      from = transition[:from]
+      to = transition[:to]
+      errors << "Transition #{index} source #{from.inspect} is not defined" unless @states.key?(from)
+      errors << "Transition #{index} target #{to.inspect} is not defined" unless @states.key?(to)
+    end
+
+    errors
+  end
+
+  def valid?
+    validation_errors.empty?
+  end
+
+  def validate!
+    errors = validation_errors
+    return true if errors.empty?
+
+    raise ValidationError, errors.join("\n")
   end
 
   def layout_positions(width = 800, height = 600, layout: :linear, direction: :lr,

@@ -111,6 +111,33 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe '#validate!' do
+    it 'returns true for a valid automaton' do
+      automaton.add_state('q0')
+      automaton.add_state('q1')
+      automaton.set_initial('q0')
+      automaton.add_final('q1')
+      automaton.add_transition('q0', 'q1', 'a')
+
+      expect(automaton.valid?).to be true
+      expect(automaton.validate!).to be true
+    end
+
+    it 'reports undefined initial, final, and transition states' do
+      automaton.add_state('q0')
+      automaton.set_initial('missing_start')
+      automaton.add_final('missing_final')
+      automaton.add_transition('q0', 'missing_target', 'a')
+      automaton.add_transition('missing_source', 'q0', 'b')
+
+      expect(automaton.valid?).to be false
+      expect(automaton.validation_errors).to include('Initial state "missing_start" is not defined')
+      expect do
+        automaton.validate!
+      end.to raise_error(Graphomaton::ValidationError, /missing_target/)
+    end
+  end
+
   describe '#auto_layout' do
     context 'with empty states' do
       it 'does not raise error' do

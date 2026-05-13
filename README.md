@@ -59,6 +59,9 @@ automaton.save_plantuml('output.puml')        # PlantUML format
 # Or use the unified API
 automaton.render(format: :svg, width: 800, height: 600)
 automaton.save('output.svg', format: :svg, width: 800, height: 600)
+
+# Validate references before rendering if desired
+automaton.validate!
 ```
 
 ### Themes
