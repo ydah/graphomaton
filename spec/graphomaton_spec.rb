@@ -186,6 +186,36 @@ RSpec.describe Graphomaton do
         expect(automaton.states['q2'][:x]).not_to be_nil
       end
 
+      it 'supports bfs layout as a layered graph layout' do
+        automaton.add_transition('q0', 'q1', 'a')
+        automaton.add_transition('q1', 'q2', 'b')
+        automaton.auto_layout(800, 600, layout: :bfs, direction: :lr)
+
+        expect(automaton.states['q0'][:x]).to be < automaton.states['q1'][:x]
+        expect(automaton.states['q1'][:x]).to be < automaton.states['q2'][:x]
+      end
+
+      it 'supports manual layout when every state has explicit coordinates' do
+        manual = described_class.new
+        manual.add_state('q0', 100, 120)
+        manual.add_state('q1', 240, 120)
+
+        manual.auto_layout(800, 600, layout: :manual)
+
+        expect(manual.states['q0']).to include(x: 100, y: 120)
+        expect(manual.states['q1']).to include(x: 240, y: 120)
+      end
+
+      it 'rejects manual layout when a state is missing explicit coordinates' do
+        manual = described_class.new
+        manual.add_state('q0', 100, 120)
+        manual.add_state('q1')
+
+        expect do
+          manual.auto_layout(800, 600, layout: :manual)
+        end.to raise_error(ArgumentError, /Manual layout requires explicit coordinates for: q1/)
+      end
+
       it 'separates disconnected components in layered layout' do
         automaton.set_initial('q0')
         automaton.add_state('q3')

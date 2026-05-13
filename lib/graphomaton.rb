@@ -10,7 +10,7 @@ class Graphomaton
   DEFAULT_NODE_SPACING = 120
   DEFAULT_RANK_SPACING = 120
   DEFAULT_FORCE_ITERATIONS = 120
-  LAYOUT_OPTIONS = %i[linear circle grid layered force].freeze
+  LAYOUT_OPTIONS = %i[linear circle grid layered bfs force manual].freeze
   DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
   INITIAL_POSITION_OPTIONS = %i[auto start].freeze
   FINAL_POSITION_OPTIONS = %i[auto end].freeze
@@ -88,10 +88,16 @@ class Graphomaton
                     when :grid
                       layout_grid_positions(auto_states, width, height, resolved_direction, state_radius,
                                            resolved_padding, resolved_node_spacing)
-                    when :layered
+                    when :layered, :bfs
                       layout_layered_positions(auto_states, width, height, resolved_direction, state_radius,
                                               resolved_padding, resolved_node_spacing, resolved_rank_spacing,
                                               final_position: resolved_final_position)
+                    when :manual
+                      if auto_states.empty?
+                        {}
+                      else
+                        raise ArgumentError, "Manual layout requires explicit coordinates for: #{auto_states.join(', ')}"
+                      end
                     when :force
                       layout_force_positions(
                         auto_states,

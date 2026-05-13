@@ -21,7 +21,7 @@ class Graphomaton
       DEFAULT_MAX_LABEL_WIDTH = 120
       DEFAULT_STATE_WRAP = false
       DEFAULT_MAX_STATE_LABEL_WIDTH = 120
-      LAYOUT_OPTIONS = %i[linear circle grid layered force].freeze
+      LAYOUT_OPTIONS = %i[linear circle grid layered bfs force manual].freeze
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
 
       THEMES = {

@@ -85,7 +85,9 @@ automaton.save_svg('diagram.svg', 800, 600, layout: :linear, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :circle, direction: :tb)
 automaton.save_svg('diagram.svg', 800, 600, layout: :grid, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :layered, direction: :lr)
+automaton.save_svg('diagram.svg', 800, 600, layout: :bfs, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :force, direction: :lr)
+automaton.save_svg('diagram.svg', 800, 600, layout: :manual)
 automaton.save_svg(
   'diagram.svg',
   800,
@@ -102,7 +104,7 @@ automaton.save_svg(
 `direction` accepts `:lr`, `:tb`, `:rl`, `:bt` for left-right, top-bottom, right-left, and bottom-top layouts.
 `initial_position` accepts `:auto` and `:start`. `:start` places the initial state near the start side of the layout.
 `final_position` accepts `:auto` and `:end`. `:end` moves final states toward the end side of the layout.
-`layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`, `:force`.
+`layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`, `:bfs`, `:force`, `:manual`.
 `auto_size` expands SVG viewport automatically to the rendered positions when set to `true`.
 `force` accepts optional tuning keys `padding`, `node_spacing`, `rank_spacing`, `force_iterations`, and `layout_seed`.
 
