@@ -4,6 +4,9 @@ class Graphomaton
   module Exporters
     class Mermaid
       DEFAULT_DIRECTION = :lr
+      DEFAULT_THEME = :default
+      DEFAULT_CDN = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+      DEFAULT_LANG = 'ja'
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
 
       def initialize(automaton, direction: DEFAULT_DIRECTION)
@@ -31,19 +34,19 @@ class Graphomaton
         lines.join("\n")
       end
 
-      def export_html
+      def export_html(theme: DEFAULT_THEME, cdn: DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil, lang: DEFAULT_LANG)
         mermaid_code = export
+        title_text = title || '状態図 - Graphomaton'
+        language = lang || DEFAULT_LANG
+
         <<~HTML
           <!DOCTYPE html>
-          <html lang="ja">
+          <html lang="#{escape_attribute(language)}">
           <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>状態図 - Graphomaton</title>
-              <script type="module">
-                  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-                  mermaid.initialize({ startOnLoad: true, theme: 'default' });
-              </script>
+              <title>#{escape_text(title_text)}</title>
+              #{script_block(cdn: cdn, theme: theme, inline_mermaid: inline_mermaid, offline: offline)}
               <style>
                   body {
                       font-family: Arial, sans-serif;
@@ -72,9 +75,9 @@ class Graphomaton
               </style>
           </head>
           <body>
-              <h1>状態図</h1>
+              <h1>#{escape_text(title_text)}</h1>
               <div class="info">
-                  <p><strong>注意:</strong> この図はMermaid.jsを使用してブラウザ上でレンダリングされます。オフライン環境では動作しません。</p>
+                  <p><strong>注意:</strong> #{offline ? 'Mermaid.js はローカルファイル経由で読み込まれます。' : 'この図はMermaid.jsを使用してブラウザ上でレンダリングされます。オフライン環境では動作しません。'}</p>
               </div>
               <div class="mermaid">
           #{mermaid_code}
@@ -85,6 +88,60 @@ class Graphomaton
       end
 
       private
+
+      def resolve_theme(theme)
+        theme.to_s.delete_prefix(':')
+      end
+
+      def script_block(cdn:, theme:, inline_mermaid:, offline:)
+        escaped_theme = resolve_theme(theme)
+        escaped_cdn = escape_attribute(cdn)
+        if inline_mermaid
+          return mermaid_inline_script(escaped_cdn, escaped_theme)
+        end
+
+        if offline
+          <<~SCRIPT
+            <script src="#{escaped_cdn}"></script>
+            <script>
+              mermaid.initialize({ startOnLoad: true, theme: '#{escaped_theme}' });
+            </script>
+          SCRIPT
+        else
+          <<~SCRIPT
+            <script type="module">
+                import mermaid from '#{escaped_cdn}';
+                mermaid.initialize({ startOnLoad: true, theme: '#{escaped_theme}' });
+            </script>
+          SCRIPT
+        end
+      end
+
+      def mermaid_inline_script(path_or_url, theme)
+        if File.file?(path_or_url)
+          <<~SCRIPT
+            <script>
+              #{File.read(path_or_url)}
+              mermaid.initialize({ startOnLoad: true, theme: '#{theme}' });
+            </script>
+          SCRIPT
+        else
+          raise ArgumentError, "Unable to inline Mermaid script from: #{path_or_url}"
+        end
+      end
+
+      def escape_attribute(text)
+        text.to_s.gsub('&', '&amp;').gsub('"', '&quot;')
+      end
+
+      def escape_text(text)
+        text.to_s
+            .gsub('&', '&amp;')
+            .gsub('<', '&lt;')
+            .gsub('>', '&gt;')
+            .gsub('"', '&quot;')
+            .gsub("'", '&#39;')
+      end
 
       def sanitize_state_name(name)
         sanitized = name.to_s.gsub(/[\s-]/, '_')

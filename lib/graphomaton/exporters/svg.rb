@@ -5,14 +5,15 @@ require 'rexml/document'
 class Graphomaton
   module Exporters
     class Svg
-      STATE_RADIUS = 40
-      STATE_INNER_RADIUS = 32
+      DEFAULT_STATE_RADIUS = 40
       DEFAULT_THEME = :light
       DEFAULT_LAYOUT = :linear
       DEFAULT_DIRECTION = :lr
       DEFAULT_MERGE_PARALLEL_TRANSITIONS = true
       DEFAULT_WRAP = false
       DEFAULT_MAX_LABEL_WIDTH = 120
+      DEFAULT_STATE_WRAP = false
+      DEFAULT_MAX_STATE_LABEL_WIDTH = 120
       LAYOUT_OPTIONS = %i[linear circle grid layered].freeze
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
 
@@ -57,19 +58,24 @@ class Graphomaton
 
       def initialize(automaton)
         @automaton = automaton
+        @state_radius = DEFAULT_STATE_RADIUS
       end
 
       def export(width = 800, height = 600, theme: DEFAULT_THEME, layout: DEFAULT_LAYOUT, direction: DEFAULT_DIRECTION, responsive: false,
+                 state_radius: DEFAULT_STATE_RADIUS, wrap: DEFAULT_WRAP, max_transition_label_width: DEFAULT_MAX_LABEL_WIDTH,
+                 state_wrap: DEFAULT_STATE_WRAP, max_state_label_width: DEFAULT_MAX_STATE_LABEL_WIDTH,
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
-                 wrap: DEFAULT_WRAP, max_transition_label_width: DEFAULT_MAX_LABEL_WIDTH,
                  title: nil, description: nil)
+        @state_radius = state_radius.to_f
         @theme = resolve_theme(theme)
         @layout = resolve_layout(layout)
         @direction = resolve_direction(direction)
         @merge_parallel_transitions = merge_parallel_transitions
         @wrap_labels = wrap
+        @state_wrap = state_wrap
+        @max_state_label_width = max_state_label_width
         @max_transition_label_width = max_transition_label_width
-        @positions = @automaton.layout_positions(width, height, layout: @layout, direction: @direction)
+        @positions = @automaton.layout_positions(width, height, layout: @layout, direction: @direction, state_radius: @state_radius)
         @label_boxes = []
         @title_text = title
         @description_text = description
@@ -92,11 +98,25 @@ class Graphomaton
       private
 
       def resolve_theme(theme)
+        return normalize_theme(theme) if theme.is_a?(Hash)
+
         theme_name = theme.to_s.to_sym
         THEMES.fetch(theme_name)
       rescue KeyError
         available_themes = THEMES.keys.join(', ')
         raise ArgumentError, "Unknown SVG theme: #{theme.inspect}. Available themes: #{available_themes}"
+      end
+
+      def normalize_theme(theme)
+        normalized = theme.transform_keys { |key| key.to_sym }
+        unknown = normalized.keys - THEMES.fetch(DEFAULT_THEME).keys
+        return merge_themes(normalized) if unknown.empty?
+
+        raise ArgumentError, "Unknown SVG theme keys: #{unknown.join(', ')}"
+      end
+
+      def merge_themes(overrides)
+        THEMES.fetch(DEFAULT_THEME).merge(overrides)
       end
 
       def resolve_layout(layout)
@@ -153,7 +173,7 @@ class Graphomaton
         non_ascii_chars = name.length - ascii_chars
 
         estimated_width = (ascii_chars * 0.55) + (non_ascii_chars * 0.9)
-        available_width = STATE_RADIUS * 1.7
+        available_width = (@state_radius || DEFAULT_STATE_RADIUS) * 1.7
 
         base_size = 20
         calculated_size = if estimated_width * base_size > available_width
@@ -269,7 +289,7 @@ class Graphomaton
 
         start_angle = (-135 + angle_shift) * Math::PI / 180
         end_angle = (-45 - angle_shift) * Math::PI / 180
-        radius = STATE_RADIUS
+        radius = @state_radius
 
         start_x = cx + (radius * Math.cos(start_angle))
         start_y = cy + (radius * Math.sin(start_angle))
@@ -309,10 +329,18 @@ class Graphomaton
       end
 
       def transition_label_lines(label)
-        text = label.to_s
-        return [text] unless @wrap_labels
+        wrapped_lines(label, @wrap_labels ? @max_transition_label_width : 0)
+      end
 
-        max_width = @max_transition_label_width.to_f
+      def state_label_lines(name)
+        wrapped_lines(name, @state_wrap ? @max_state_label_width : 0)
+      end
+
+      def wrapped_lines(value, max_width)
+        text = value.to_s
+        return [text] if max_width.nil? || max_width <= 0
+
+        max_width = max_width.to_f
         return [text] if max_width <= 0
 
         lines = []
@@ -321,7 +349,17 @@ class Graphomaton
         words.each do |word|
           if calculate_text_width(word) > max_width
             lines << current unless current.empty?
-            lines << word
+            split_words = split_long_word(word, max_width)
+            split_words.each do |split_word|
+              candidate = current.empty? ? split_word : "#{current} #{split_word}"
+              if calculate_text_width(candidate) > max_width && !current.empty?
+                lines << current
+                current = split_word
+              else
+                current = candidate
+              end
+            end
+            lines << current unless current.empty?
             current = +''
             next
           end
@@ -338,6 +376,25 @@ class Graphomaton
         lines << current unless current.empty?
         lines = [''] if lines.empty?
         lines
+      end
+
+      def split_long_word(word, max_width)
+        return [word] if word.empty?
+
+        chunks = []
+        current = +''
+        word.each_char do |char|
+          candidate = current.empty? ? char : "#{current}#{char}"
+          if calculate_text_width(candidate) > max_width && !current.empty?
+            chunks << current
+            current = char
+          else
+            current = candidate
+          end
+        end
+
+        chunks << current unless current.empty?
+        chunks
       end
 
       def transition_label_box_lines_width(lines)
@@ -389,7 +446,7 @@ class Graphomaton
 
           dx = state[:x] - closest_x
           dy = state[:y] - closest_y
-          return true if (dx * dx + dy * dy) < (STATE_RADIUS * STATE_RADIUS)
+        return true if (dx * dx + dy * dy) < (@state_radius * @state_radius)
         end
 
         false
@@ -413,7 +470,7 @@ class Graphomaton
         dy = y2 - y1
         dist = Math.sqrt((dx**2) + (dy**2))
 
-        radius = STATE_RADIUS
+        radius = @state_radius
         start_x = x1 + ((dx / dist) * radius)
         start_y = y1 + ((dy / dist) * radius)
         end_x = x2 - ((dx / dist) * radius)
@@ -468,9 +525,9 @@ class Graphomaton
         mid_y = (start_y + end_y) / 2
 
         base_offset = if states_between > 0
-                        (STATE_RADIUS * 1.5) + (states_between * 30) + (from_state_index * 120)
+                        (@state_radius * 1.5) + (states_between * 30) + (from_state_index * 120)
                       else
-                        STATE_RADIUS * 2
+                        @state_radius * 2
                       end
 
         curve_offset = if parallel_count > 1
@@ -581,6 +638,7 @@ class Graphomaton
 
       def add_states(svg)
         @automaton.states.each do |name, state|
+          lines = state_label_lines(name)
           position = state_position(name) || state
           circle_class = 'state-circle'
           circle_class += ' final-state' if @automaton.final_states.include?(name)
@@ -589,26 +647,43 @@ class Graphomaton
                             'class' => circle_class,
                             'cx' => position[:x].to_s,
                             'cy' => position[:y].to_s,
-                            'r' => STATE_RADIUS.to_s
+                            'r' => @state_radius.to_s
                           })
 
           if @automaton.final_states.include?(name)
+            inner_radius = [@state_radius - 8, 8].max
             svg.add_element('circle', {
                               'class' => 'state-circle',
                               'cx' => position[:x].to_s,
                               'cy' => position[:y].to_s,
-                              'r' => STATE_INNER_RADIUS.to_s
+                              'r' => inner_radius.to_s
                             })
           end
 
           font_size = calculate_state_font_size(name.to_s)
-          text = svg.add_element('text', {
-                                   'class' => 'state-text',
-                                   'x' => position[:x].to_s,
-                                   'y' => (position[:y] + (font_size * 0.35)).to_s,
-                                   'font-size' => font_size.to_s
-                                 })
-          text.text = name.to_s
+          if lines.size == 1
+            text = svg.add_element('text', {
+                                     'class' => 'state-text',
+                                     'x' => position[:x].to_s,
+                                     'y' => (position[:y] + (font_size * 0.35)).to_s,
+                                     'font-size' => font_size.to_s
+                                   })
+            text.text = lines.first
+          else
+            line_gap = font_size + 2
+            text_start_y = position[:y].to_f - ((lines.size - 1) * line_gap / 2.0) + (line_gap * 0.35)
+            text = svg.add_element('text', {
+                                     'class' => 'state-text',
+                                     'x' => position[:x].to_s,
+                                     'y' => text_start_y.to_s,
+                                     'font-size' => font_size.to_s
+                                   })
+            lines.each_with_index do |line, index|
+              tspan = text.add_element('tspan', { 'x' => position[:x].to_s })
+              tspan.text = line
+              tspan.attributes['dy'] = index.zero? ? '0' : line_gap.to_s
+            end
+          end
         end
       end
 

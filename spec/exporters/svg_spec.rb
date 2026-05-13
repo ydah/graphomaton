@@ -68,6 +68,33 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(arrowhead.attributes['fill']).to eq('#e5e7eb')
       end
 
+      it 'accepts custom theme hashes' do
+        custom_theme = {
+          background: '#000000',
+          state_fill: '#ffffff',
+          stroke: '#ff0000',
+          state_text: '#123456',
+          transition_label: '#654321',
+          label_background: '#f0f0f0',
+          label_opacity: '0.88'
+        }
+        svg_output = svg_exporter.export(theme: custom_theme)
+        doc = REXML::Document.new(svg_output)
+        style = REXML::XPath.first(doc, '//style')
+        background = REXML::XPath.first(doc, '//rect[@class="diagram-background"]')
+        arrowhead = REXML::XPath.first(doc, '//marker[@id="arrowhead"]/polygon')
+
+        expect(style.text).to include('stroke: #ff0000')
+        expect(style.text).to include('fill: #f0f0f0')
+        expect(background.attributes['width']).to eq('800')
+        expect(arrowhead.attributes['fill']).to eq('#ff0000')
+      end
+
+      it 'raises for unknown custom theme keys' do
+        expect { svg_exporter.export(theme: { stroke: '#000', unknown_key: '#fff' }) }
+          .to raise_error(ArgumentError, /Unknown SVG theme keys: unknown_key/)
+      end
+
       it 'accepts string theme names' do
         svg_output = svg_exporter.export(theme: 'forest')
         doc = REXML::Document.new(svg_output)
@@ -164,6 +191,14 @@ RSpec.describe Graphomaton::Exporters::Svg do
         label_texts = labels.map(&:text)
         expect(label_texts).to include('a', 'b')
       end
+
+      it 'supports custom state radius' do
+        svg_output = svg_exporter.export(state_radius: 22)
+        doc = REXML::Document.new(svg_output)
+        circles = REXML::XPath.match(doc, '//circle[@class="state-circle"]')
+
+        expect(circles.first.attributes['r'].to_f).to eq(22.0)
+      end
     end
 
     context 'with skip states transitions' do
@@ -259,6 +294,14 @@ RSpec.describe Graphomaton::Exporters::Svg do
         labels = REXML::XPath.match(doc, '//text[@class="state-text"]')
         label_texts = labels.map(&:text)
         expect(label_texts).to include('VeryLongStateName', 'AnotherLongName')
+      end
+
+      it 'wraps state labels into multiple lines when enabled' do
+        svg_output = svg_exporter.export(state_wrap: true, max_state_label_width: 40)
+        doc = REXML::Document.new(svg_output)
+        state_texts = REXML::XPath.match(doc, '//text[@class="state-text"]')
+
+        expect(state_texts.any? { |state_text| !state_text.get_elements('tspan').empty? }).to be true
       end
     end
 

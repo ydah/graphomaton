@@ -453,6 +453,36 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe '#to_html and #save_html' do
+    let(:temp_file) { 'test_output.html' }
+
+    after do
+      FileUtils.rm_f(temp_file)
+    end
+
+    before do
+      automaton.add_state('q0')
+      automaton.add_state('q1')
+      automaton.add_transition('q0', 'q1', 'a')
+    end
+
+    it 'generates HTML with custom options' do
+      html_output = automaton.to_html(theme: :dark, offline: true, cdn: '/assets/mermaid.min.js', lang: 'en', title: 'Automaton')
+      expect(html_output).to include('<html lang="en">')
+      expect(html_output).to include('<title>Automaton</title>')
+      expect(html_output).to include('theme: \'dark\'')
+      expect(html_output).to include('<script src="/assets/mermaid.min.js"></script>')
+    end
+
+    it 'saves HTML to file' do
+      automaton.save_html(temp_file, theme: :forest, title: 'Saved')
+      content = File.read(temp_file)
+
+      expect(content).to include('<title>Saved</title>')
+      expect(content).to include('cdn.jsdelivr.net')
+    end
+  end
+
   describe '#to_png' do
     before do
       automaton.add_state('q0')

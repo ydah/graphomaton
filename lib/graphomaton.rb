@@ -5,6 +5,7 @@ require_relative 'graphomaton/version'
 
 class Graphomaton
   STATE_RADIUS = 40
+  DEFAULT_STATE_RADIUS = STATE_RADIUS
   LAYOUT_OPTIONS = %i[linear circle grid layered].freeze
   DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
   attr_accessor :states, :transitions, :initial_state, :final_states
@@ -34,7 +35,7 @@ class Graphomaton
     @final_states << state unless @final_states.include?(state)
   end
 
-  def layout_positions(width = 800, height = 600, layout: :linear, direction: :lr)
+  def layout_positions(width = 800, height = 600, layout: :linear, direction: :lr, state_radius: DEFAULT_STATE_RADIUS)
     return {} if @states.empty?
 
     resolved_layout = resolve_layout(layout)
@@ -55,13 +56,13 @@ class Graphomaton
 
     auto_positions = case resolved_layout
                     when :linear
-                      layout_linear_positions(auto_states, width, height, resolved_direction)
+                      layout_linear_positions(auto_states, width, height, resolved_direction, state_radius)
                     when :circle
-                      layout_circle_positions(auto_states, width, height, resolved_direction)
+                      layout_circle_positions(auto_states, width, height, resolved_direction, state_radius)
                     when :grid
-                      layout_grid_positions(auto_states, width, height, resolved_direction)
+                      layout_grid_positions(auto_states, width, height, resolved_direction, state_radius)
                     when :layered
-                      layout_layered_positions(auto_states, width, height, resolved_direction)
+                      layout_layered_positions(auto_states, width, height, resolved_direction, state_radius)
                     else
                       raise ArgumentError, "Unknown SVG layout: #{layout.inspect}. Available layouts: #{LAYOUT_OPTIONS.join(', ')}"
                     end
@@ -82,10 +83,16 @@ class Graphomaton
     ordered_states
   end
 
-  def auto_layout(width = 800, height = 600, layout: :linear, direction: :lr)
+  def auto_layout(width = 800, height = 600, layout: :linear, direction: :lr, state_radius: DEFAULT_STATE_RADIUS)
     return if @states.empty?
 
-    layout_positions(width, height, layout: layout, direction: direction).each do |name, position|
+    layout_positions(
+      width,
+      height,
+      layout: layout,
+      direction: direction,
+      state_radius: state_radius
+    ).each do |name, position|
       state = @states[name]
       next unless state[:x].nil? || state[:y].nil?
 
@@ -94,10 +101,10 @@ class Graphomaton
     end
   end
 
-  def layout_linear_positions(auto_states, width, height, direction)
+  def layout_linear_positions(auto_states, width, height, direction, state_radius = DEFAULT_STATE_RADIUS)
     return {} if auto_states.empty?
 
-    margin = 80
+    margin = [80, state_radius + 20].max
     available_x = [width - (2 * margin), 0].max.to_f
     available_y = [height - (2 * margin), 0].max.to_f
     count = auto_states.size
@@ -121,16 +128,16 @@ class Graphomaton
     positions
   end
 
-  def layout_circle_positions(auto_states, width, height, direction)
+  def layout_circle_positions(auto_states, width, height, direction, state_radius = DEFAULT_STATE_RADIUS)
     return {} if auto_states.empty?
 
     count = auto_states.size
     ordered = (direction == :rl || direction == :bt) ? auto_states.reverse : auto_states
     center_x = width / 2.0
     center_y = height / 2.0
-    margin = 80
-    max_radius = [width, height].min / 2.0 - margin - STATE_RADIUS
-    radius = [max_radius, STATE_RADIUS + 20].max
+    margin = [80, state_radius + 20].max
+    max_radius = [width, height].min / 2.0 - margin - state_radius
+    radius = [max_radius, state_radius + 20].max
     angle_start = case direction
                   when :tb then 0.0
                   when :bt then Math::PI
@@ -151,14 +158,14 @@ class Graphomaton
     positions
   end
 
-  def layout_grid_positions(auto_states, width, height, direction)
+  def layout_grid_positions(auto_states, width, height, direction, state_radius = DEFAULT_STATE_RADIUS)
     return {} if auto_states.empty?
 
     count = auto_states.size
     columns = Math.sqrt(count).ceil
     rows = [(count.to_f / columns).ceil, 1].max.to_i
 
-    margin = 80
+    margin = [80, state_radius + 20].max
     available_x = [width - (2 * margin), 0].max.to_f
     available_y = [height - (2 * margin), 0].max.to_f
     horizontal_step = (columns > 1 ? available_x / (columns - 1) : 0)
@@ -192,13 +199,13 @@ class Graphomaton
     positions
   end
 
-  def layout_layered_positions(auto_states, width, height, direction)
+  def layout_layered_positions(auto_states, width, height, direction, state_radius = DEFAULT_STATE_RADIUS)
     return {} if auto_states.empty?
 
     layer_groups = layout_layered_groups(auto_states)
-    return layout_linear_positions(auto_states, width, height, direction) if layer_groups.empty?
+    return layout_linear_positions(auto_states, width, height, direction, state_radius) if layer_groups.empty?
 
-    margin = 80
+    margin = [80, state_radius + 20].max
     available_x = [width - (2 * margin), 0].max.to_f
     available_y = [height - (2 * margin), 0].max.to_f
     layers = layer_groups.keys.sort
@@ -317,9 +324,10 @@ class Graphomaton
   end
 
   def to_svg(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
-             layout: :linear, direction: :lr, responsive: false,
+             layout: :linear, direction: :lr, responsive: false, state_radius: DEFAULT_STATE_RADIUS,
              merge_parallel_transitions: true, wrap: Exporters::Svg::DEFAULT_WRAP,
-             max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, title: nil, description: nil)
+             max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, state_wrap: false,
+             max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH, title: nil, description: nil)
     Exporters::Svg.new(self).export(
       width,
       height,
@@ -327,18 +335,22 @@ class Graphomaton
       layout: layout,
       direction: direction,
       responsive: responsive,
+      state_radius: state_radius,
       merge_parallel_transitions: merge_parallel_transitions,
       wrap: wrap,
       max_transition_label_width: max_transition_label_width,
+      state_wrap: state_wrap,
+      max_state_label_width: max_state_label_width,
       title: title,
       description: description
     )
   end
 
   def save_svg(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
-               layout: :linear, direction: :lr, responsive: false,
+               layout: :linear, direction: :lr, responsive: false, state_radius: DEFAULT_STATE_RADIUS,
                merge_parallel_transitions: true, wrap: Exporters::Svg::DEFAULT_WRAP,
-               max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, title: nil, description: nil)
+               max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, state_wrap: false,
+               max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH, title: nil, description: nil)
     File.write(
       filename,
       to_svg(
@@ -348,9 +360,12 @@ class Graphomaton
         layout: layout,
         direction: direction,
         responsive: responsive,
+        state_radius: state_radius,
         merge_parallel_transitions: merge_parallel_transitions,
         wrap: wrap,
         max_transition_label_width: max_transition_label_width,
+        state_wrap: state_wrap,
+        max_state_label_width: max_state_label_width,
         title: title,
         description: description
       )
@@ -369,8 +384,32 @@ class Graphomaton
     Exporters::Mermaid.new(self, direction: direction).export
   end
 
-  def save_html(filename, direction: Exporters::Mermaid::DEFAULT_DIRECTION)
-    File.write(filename, to_mermaid(direction: direction))
+  def to_html(direction: Exporters::Mermaid::DEFAULT_DIRECTION, theme: Exporters::Mermaid::DEFAULT_THEME,
+              cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil, lang: Exporters::Mermaid::DEFAULT_LANG)
+    Exporters::Mermaid.new(self, direction: direction).export_html(
+      theme: theme,
+      cdn: cdn,
+      inline_mermaid: inline_mermaid,
+      offline: offline,
+      title: title,
+      lang: lang
+    )
+  end
+
+  def save_html(filename, direction: Exporters::Mermaid::DEFAULT_DIRECTION, theme: Exporters::Mermaid::DEFAULT_THEME,
+                cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil, lang: Exporters::Mermaid::DEFAULT_LANG)
+    File.write(
+      filename,
+      to_html(
+        direction: direction,
+        theme: theme,
+        cdn: cdn,
+        inline_mermaid: inline_mermaid,
+        offline: offline,
+        title: title,
+        lang: lang
+      )
+    )
   end
 
   def to_dot(direction: Exporters::Dot::DEFAULT_DIRECTION)
@@ -381,12 +420,12 @@ class Graphomaton
     File.write(filename, to_dot(direction: direction))
   end
 
-  def to_plantuml
-    Exporters::Plantuml.new(self).export
+  def to_plantuml(direction: Exporters::Plantuml::DEFAULT_DIRECTION)
+    Exporters::Plantuml.new(self, direction: direction).export
   end
 
-  def save_plantuml(filename)
-    File.write(filename, to_plantuml)
+  def save_plantuml(filename, direction: Exporters::Plantuml::DEFAULT_DIRECTION)
+    File.write(filename, to_plantuml(direction: direction))
   end
 
   private

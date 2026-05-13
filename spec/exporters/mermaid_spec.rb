@@ -155,5 +155,21 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
       html_output = mermaid_exporter.export_html
       expect(html_output).to include('mermaid.initialize')
     end
+
+    it 'supports custom theme in HTML output' do
+      html_output = mermaid_exporter.export_html(theme: :forest)
+      expect(html_output).to include("theme: 'forest'")
+    end
+
+    it 'supports offline script source override' do
+      html_output = mermaid_exporter.export_html(offline: true, cdn: '/assets/mermaid.min.js')
+      expect(html_output).to include('<script src="/assets/mermaid.min.js"></script>')
+    end
+
+    it 'supports custom page title and language' do
+      html_output = mermaid_exporter.export_html(title: 'Automaton Viewer', lang: 'en')
+      expect(html_output).to include('<title>Automaton Viewer</title>')
+      expect(html_output).to include('<html lang="en">')
+    end
   end
 end

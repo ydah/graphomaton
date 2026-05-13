@@ -46,6 +46,11 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
         plantuml_output = plantuml_exporter.export
         expect(plantuml_output).to include('[*] --> Start')
       end
+
+      it 'supports direction option' do
+        plantuml_output = described_class.new(automaton, direction: :bt).export
+        expect(plantuml_output).to include('bottom to top direction')
+      end
     end
 
     context 'with transitions' do
