@@ -882,7 +882,7 @@ class Graphomaton
   end
 
   def normalize_transition_label(label)
-    return label.map(&:to_s).join(', ') if label.is_a?(Array)
+    return label.map(&:to_s).uniq.join(', ') if label.is_a?(Array)
 
     label
   end

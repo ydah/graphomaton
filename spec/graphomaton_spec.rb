@@ -79,7 +79,7 @@ RSpec.describe Graphomaton do
     end
 
     it 'normalizes array labels' do
-      automaton.add_transition('q0', 'q1', %w[a b])
+      automaton.add_transition('q0', 'q1', %w[a b a])
 
       expect(automaton.transitions).to include({ from: 'q0', to: 'q1', label: 'a, b' })
     end
