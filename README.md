@@ -190,6 +190,7 @@ dot -Tpdf diagram.dot -o diagram.pdf
 ```ruby
 automaton.save_plantuml('diagram.puml')
 automaton.save_plantuml('diagram.puml', theme: :forest)
+automaton.save_plantuml('diagram.puml', notes: true)
 ```
 Generates a PlantUML file that can be converted to images using PlantUML server or JAR:
 ```bash

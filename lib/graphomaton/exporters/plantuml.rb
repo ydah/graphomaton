@@ -4,12 +4,14 @@ class Graphomaton
   module Exporters
     class Plantuml
       DEFAULT_DIRECTION = :lr
+      DEFAULT_NOTES = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
 
-      def initialize(automaton, direction: DEFAULT_DIRECTION, theme: nil)
+      def initialize(automaton, direction: DEFAULT_DIRECTION, theme: nil, notes: DEFAULT_NOTES)
         @automaton = automaton
         @direction = resolve_direction(direction)
         @theme = resolve_theme(theme)
+        @notes = notes
       end
 
       def export
@@ -35,6 +37,8 @@ class Graphomaton
         @automaton.final_states.each do |state|
           lines << "#{sanitize_state_name(state)} --> [*]"
         end
+
+        lines.concat(state_note_lines) if @notes
 
         lines << ''
         lines << '@enduml'
@@ -116,6 +120,24 @@ class Graphomaton
 
           "state \"#{escape_state_label(label)}\" as #{sanitize_state_name(name)}"
         end
+      end
+
+      def state_note_lines
+        @automaton.states.filter_map do |name, state|
+          note = state_note(state)
+          next unless note
+
+          "note right of #{sanitize_state_name(name)} : #{escape_label(note)}"
+        end
+      end
+
+      def state_note(state)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:note] || metadata['note'] ||
+          metadata[:description] || metadata['description'] ||
+          metadata[:tooltip] || metadata['tooltip']
       end
 
       def escape_state_label(label)

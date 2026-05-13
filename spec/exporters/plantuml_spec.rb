@@ -45,6 +45,14 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
         expect(plantuml_output).to include('state "Named State" as q_named')
       end
 
+      it 'can render state metadata as PlantUML notes' do
+        automaton.add_state('q_note', metadata: { note: 'Entry state' })
+
+        plantuml_output = described_class.new(automaton, notes: true).export
+
+        expect(plantuml_output).to include('note right of q_note : Entry state')
+      end
+
       it 'marks final states' do
         automaton.add_final('C')
         plantuml_output = plantuml_exporter.export
