@@ -8,6 +8,10 @@ class Graphomaton
       STATE_RADIUS = 40
       STATE_INNER_RADIUS = 32
       DEFAULT_THEME = :light
+      DEFAULT_LAYOUT = :linear
+      DEFAULT_DIRECTION = :lr
+      LAYOUT_OPTIONS = %i[linear].freeze
+      DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
 
       THEMES = {
         light: {
@@ -52,17 +56,14 @@ class Graphomaton
         @automaton = automaton
       end
 
-      def export(width = 800, height = 600, theme: DEFAULT_THEME)
+      def export(width = 800, height = 600, theme: DEFAULT_THEME, layout: DEFAULT_LAYOUT, direction: DEFAULT_DIRECTION, responsive: false)
         @theme = resolve_theme(theme)
-        @automaton.auto_layout(width, height)
+        @layout = resolve_layout(layout)
+        @direction = resolve_direction(direction)
+        @positions = @automaton.layout_positions(width, height, layout: @layout, direction: @direction)
 
         doc = REXML::Document.new
-        svg = doc.add_element('svg', {
-                                'xmlns' => 'http://www.w3.org/2000/svg',
-                                'width' => width.to_s,
-                                'height' => height.to_s,
-                                'viewBox' => "0 0 #{width} #{height}"
-                              })
+        svg = doc.add_element('svg', svg_root_attributes(width, height, responsive: responsive))
 
         add_defs(svg)
         add_style(svg)
@@ -82,6 +83,38 @@ class Graphomaton
       rescue KeyError
         available_themes = THEMES.keys.join(', ')
         raise ArgumentError, "Unknown SVG theme: #{theme.inspect}. Available themes: #{available_themes}"
+      end
+
+      def resolve_layout(layout)
+        resolved = layout.to_sym
+        return resolved if LAYOUT_OPTIONS.include?(resolved)
+
+        raise ArgumentError, "Unknown SVG layout: #{layout.inspect}. Available layouts: #{LAYOUT_OPTIONS.join(', ')}"
+      end
+
+      def resolve_direction(direction)
+        resolved = direction.to_sym
+        return resolved if DIRECTION_OPTIONS.include?(resolved)
+
+        raise ArgumentError, "Unknown direction: #{direction.inspect}. Available directions: #{DIRECTION_OPTIONS.join(', ')}"
+      end
+
+      def svg_root_attributes(width, height, responsive:)
+        attributes = {
+          'xmlns' => 'http://www.w3.org/2000/svg',
+          'viewBox' => "0 0 #{width} #{height}",
+          'preserveAspectRatio' => 'xMidYMid meet'
+        }
+
+        if responsive
+          attributes['width'] = '100%'
+          attributes['height'] = 'auto'
+        else
+          attributes['width'] = width.to_s
+          attributes['height'] = height.to_s
+        end
+
+        attributes
       end
 
       def calculate_text_width(text)
@@ -157,8 +190,9 @@ class Graphomaton
         from_state_indices = {}
 
         @automaton.transitions.each_with_index do |trans, _idx|
-          from_state = @automaton.states[trans[:from]]
-          to_state = @automaton.states[trans[:to]]
+          from_state = state_position(trans[:from])
+          to_state = state_position(trans[:to])
+          next if from_state.nil? || to_state.nil?
 
           if from_state == to_state
             add_self_loop(svg, from_state, trans)
@@ -236,6 +270,10 @@ class Graphomaton
         dx = x2 - x1
         dy = y2 - y1
         dist = Math.sqrt((dx**2) + (dy**2))
+        if dist.zero?
+          add_self_loop(svg, from_state, trans)
+          return
+        end
 
         radius = STATE_RADIUS
         start_x = x1 + ((dx / dist) * radius)
@@ -250,10 +288,25 @@ class Graphomaton
         is_adjacent = (to_index - from_index).abs == 1
         states_between = (to_index - from_index).abs - 1
 
-        if is_adjacent && x1 < x2
+        if is_adjacent && forward_direction?(x1, y1, x2, y2)
           add_straight_line(svg, start_x, start_y, end_x, end_y, trans)
         else
-          add_curved_line(svg, start_x, start_y, end_x, end_y, x1, x2, trans, parallel_count, pair_index, states_between, from_state_index)
+          add_curved_line(
+            svg,
+            start_x,
+            start_y,
+            end_x,
+            end_y,
+            x1,
+            y1,
+            x2,
+            y2,
+            trans,
+            parallel_count,
+            pair_index,
+            states_between,
+            from_state_index
+          )
         end
       end
 
@@ -272,7 +325,7 @@ class Graphomaton
         add_label(svg, label_x, label_y, trans[:label])
       end
 
-      def add_curved_line(svg, start_x, start_y, end_x, end_y, x1, x2, trans, parallel_count, pair_index, states_between, from_state_index)
+      def add_curved_line(svg, start_x, start_y, end_x, end_y, x1, y1, x2, y2, trans, parallel_count, pair_index, states_between, from_state_index)
         mid_x = (start_x + end_x) / 2
         mid_y = (start_y + end_y) / 2
 
@@ -283,23 +336,32 @@ class Graphomaton
                       end
 
         curve_offset = if parallel_count > 1
-                         if trans[:from] < trans[:to]
+                         if forward_direction?(x1, y1, x2, y2)
                            -(base_offset + (50 * pair_index))
                          else
                            base_offset + (50 * pair_index)
                          end
-                       elsif x1 < x2
+                       elsif forward_direction?(x1, y1, x2, y2)
                          -base_offset
                        else
                          base_offset
                        end
 
-        control_x = if (x2 - x1).abs < 10
-                      mid_x + (50 * (pair_index.even? ? 1 : -1))
-                    else
-                      mid_x
-                    end
-        control_y = mid_y + curve_offset
+        if vertical_direction?
+          control_x = mid_x + curve_offset
+          control_y = if (y2 - y1).abs < 10
+                        mid_y + (50 * (pair_index.even? ? 1 : -1))
+                      else
+                        mid_y
+                      end
+        else
+          control_x = if (x2 - x1).abs < 10
+                        mid_x + (50 * (pair_index.even? ? 1 : -1))
+                      else
+                        mid_x
+                      end
+          control_y = mid_y + curve_offset
+        end
 
         path_d = "M #{start_x} #{start_y} Q #{control_x} #{control_y}, #{end_x} #{end_y}"
 
@@ -336,8 +398,11 @@ class Graphomaton
       end
 
       def add_initial_arrow(svg)
-        init = @automaton.states[@automaton.initial_state]
+        init = state_position(@automaton.initial_state)
+        init ||= @automaton.states[@automaton.initial_state]
         return unless init
+
+        return unless init[:x] && init[:y]
 
         svg.add_element('line', {
                           'class' => 'initial-arrow',
@@ -358,21 +423,22 @@ class Graphomaton
 
       def add_states(svg)
         @automaton.states.each do |name, state|
+          position = state_position(name) || state
           circle_class = 'state-circle'
           circle_class += ' final-state' if @automaton.final_states.include?(name)
 
           svg.add_element('circle', {
                             'class' => circle_class,
-                            'cx' => state[:x].to_s,
-                            'cy' => state[:y].to_s,
+                            'cx' => position[:x].to_s,
+                            'cy' => position[:y].to_s,
                             'r' => STATE_RADIUS.to_s
                           })
 
           if @automaton.final_states.include?(name)
             svg.add_element('circle', {
                               'class' => 'state-circle',
-                              'cx' => state[:x].to_s,
-                              'cy' => state[:y].to_s,
+                              'cx' => position[:x].to_s,
+                              'cy' => position[:y].to_s,
                               'r' => STATE_INNER_RADIUS.to_s
                             })
           end
@@ -380,12 +446,35 @@ class Graphomaton
           font_size = calculate_state_font_size(name.to_s)
           text = svg.add_element('text', {
                                    'class' => 'state-text',
-                                   'x' => state[:x].to_s,
-                                   'y' => (state[:y] + (font_size * 0.35)).to_s,
+                                   'x' => position[:x].to_s,
+                                   'y' => (position[:y] + (font_size * 0.35)).to_s,
                                    'font-size' => font_size.to_s
                                  })
           text.text = name.to_s
         end
+      end
+
+      def state_position(state_name)
+        @positions[state_name]
+      end
+
+      def forward_direction?(x1, y1, x2, y2)
+        case @direction
+        when :lr
+          x2 >= x1
+        when :rl
+          x2 <= x1
+        when :tb
+          y2 >= y1
+        when :bt
+          y2 <= y1
+        else
+          true
+        end
+      end
+
+      def vertical_direction?
+        @direction == :tb || @direction == :bt
       end
     end
   end

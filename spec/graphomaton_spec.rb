@@ -151,6 +151,22 @@ RSpec.describe Graphomaton do
         y_values = automaton.states.values.map { |s| s[:y] }
         expect(y_values.uniq.size).to eq(1) # All at same y-coordinate
       end
+
+      it 'supports directional layout' do
+        automaton.auto_layout(800, 600, direction: :tb)
+
+        expect(automaton.states['q0'][:y]).to be < automaton.states['q1'][:y]
+        expect(automaton.states['q1'][:y]).to be < automaton.states['q2'][:y]
+      end
+
+      it 'keeps manual coordinates with directional layout' do
+        automaton.add_state('q3', 500, 400)
+        automaton.auto_layout(800, 600, direction: :bt)
+
+        expect(automaton.states['q3'][:x]).to eq(500)
+        expect(automaton.states['q3'][:y]).to eq(400)
+        expect(automaton.states['q0'][:y]).to be > automaton.states['q1'][:y]
+      end
     end
   end
 
@@ -273,6 +289,45 @@ RSpec.describe Graphomaton do
       doc = REXML::Document.new(svg_output)
       paths = REXML::XPath.match(doc, '//path[@class="transition-line"]')
       expect(paths.size).to eq(0) # Two transitions
+    end
+
+    it 'does not mutate inferred coordinates on repeated render' do
+      automaton.to_svg(800, 600)
+      expect(automaton.states['q0'][:x]).to be_nil
+      expect(automaton.states['q1'][:x]).to be_nil
+
+      automaton.to_svg(1200, 900)
+      expect(automaton.states['q0'][:x]).to be_nil
+      expect(automaton.states['q1'][:x]).to be_nil
+    end
+
+    it 'keeps manually provided coordinates when rendering' do
+      automaton.add_state('q3', 100, 120)
+      automaton.add_transition('q2', 'q3', 'c')
+      automaton.to_svg
+
+      expect(automaton.states['q3'][:x]).to eq(100)
+      expect(automaton.states['q3'][:y]).to eq(120)
+    end
+
+    it 'supports direction option' do
+      svg_output = automaton.to_svg(800, 600, direction: :tb)
+      doc = REXML::Document.new(svg_output)
+      circles = REXML::XPath.match(doc, '//circle[@class="state-circle"]')
+
+      expect(circles.size).to be >= 3
+      expect(circles[0].attributes['cy'].to_f).to be < circles[1].attributes['cy'].to_f
+      expect(circles[1].attributes['cy'].to_f).to be < circles[2].attributes['cy'].to_f
+    end
+
+    it 'supports responsive output' do
+      svg_output = automaton.to_svg(800, 600, responsive: true)
+      doc = REXML::Document.new(svg_output)
+      svg = doc.root
+
+      expect(svg.attributes['width']).to eq('100%')
+      expect(svg.attributes['height']).to eq('auto')
+      expect(svg.attributes['preserveAspectRatio']).to eq('xMidYMid meet')
     end
 
     it 'creates text labels for transitions' do

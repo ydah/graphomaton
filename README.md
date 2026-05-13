@@ -77,6 +77,15 @@ Graphomaton supports multiple output formats:
 automaton.save_svg('diagram.svg', 800, 600, theme: :light)
 ```
 Generates a standalone SVG file with custom rendering.
+You can also control layout direction and responsive sizing:
+
+```ruby
+automaton.save_svg('diagram.svg', 800, 600, direction: :tb, responsive: true)
+automaton.save_svg('diagram.svg', 800, 600, layout: :linear, direction: :lr)
+```
+
+`direction` accepts `:lr`, `:tb`, `:rl`, `:bt` for left-right, top-bottom, right-left, and bottom-top layouts.
+`layout` currently supports `:linear`.
 
 #### 2. PNG
 ```ruby

@@ -27,6 +27,16 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(svg.attributes['height']).to eq('600')
       end
 
+      it 'renders responsive SVG when requested' do
+        svg_output = svg_exporter.export(responsive: true)
+        doc = REXML::Document.new(svg_output)
+        svg = doc.root
+
+        expect(svg.attributes['width']).to eq('100%')
+        expect(svg.attributes['height']).to eq('auto')
+        expect(svg.attributes['preserveAspectRatio']).to eq('xMidYMid meet')
+      end
+
       it 'accepts custom dimensions' do
         svg_output = svg_exporter.export(1000, 800)
         doc = REXML::Document.new(svg_output)
@@ -72,6 +82,13 @@ RSpec.describe Graphomaton::Exporters::Svg do
           /Unknown SVG theme: :unknown/
         )
       end
+
+      it 'raises for unsupported direction' do
+        expect { svg_exporter.export(direction: :up) }.to raise_error(
+          ArgumentError,
+          /Unknown direction: :up/
+        )
+      end
     end
 
     context 'with states and transitions' do
@@ -91,6 +108,15 @@ RSpec.describe Graphomaton::Exporters::Svg do
         circles = REXML::XPath.match(doc, '//circle[@class="state-circle" or contains(@class, "final-state")]')
         # Should have at least 3 circles (one per state, plus inner circle for final state)
         expect(circles.size).to be >= 3
+      end
+
+      it 'supports direction option for state layout' do
+        svg_output = svg_exporter.export(800, 600, direction: :tb)
+        doc = REXML::Document.new(svg_output)
+        circles = REXML::XPath.match(doc, '//circle[@class="state-circle"]')
+
+        expect(circles.size).to be >= 3
+        expect(circles[0].attributes['cy'].to_f).to be < circles[1].attributes['cy'].to_f
       end
 
       it 'includes state labels' do
