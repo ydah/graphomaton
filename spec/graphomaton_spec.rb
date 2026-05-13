@@ -485,6 +485,7 @@ RSpec.describe Graphomaton do
 
       expect(style.text).to include('shape-rendering: geometricPrecision')
       expect(style.text).to include('text-rendering: geometricPrecision')
+      expect(style.text).to include('stroke-linecap: round')
     end
 
     it 'groups transitions and states for SVG styling' do
