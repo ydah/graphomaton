@@ -15,6 +15,7 @@ class Graphomaton
       DEFAULT_DIRECTION = :lr
       DEFAULT_MERGE_PARALLEL_TRANSITIONS = true
       DEFAULT_WRAP = false
+      DEFAULT_SORT_LABELS = false
       DEFAULT_LABEL_BACKGROUND = true
       DEFAULT_LABEL_BORDER = false
       DEFAULT_LABEL_PADDING = 10
@@ -138,6 +139,7 @@ class Graphomaton
                  transition_stroke_width: DEFAULT_TRANSITION_STROKE_WIDTH,
                  wrap: DEFAULT_WRAP, max_transition_label_width: DEFAULT_MAX_LABEL_WIDTH,
                  state_wrap: DEFAULT_STATE_WRAP, max_state_label_width: DEFAULT_MAX_STATE_LABEL_WIDTH,
+                 sort_labels: DEFAULT_SORT_LABELS,
                  font_family: DEFAULT_FONT_FAMILY,
                  state_font_weight: DEFAULT_STATE_FONT_WEIGHT,
                  transition_font_weight: DEFAULT_TRANSITION_FONT_WEIGHT,
@@ -211,6 +213,7 @@ class Graphomaton
         @state_wrap = state_wrap
         @max_state_label_width = max_state_label_width
         @max_transition_label_width = max_transition_label_width
+        @sort_labels = sort_labels
         @font_family = font_family
         @state_font_weight = state_font_weight
         @transition_font_weight = transition_font_weight
@@ -649,7 +652,9 @@ class Graphomaton
         return group.first[:label] if group.size == 1
 
         labels = group.map { |transition| transition[:label].to_s }
-        labels.uniq.join(', ')
+        labels = labels.uniq
+        labels = labels.sort if @sort_labels
+        labels.join(', ')
       end
 
       def add_self_loop(svg, state, trans, loop_index = 0)

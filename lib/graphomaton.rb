@@ -50,8 +50,8 @@ class Graphomaton
     name
   end
 
-  def add_transition(from, to, label, style: nil, metadata: nil, epsilon_label: DEFAULT_EPSILON_LABEL)
-    transition = { from: from, to: to, label: normalize_transition_label(label, epsilon_label: epsilon_label) }
+  def add_transition(from, to, label, style: nil, metadata: nil, epsilon_label: DEFAULT_EPSILON_LABEL, sort_labels: false)
+    transition = { from: from, to: to, label: normalize_transition_label(label, epsilon_label: epsilon_label, sort_labels: sort_labels) }
     transition[:style] = style unless style.nil?
     transition[:metadata] = metadata unless metadata.nil?
     @transitions << transition
@@ -798,6 +798,7 @@ class Graphomaton
              merge_parallel_transitions: true, wrap: Exporters::Svg::DEFAULT_WRAP,
              max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, state_wrap: false,
              max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH,
+             sort_labels: Exporters::Svg::DEFAULT_SORT_LABELS,
              font_family: Exporters::Svg::DEFAULT_FONT_FAMILY,
              state_font_weight: Exporters::Svg::DEFAULT_STATE_FONT_WEIGHT,
              transition_font_weight: Exporters::Svg::DEFAULT_TRANSITION_FONT_WEIGHT,
@@ -868,6 +869,7 @@ class Graphomaton
       max_transition_label_width: max_transition_label_width,
       state_wrap: state_wrap,
       max_state_label_width: max_state_label_width,
+      sort_labels: sort_labels,
       font_family: font_family,
       state_font_weight: state_font_weight,
       transition_font_weight: transition_font_weight,
@@ -893,6 +895,7 @@ class Graphomaton
                merge_parallel_transitions: true, wrap: Exporters::Svg::DEFAULT_WRAP,
                max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, state_wrap: false,
                max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH,
+               sort_labels: Exporters::Svg::DEFAULT_SORT_LABELS,
                font_family: Exporters::Svg::DEFAULT_FONT_FAMILY,
                state_font_weight: Exporters::Svg::DEFAULT_STATE_FONT_WEIGHT,
                transition_font_weight: Exporters::Svg::DEFAULT_TRANSITION_FONT_WEIGHT,
@@ -965,6 +968,7 @@ class Graphomaton
         max_transition_label_width: max_transition_label_width,
         state_wrap: state_wrap,
         max_state_label_width: max_state_label_width,
+        sort_labels: sort_labels,
         font_family: font_family,
         state_font_weight: state_font_weight,
         transition_font_weight: transition_font_weight,
@@ -1085,9 +1089,11 @@ class Graphomaton
     raise ArgumentError, "Unknown format: #{format.inspect}. Available formats: #{FORMAT_OPTIONS.join(', ')}"
   end
 
-  def normalize_transition_label(label, epsilon_label: DEFAULT_EPSILON_LABEL)
+  def normalize_transition_label(label, epsilon_label: DEFAULT_EPSILON_LABEL, sort_labels: false)
     if label.is_a?(Array)
-      return label.map { |item| normalize_single_transition_label(item, epsilon_label: epsilon_label) }.uniq.join(', ')
+      labels = label.map { |item| normalize_single_transition_label(item, epsilon_label: epsilon_label) }.uniq
+      labels = labels.sort_by(&:to_s) if sort_labels
+      return labels.join(', ')
     end
 
     normalize_single_transition_label(label, epsilon_label: epsilon_label)

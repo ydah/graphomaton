@@ -95,6 +95,12 @@ RSpec.describe Graphomaton do
       expect(automaton.transitions).to include({ from: 'q0', to: 'q1', label: 'a, b' })
     end
 
+    it 'can sort array labels when requested' do
+      automaton.add_transition('q0', 'q1', %w[b a b], sort_labels: true)
+
+      expect(automaton.transitions).to include({ from: 'q0', to: 'q1', label: 'a, b' })
+    end
+
     it 'normalizes epsilon transition labels' do
       automaton.add_transition('q0', 'q1', :epsilon)
       automaton.add_transition('q1', 'q0', [:epsilon, 'a'], epsilon_label: 'eps')
@@ -925,6 +931,20 @@ RSpec.describe Graphomaton do
       doc = REXML::Document.new(svg_output)
       labels = REXML::XPath.match(doc, '//text[@class="transition-label"]')
       expect(labels.map(&:text)).to include('a', 'b')
+    end
+
+    it 'can sort merged SVG transition labels' do
+      local = described_class.new
+      local.add_state('q0')
+      local.add_state('q1')
+      local.add_transition('q0', 'q1', 'b')
+      local.add_transition('q0', 'q1', 'a')
+
+      svg_output = local.to_svg(sort_labels: true)
+      doc = REXML::Document.new(svg_output)
+      labels = REXML::XPath.match(doc, '//text[@class="transition-label"]')
+
+      expect(labels.map(&:text)).to include('a, b')
     end
 
     it 'can hide transition label backgrounds' do

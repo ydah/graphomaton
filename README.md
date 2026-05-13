@@ -46,6 +46,7 @@ automaton.add_final('q2')
 automaton.add_transition('q0', 'q1', 'a')
 automaton.add_transition('q1', 'q2', 'b')
 automaton.add_transition('q0', 'q2', ['a', 'b'])
+automaton.add_transition('q1', 'q2', ['b', 'a'], sort_labels: true)
 automaton.add_transition('q0', 'q1', :epsilon)
 automaton.add_transition('q1', 'q1', 'loop', style: { stroke: '#ef4444' }, metadata: { tooltip: 'Highlighted loop' })
 automaton.add_transition('q0', 'q0', 'b')
@@ -137,6 +138,7 @@ You can also control label display behavior:
 
 ```ruby
 automaton.save_svg('diagram.svg', 800, 600, wrap: true, max_transition_label_width: 120)
+automaton.save_svg('diagram.svg', 800, 600, sort_labels: true)
 automaton.save_svg('diagram.svg', 800, 600, label_background: false)
 automaton.save_svg('diagram.svg', 800, 600, label_padding: 16, label_radius: 8, label_border: true)
 automaton.save_svg('diagram.svg', 800, 600, highlight_unreachable: true)
