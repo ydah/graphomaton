@@ -78,6 +78,23 @@ automaton.trap_states
 `label` is used as the display name in SVG, DOT, Mermaid, and PlantUML while the state ID remains stable for transitions.
 State and transition metadata `tooltip`/`description` is used as SVG tooltip text. Metadata `url`/`href` creates clickable SVG links.
 
+You can also build an automaton from Hash, JSON, or YAML input:
+
+```ruby
+automaton = Graphomaton.from_hash(
+  states: [
+    { id: 'q0', label: 'Start', initial: true },
+    { id: 'q1', final: true }
+  ],
+  transitions: [
+    { from: 'q0', to: 'q1', label: 'a', line_style: 'dashed' }
+  ]
+)
+
+Graphomaton.from_json(File.read('automaton.json'))
+Graphomaton.from_yaml(File.read('automaton.yml'))
+```
+
 ### Themes
 
 Native SVG and PNG output can be rendered with a named theme:

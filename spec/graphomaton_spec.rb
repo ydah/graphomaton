@@ -32,6 +32,49 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe '.from_hash, .from_json, and .from_yaml' do
+    let(:input_hash) do
+      {
+        states: [
+          { id: 'q0', label: 'Start', initial: true },
+          { id: 'q1', final: true, metadata: { tooltip: 'Accept' } }
+        ],
+        transitions: [
+          { from: 'q0', to: 'q1', label: 'a', line_style: 'dashed' }
+        ]
+      }
+    end
+
+    it 'builds an automaton from a hash' do
+      automaton = described_class.from_hash(input_hash)
+
+      expect(automaton.states['q0']).to include(label: 'Start')
+      expect(automaton.initial_state).to eq('q0')
+      expect(automaton.final_states).to eq(['q1'])
+      expect(automaton.transitions).to include(from: 'q0', to: 'q1', label: 'a', line_style: 'dashed')
+    end
+
+    it 'builds an automaton from JSON' do
+      automaton = described_class.from_json(JSON.generate(input_hash))
+
+      expect(automaton.states.keys).to contain_exactly('q0', 'q1')
+      expect(automaton.transitions.first[:label]).to eq('a')
+    end
+
+    it 'builds an automaton from YAML' do
+      automaton = described_class.from_yaml(input_hash.to_yaml)
+
+      expect(automaton.states.keys).to contain_exactly('q0', 'q1')
+      expect(automaton.final_states).to eq(['q1'])
+    end
+
+    it 'rejects malformed input' do
+      expect do
+        described_class.from_hash(states: [{ label: 'missing id' }])
+      end.to raise_error(ArgumentError, /requires id or name/)
+    end
+  end
+
   describe '#add_state' do
     context 'when adding a state without position' do
       it 'adds a state with nil coordinates' do

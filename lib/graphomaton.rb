@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require 'json'
+require 'yaml'
+
 require_relative 'graphomaton/exporters'
 require_relative 'graphomaton/version'
 
@@ -33,6 +36,95 @@ class Graphomaton
   def self.pdf_available?(converter: Exporters::Pdf::DEFAULT_CONVERTER)
     Exporters::Pdf.available?(converter: converter)
   end
+
+  def self.from_hash(data)
+    raise ArgumentError, 'Graphomaton input must be a Hash' unless data.is_a?(Hash)
+
+    automaton = new
+    Array(input_value(data, :states)).each do |state|
+      add_state_from_input(automaton, state)
+    end
+
+    initial_state = input_value(data, :initial, :initial_state)
+    automaton.set_initial(initial_state) unless initial_state.nil?
+
+    Array(input_value(data, :final, :final_states)).each do |state|
+      automaton.add_final(state)
+    end
+
+    Array(input_value(data, :transitions)).each do |transition|
+      add_transition_from_input(automaton, transition)
+    end
+
+    automaton
+  end
+
+  def self.from_json(source)
+    from_hash(JSON.parse(source.respond_to?(:read) ? source.read : source.to_s))
+  end
+
+  def self.from_yaml(source)
+    yaml = YAML.safe_load(source.respond_to?(:read) ? source.read : source.to_s, permitted_classes: [Symbol], aliases: true)
+    from_hash(yaml || {})
+  end
+
+  def self.add_state_from_input(automaton, input)
+    unless input.is_a?(Hash)
+      automaton.add_state(input)
+      return
+    end
+
+    name = input_value(input, :id, :name)
+    raise ArgumentError, 'State input requires id or name' if name.nil?
+
+    automaton.add_state(
+      name,
+      input_value(input, :x),
+      input_value(input, :y),
+      label: input_value(input, :label),
+      style: input_value(input, :style),
+      metadata: input_value(input, :metadata),
+      shape: input_value(input, :shape)
+    )
+    automaton.set_initial(name) if input_value(input, :initial)
+    automaton.add_final(name) if input_value(input, :final, :accepting)
+  end
+  private_class_method :add_state_from_input
+
+  def self.add_transition_from_input(automaton, input)
+    if input.is_a?(Array)
+      from, to, label = input
+      automaton.add_transition(from, to, label)
+      return
+    end
+
+    raise ArgumentError, 'Transition input must be a Hash or Array' unless input.is_a?(Hash)
+
+    from = input_value(input, :from)
+    to = input_value(input, :to)
+    label = input_value(input, :label)
+    raise ArgumentError, 'Transition input requires from, to, and label' if from.nil? || to.nil? || label.nil?
+
+    automaton.add_transition(
+      from,
+      to,
+      label,
+      style: input_value(input, :style),
+      metadata: input_value(input, :metadata),
+      line_style: input_value(input, :line_style)
+    )
+  end
+  private_class_method :add_transition_from_input
+
+  def self.input_value(hash, *keys)
+    keys.each do |key|
+      return hash[key] if hash.key?(key)
+      return hash[key.to_s] if hash.key?(key.to_s)
+    end
+
+    nil
+  end
+  private_class_method :input_value
 
   def initialize
     @states = {}
