@@ -91,6 +91,47 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe '.theme_from_hash, .theme_from_json, and .theme_from_yaml' do
+    let(:theme_hash) do
+      {
+        background: '#101010',
+        state_fill: '#f8fafc',
+        stroke: '#ef4444',
+        state_text: '#111827',
+        transition_label: '#b91c1c',
+        label_background: '#ffffff',
+        label_opacity: '0.9'
+      }
+    end
+
+    it 'builds a complete theme from a hash' do
+      theme = described_class.theme_from_hash(theme_hash)
+
+      expect(theme).to include(theme_hash)
+      expect(theme.keys).to include(:background, :state_fill, :stroke, :state_text)
+    end
+
+    it 'builds a theme from wrapped JSON input' do
+      theme = described_class.theme_from_json(JSON.generate(theme: { stroke: '#2563eb' }))
+
+      expect(theme[:stroke]).to eq('#2563eb')
+      expect(theme[:state_fill]).to eq(Graphomaton::Exporters::Svg::THEMES.fetch(:light)[:state_fill])
+    end
+
+    it 'builds a theme from YAML input' do
+      theme = described_class.theme_from_yaml(theme_hash.to_yaml)
+
+      expect(theme[:background]).to eq('#101010')
+      expect(theme[:transition_label]).to eq('#b91c1c')
+    end
+
+    it 'rejects unknown theme keys' do
+      expect do
+        described_class.theme_from_hash(stroke: '#000', surprise: '#fff')
+      end.to raise_error(ArgumentError, /Unknown Graphomaton theme keys: surprise/)
+    end
+  end
+
   describe '#add_state' do
     context 'when adding a state without position' do
       it 'adds a state with nil coordinates' do

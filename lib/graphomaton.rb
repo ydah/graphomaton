@@ -72,6 +72,29 @@ class Graphomaton
     from_hash(yaml || {})
   end
 
+  def self.theme_from_hash(data)
+    raise ArgumentError, 'Graphomaton theme input must be a Hash' unless data.is_a?(Hash)
+
+    theme = input_value(data, :theme) || data
+    raise ArgumentError, 'Graphomaton theme must be a Hash' unless theme.is_a?(Hash)
+
+    default_theme = Exporters::Svg::THEMES.fetch(Exporters::Svg::DEFAULT_THEME)
+    normalized = theme.transform_keys { |key| key.to_sym }
+    unknown = normalized.keys - default_theme.keys
+    raise ArgumentError, "Unknown Graphomaton theme keys: #{unknown.join(', ')}" unless unknown.empty?
+
+    default_theme.merge(normalized)
+  end
+
+  def self.theme_from_json(source)
+    theme_from_hash(JSON.parse(source.respond_to?(:read) ? source.read : source.to_s))
+  end
+
+  def self.theme_from_yaml(source)
+    yaml = YAML.safe_load(source.respond_to?(:read) ? source.read : source.to_s, permitted_classes: [Symbol], aliases: true)
+    theme_from_hash(yaml || {})
+  end
+
   def self.add_state_from_input(automaton, input)
     unless input.is_a?(Hash)
       automaton.add_state(input)

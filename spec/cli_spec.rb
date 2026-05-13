@@ -58,4 +58,47 @@ RSpec.describe 'graphomaton CLI' do
       expect(stderr).to include('Input file must use .json, .yml, or .yaml extension')
     end
   end
+
+  it 'renders with a YAML theme file' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      theme = File.join(dir, 'theme.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+              initial: true
+            - id: q1
+              final: true
+          transitions:
+            - from: q0
+              to: q1
+              label: a
+        YAML
+      )
+      File.write(
+        theme,
+        <<~YAML
+          stroke: '#ef4444'
+          state_fill: '#fff7ed'
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--theme-file',
+        theme
+      )
+
+      expect(status).to be_success, stderr
+      expect(File.read(output)).to include('#ef4444')
+    end
+  end
 end

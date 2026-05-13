@@ -22,6 +22,7 @@ parser = OptionParser.new do |opts|
   opts.on('--width WIDTH', Integer, 'Output width for size-aware formats') { |value| options[:width] = value }
   opts.on('--height HEIGHT', Integer, 'Output height for size-aware formats') { |value| options[:height] = value }
   opts.on('--theme THEME', 'Theme name') { |value| options[:theme] = value.to_sym }
+  opts.on('--theme-file PATH', 'Theme JSON or YAML file') { |value| options[:theme_file] = value }
   opts.on('--layout LAYOUT', 'SVG layout') { |value| options[:layout] = value.to_sym }
   opts.on('--direction DIRECTION', 'Layout direction') { |value| options[:direction] = value.to_sym }
   opts.on('-h', '--help', 'Print help') do
@@ -50,6 +51,19 @@ automaton = case File.extname(input_path).downcase
               warn 'Input file must use .json, .yml, or .yaml extension'
               exit 1
             end
+
+if options[:theme_file]
+  theme_input = File.read(options[:theme_file])
+  options[:theme] = case File.extname(options[:theme_file]).downcase
+                    when '.json'
+                      Graphomaton.theme_from_json(theme_input)
+                    when '.yml', '.yaml'
+                      Graphomaton.theme_from_yaml(theme_input)
+                    else
+                      warn 'Theme file must use .json, .yml, or .yaml extension'
+                      exit 1
+                    end
+end
 
 save_options = {}
 save_options[:theme] = options[:theme] if options[:theme]

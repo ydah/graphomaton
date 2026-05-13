@@ -102,6 +102,7 @@ Graphomaton.from_yaml(File.read('automaton.yml'))
 graphomaton --input automaton.yml --output diagram.svg
 graphomaton --input automaton.json --output diagram.png --format png --theme dark
 graphomaton --input automaton.yml --output diagram.svg --layout layered --direction lr
+graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml
 ```
 
 ### Themes
@@ -112,6 +113,8 @@ Native SVG and PNG output can be rendered with a named theme:
 automaton.save_svg('output_dark.svg', theme: :dark)
 automaton.save_png('output_forest.png', theme: :forest)
 automaton.save_svg('output_auto.svg', theme: :auto) # follows prefers-color-scheme
+custom_theme = Graphomaton.theme_from_yaml(File.read('theme.yml'))
+automaton.save_svg('output_custom.svg', theme: custom_theme)
 ```
 
 Available themes: `:light`, `:dark`, `:forest`, `:ocean`, `:high_contrast`, `:color_blind`, `:print`, `:minimal`, `:academic`, `:presentation`, `:auto`.
