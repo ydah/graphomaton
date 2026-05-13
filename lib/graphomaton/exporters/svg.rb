@@ -319,30 +319,15 @@ class Graphomaton
       end
 
       def resolve_theme(theme)
-        return normalize_theme(theme) if theme.is_a?(Hash)
-
-        theme_name = theme.to_s.to_sym
-        if theme_name == :auto
-          @auto_dark_theme = true
-          return THEMES.fetch(DEFAULT_THEME)
+        unless theme.is_a?(Hash)
+          theme_name = theme.to_s.to_sym
+          if theme_name == :auto
+            @auto_dark_theme = true
+            return Graphomaton::Theme.resolve(theme, context: 'SVG theme', allow_auto: true)
+          end
         end
 
-        THEMES.fetch(theme_name)
-      rescue KeyError
-        available_themes = (THEMES.keys + [:auto]).join(', ')
-        raise ArgumentError, "Unknown SVG theme: #{theme.inspect}. Available themes: #{available_themes}"
-      end
-
-      def normalize_theme(theme)
-        normalized = theme.transform_keys { |key| key.to_sym }
-        unknown = normalized.keys - THEMES.fetch(DEFAULT_THEME).keys
-        return merge_themes(normalized) if unknown.empty?
-
-        raise ArgumentError, "Unknown SVG theme keys: #{unknown.join(', ')}"
-      end
-
-      def merge_themes(overrides)
-        THEMES.fetch(DEFAULT_THEME).merge(overrides)
+        Graphomaton::Theme.resolve(theme, context: 'SVG theme', allow_auto: true)
       end
 
       def resolve_layout(layout)

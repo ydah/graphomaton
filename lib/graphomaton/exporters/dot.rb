@@ -63,20 +63,8 @@ class Graphomaton
 
       def resolve_theme(theme)
         return nil unless theme
-        return normalize_theme(theme) if theme.is_a?(Hash)
 
-        Graphomaton::Exporters::Svg::THEMES.fetch(theme.to_s.to_sym)
-      rescue KeyError
-        available_themes = Graphomaton::Exporters::Svg::THEMES.keys.join(', ')
-        raise ArgumentError, "Unknown DOT theme: #{theme.inspect}. Available themes: #{available_themes}"
-      end
-
-      def normalize_theme(theme)
-        normalized = theme.transform_keys { |key| key.to_sym }
-        unknown = normalized.keys - Graphomaton::Exporters::Svg::THEMES.fetch(Graphomaton::Exporters::Svg::DEFAULT_THEME).keys
-        return Graphomaton::Exporters::Svg::THEMES.fetch(Graphomaton::Exporters::Svg::DEFAULT_THEME).merge(normalized) if unknown.empty?
-
-        raise ArgumentError, "Unknown DOT theme keys: #{unknown.join(', ')}"
+        Graphomaton::Theme.resolve(theme, context: 'DOT theme')
       end
 
       def node_attributes(shape)

@@ -132,6 +132,23 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe Graphomaton::Theme do
+    it 'normalizes custom themes against the default SVG theme' do
+      theme = described_class.normalize({ 'stroke' => '#111111' })
+
+      expect(theme[:stroke]).to eq('#111111')
+      expect(theme[:state_fill]).to eq(Graphomaton::Exporters::Svg::THEMES.fetch(:light)[:state_fill])
+    end
+
+    it 'resolves named themes' do
+      expect(described_class.resolve(:dark)).to eq(Graphomaton::Exporters::Svg::THEMES.fetch(:dark))
+    end
+
+    it 'can resolve the automatic SVG theme to the default concrete theme' do
+      expect(described_class.resolve(:auto, allow_auto: true)).to eq(Graphomaton::Exporters::Svg::THEMES.fetch(:light))
+    end
+  end
+
   describe '#add_state' do
     context 'when adding a state without position' do
       it 'adds a state with nil coordinates' do

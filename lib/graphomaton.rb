@@ -9,6 +9,39 @@ require_relative 'graphomaton/version'
 class Graphomaton
   class ValidationError < StandardError; end
 
+  class Theme
+    def self.default
+      Exporters::Svg::THEMES.fetch(Exporters::Svg::DEFAULT_THEME)
+    end
+
+    def self.available_names
+      Exporters::Svg::THEMES.keys
+    end
+
+    def self.normalize(theme, context: 'Graphomaton theme')
+      raise ArgumentError, "#{context} must be a Hash" unless theme.is_a?(Hash)
+
+      normalized = theme.transform_keys { |key| key.to_sym }
+      unknown = normalized.keys - default.keys
+      raise ArgumentError, "Unknown #{context} keys: #{unknown.join(', ')}" unless unknown.empty?
+
+      default.merge(normalized)
+    end
+
+    def self.resolve(theme, context: 'Graphomaton theme', allow_auto: false)
+      return normalize(theme, context: context) if theme.is_a?(Hash)
+
+      theme_name = theme.to_s.to_sym
+      return default if allow_auto && theme_name == :auto
+
+      Exporters::Svg::THEMES.fetch(theme_name)
+    rescue KeyError
+      available = available_names
+      available = available + [:auto] if allow_auto
+      raise ArgumentError, "Unknown #{context}: #{theme.inspect}. Available themes: #{available.join(', ')}"
+    end
+  end
+
   STATE_RADIUS = 40
   DEFAULT_STATE_RADIUS = STATE_RADIUS
   DEFAULT_PADDING = 80
@@ -77,14 +110,7 @@ class Graphomaton
     raise ArgumentError, 'Graphomaton theme input must be a Hash' unless data.is_a?(Hash)
 
     theme = input_value(data, :theme) || data
-    raise ArgumentError, 'Graphomaton theme must be a Hash' unless theme.is_a?(Hash)
-
-    default_theme = Exporters::Svg::THEMES.fetch(Exporters::Svg::DEFAULT_THEME)
-    normalized = theme.transform_keys { |key| key.to_sym }
-    unknown = normalized.keys - default_theme.keys
-    raise ArgumentError, "Unknown Graphomaton theme keys: #{unknown.join(', ')}" unless unknown.empty?
-
-    default_theme.merge(normalized)
+    Theme.normalize(theme, context: 'Graphomaton theme')
   end
 
   def self.theme_from_json(source)
