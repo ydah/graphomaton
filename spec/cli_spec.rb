@@ -101,4 +101,55 @@ RSpec.describe 'graphomaton CLI' do
       expect(File.read(output)).to include('#ef4444')
     end
   end
+
+  it 'passes Mermaid HTML options through the CLI' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.html')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+              initial: true
+              metadata:
+                note: Entry state
+            - id: q1
+              final: true
+          transitions:
+            - from: q0
+              to: q1
+              label: a
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--title',
+        'Automaton',
+        '--lang',
+        'en',
+        '--offline',
+        '--cdn',
+        '/assets/mermaid.min.js',
+        '--show-source',
+        '--notes',
+        '--class-defs'
+      )
+
+      content = File.read(output)
+      expect(status).to be_success, stderr
+      expect(content).to include('<title>Automaton</title>')
+      expect(content).to include('<html lang="en">')
+      expect(content).to include('<script src="/assets/mermaid.min.js"></script>')
+      expect(content).to include('class="mermaid-source"')
+      expect(content).to include('note right of q0: Entry state')
+      expect(content).to include('classDef initial')
+    end
+  end
 end

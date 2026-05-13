@@ -25,6 +25,13 @@ parser = OptionParser.new do |opts|
   opts.on('--theme-file PATH', 'Theme JSON or YAML file') { |value| options[:theme_file] = value }
   opts.on('--layout LAYOUT', 'SVG layout') { |value| options[:layout] = value.to_sym }
   opts.on('--direction DIRECTION', 'Layout direction') { |value| options[:direction] = value.to_sym }
+  opts.on('--cdn URL_OR_PATH', 'Mermaid CDN URL or local script path for HTML output') { |value| options[:cdn] = value }
+  opts.on('--offline', 'Use a non-module Mermaid script tag for HTML output') { options[:offline] = true }
+  opts.on('--title TITLE', 'HTML page title') { |value| options[:title] = value }
+  opts.on('--lang LANG', 'HTML language code') { |value| options[:lang] = value }
+  opts.on('--show-source', 'Include Mermaid source in HTML output') { options[:show_source] = true }
+  opts.on('--notes', 'Include state metadata notes in Mermaid output') { options[:notes] = true }
+  opts.on('--class-defs', 'Include Mermaid class definitions in Mermaid output') { options[:class_defs] = true }
   opts.on('-h', '--help', 'Print help') do
     puts opts
     exit 0
@@ -69,6 +76,13 @@ save_options = {}
 save_options[:theme] = options[:theme] if options[:theme]
 save_options[:layout] = options[:layout] if options[:layout]
 save_options[:direction] = options[:direction] if options[:direction]
+save_options[:cdn] = options[:cdn] if options[:cdn]
+save_options[:offline] = options[:offline] if options.key?(:offline)
+save_options[:title] = options[:title] if options[:title]
+save_options[:lang] = options[:lang] if options[:lang]
+save_options[:show_source] = options[:show_source] if options.key?(:show_source)
+save_options[:notes] = options[:notes] if options.key?(:notes)
+save_options[:class_defs] = options[:class_defs] if options.key?(:class_defs)
 
 automaton.save(
   output_path,

@@ -103,6 +103,7 @@ graphomaton --input automaton.yml --output diagram.svg
 graphomaton --input automaton.json --output diagram.png --format png --theme dark
 graphomaton --input automaton.yml --output diagram.svg --layout layered --direction lr
 graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml
+graphomaton --input automaton.yml --output diagram.html --title "Automaton" --lang en --show-source --notes --class-defs
 ```
 
 ### Themes
