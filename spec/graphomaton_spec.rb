@@ -188,6 +188,23 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe '#layout_warnings' do
+    it 'returns warnings for states that may be clipped by the canvas' do
+      automaton.add_state('q0', 10, 10)
+
+      warnings = automaton.layout_warnings(200, 200)
+
+      expect(warnings).to include('State "q0" may be clipped horizontally')
+      expect(warnings).to include('State "q0" may be clipped vertically')
+    end
+
+    it 'returns no warnings when states fit inside the canvas' do
+      automaton.add_state('q0', 100, 100)
+
+      expect(automaton.layout_warnings(200, 200)).to be_empty
+    end
+  end
+
   describe '#auto_layout' do
     context 'with empty states' do
       it 'does not raise error' do

@@ -101,6 +101,29 @@ class Graphomaton
     @states.keys - reachable_states
   end
 
+  def layout_warnings(width = 800, height = 600, layout: :linear, direction: :lr,
+                      state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
+                      node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
+                      force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
+                      initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION)
+    positions = layout_positions(
+      width,
+      height,
+      layout: layout,
+      direction: direction,
+      state_radius: state_radius,
+      padding: padding,
+      node_spacing: node_spacing,
+      rank_spacing: rank_spacing,
+      force_iterations: force_iterations,
+      layout_seed: layout_seed,
+      initial_position: initial_position,
+      final_position: final_position
+    )
+
+    canvas_warnings(positions, width, height, state_radius)
+  end
+
   def layout_positions(width = 800, height = 600, layout: :linear, direction: :lr,
                       state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
                       node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
@@ -928,6 +951,20 @@ class Graphomaton
     return label.map(&:to_s).uniq.join(', ') if label.is_a?(Array)
 
     label
+  end
+
+  def canvas_warnings(positions, width, height, state_radius)
+    radius = state_radius.to_f
+    positions.each_with_object([]) do |(name, position), warnings|
+      x = position[:x].to_f
+      y = position[:y].to_f
+      if x - radius < 0 || x + radius > width.to_f
+        warnings << "State #{name.inspect} may be clipped horizontally"
+      end
+      if y - radius < 0 || y + radius > height.to_f
+        warnings << "State #{name.inspect} may be clipped vertically"
+      end
+    end
   end
 
   def arrange_auto_states(auto_states, initial_position:, final_position:)
