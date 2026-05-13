@@ -11,10 +11,14 @@ class Graphomaton
       DEFAULT_DIRECTION = :lr
       DEFAULT_MERGE_PARALLEL_TRANSITIONS = true
       DEFAULT_WRAP = false
+      DEFAULT_PADDING = 80
+      DEFAULT_NODE_SPACING = 120
+      DEFAULT_RANK_SPACING = 120
+      DEFAULT_FORCE_ITERATIONS = 120
       DEFAULT_MAX_LABEL_WIDTH = 120
       DEFAULT_STATE_WRAP = false
       DEFAULT_MAX_STATE_LABEL_WIDTH = 120
-      LAYOUT_OPTIONS = %i[linear circle grid layered].freeze
+      LAYOUT_OPTIONS = %i[linear circle grid layered force].freeze
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
 
       THEMES = {
@@ -64,6 +68,8 @@ class Graphomaton
       def export(width = 800, height = 600, theme: DEFAULT_THEME, layout: DEFAULT_LAYOUT, direction: DEFAULT_DIRECTION, responsive: false,
                  state_radius: DEFAULT_STATE_RADIUS, wrap: DEFAULT_WRAP, max_transition_label_width: DEFAULT_MAX_LABEL_WIDTH,
                  state_wrap: DEFAULT_STATE_WRAP, max_state_label_width: DEFAULT_MAX_STATE_LABEL_WIDTH,
+                 padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
+                 force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
                  title: nil, description: nil)
         @state_radius = state_radius.to_f
@@ -71,11 +77,27 @@ class Graphomaton
         @layout = resolve_layout(layout)
         @direction = resolve_direction(direction)
         @merge_parallel_transitions = merge_parallel_transitions
+        @padding = padding
+        @node_spacing = node_spacing
+        @rank_spacing = rank_spacing
+        @force_iterations = force_iterations
+        @layout_seed = layout_seed
         @wrap_labels = wrap
         @state_wrap = state_wrap
         @max_state_label_width = max_state_label_width
         @max_transition_label_width = max_transition_label_width
-        @positions = @automaton.layout_positions(width, height, layout: @layout, direction: @direction, state_radius: @state_radius)
+        @positions = @automaton.layout_positions(
+          width,
+          height,
+          layout: @layout,
+          direction: @direction,
+          state_radius: @state_radius,
+          padding: @padding,
+          node_spacing: @node_spacing,
+          rank_spacing: @rank_spacing,
+          force_iterations: @force_iterations,
+          layout_seed: @layout_seed
+        )
         @label_boxes = []
         @title_text = title
         @description_text = description

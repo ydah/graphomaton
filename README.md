@@ -85,10 +85,23 @@ automaton.save_svg('diagram.svg', 800, 600, layout: :linear, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :circle, direction: :tb)
 automaton.save_svg('diagram.svg', 800, 600, layout: :grid, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :layered, direction: :lr)
+automaton.save_svg('diagram.svg', 800, 600, layout: :force, direction: :lr)
+automaton.save_svg(
+  'diagram.svg',
+  800,
+  600,
+  layout: :force,
+  padding: 80,
+  node_spacing: 120,
+  rank_spacing: 120,
+  force_iterations: 120,
+  layout_seed: 42
+)
 ```
 
 `direction` accepts `:lr`, `:tb`, `:rl`, `:bt` for left-right, top-bottom, right-left, and bottom-top layouts.
-`layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`.
+`layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`, `:force`.
+`force` accepts optional tuning keys `padding`, `node_spacing`, `rank_spacing`, `force_iterations`, and `layout_seed`.
 
 You can also control label display behavior:
 

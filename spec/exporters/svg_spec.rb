@@ -176,6 +176,32 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(circles.size).to be >= 3
       end
 
+      it 'supports force layout' do
+        svg_output = svg_exporter.export(800, 600, layout: :force, force_iterations: 10, layout_seed: 1)
+        doc = REXML::Document.new(svg_output)
+        circles = REXML::XPath.match(doc, '//circle[@class="state-circle"]')
+
+        expect(circles.size).to be >= 3
+        x_positions = circles.map { |c| c.attributes['cx'].to_f }
+        y_positions = circles.map { |c| c.attributes['cy'].to_f }
+
+        expect((x_positions.uniq.size > 1) || (y_positions.uniq.size > 1)).to be true
+      end
+
+      it 'supports force layout tuning options' do
+        expect {
+          svg_exporter.export(
+            900,
+            700,
+            layout: :force,
+            node_spacing: 180,
+            padding: 120,
+            force_iterations: 8,
+            layout_seed: 7
+          )
+        }.not_to raise_error
+      end
+
       it 'includes state labels' do
         svg_output = svg_exporter.export
         doc = REXML::Document.new(svg_output)

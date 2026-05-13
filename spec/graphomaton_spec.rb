@@ -186,6 +186,40 @@ RSpec.describe Graphomaton do
         expect(automaton.states['q2'][:x]).not_to be_nil
       end
 
+      it 'separates disconnected components in layered layout' do
+        automaton.set_initial('q0')
+        automaton.add_state('q3')
+        automaton.add_state('q4')
+        automaton.add_transition('q3', 'q4', 'c')
+
+        automaton.auto_layout(800, 600, layout: :layered, direction: :lr)
+
+        x_values = [automaton.states['q0'], automaton.states['q1'], automaton.states['q2'], automaton.states['q3'], automaton.states['q4']].map { |state| state[:x] }
+        expect(x_values.uniq.size).to be > 2
+      end
+
+      it 'supports force layout' do
+        automaton.auto_layout(800, 600, layout: :force)
+
+        values = automaton.states.values
+        expect(values.map { |state| state[:x] }).to all(be_a(Numeric))
+        expect(values.map { |state| state[:y] }).to all(be_a(Numeric))
+        expect(values.map { |state| state[:x] }.uniq.size).to be > 1
+      end
+
+      it 'supports layout tuning options for force layout' do
+        svg_output = automaton.to_svg(
+          900,
+          700,
+          layout: :force,
+          node_spacing: 160,
+          force_iterations: 10,
+          layout_seed: 42
+        )
+
+        expect { REXML::Document.new(svg_output) }.not_to raise_error
+      end
+
       it 'keeps manual coordinates with directional layout' do
         automaton.add_state('q3', 500, 400)
         automaton.auto_layout(800, 600, direction: :bt)
@@ -378,6 +412,18 @@ RSpec.describe Graphomaton do
       doc = REXML::Document.new(svg_output)
       labels = REXML::XPath.match(doc, '//text[@class="transition-label"]')
       expect(labels.map(&:text)).to include('a', 'b')
+    end
+
+    it 'supports force layout' do
+      svg_output = automaton.to_svg(800, 600, layout: :force)
+      doc = REXML::Document.new(svg_output)
+      circles = REXML::XPath.match(doc, '//circle[@class="state-circle"]')
+
+      expect(circles.size).to be >= 3
+      x_positions = circles.map { |c| c.attributes['cx'].to_f }
+      y_positions = circles.map { |c| c.attributes['cy'].to_f }
+
+      expect((x_positions.uniq.size > 1) || (y_positions.uniq.size > 1)).to be true
     end
 
     context 'with self-loop' do
