@@ -44,6 +44,17 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
         expect(mermaid_output).to include('note right of q_note: Entry state')
       end
 
+      it 'can emit Mermaid class definitions for state roles' do
+        automaton.set_initial('A')
+        automaton.add_final('C')
+
+        mermaid_output = described_class.new(automaton, class_defs: true).export
+
+        expect(mermaid_output).to include('classDef initial')
+        expect(mermaid_output).to include('class A initial;')
+        expect(mermaid_output).to include('class C final;')
+      end
+
       it 'marks final states' do
         automaton.add_final('C')
         mermaid_output = mermaid_exporter.export

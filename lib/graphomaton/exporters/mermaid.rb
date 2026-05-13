@@ -9,12 +9,14 @@ class Graphomaton
       DEFAULT_LANG = 'ja'
       DEFAULT_SHOW_SOURCE = false
       DEFAULT_NOTES = false
+      DEFAULT_CLASS_DEFS = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
 
-      def initialize(automaton, direction: DEFAULT_DIRECTION, notes: DEFAULT_NOTES)
+      def initialize(automaton, direction: DEFAULT_DIRECTION, notes: DEFAULT_NOTES, class_defs: DEFAULT_CLASS_DEFS)
         @automaton = automaton
         @direction = resolve_direction(direction)
         @notes = notes
+        @class_defs = class_defs
       end
 
       def export
@@ -36,6 +38,7 @@ class Graphomaton
         end
 
         lines.concat(state_note_lines) if @notes
+        lines.concat(class_definition_lines) if @class_defs
 
         lines.join("\n")
       end
@@ -204,6 +207,31 @@ class Graphomaton
         metadata[:note] || metadata['note'] ||
           metadata[:description] || metadata['description'] ||
           metadata[:tooltip] || metadata['tooltip']
+      end
+
+      def class_definition_lines
+        lines = [
+          '    classDef initial fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;',
+          '    classDef final fill:#dcfce7,stroke:#16a34a,color:#14532d;',
+          '    classDef unreachable fill:#f3f4f6,stroke:#9ca3af,color:#6b7280;',
+          '    classDef dead fill:#fee2e2,stroke:#dc2626,color:#7f1d1d;',
+          '    classDef trap fill:#fef3c7,stroke:#d97706,color:#78350f;'
+        ]
+
+        lines.concat(state_class_lines('initial', [@automaton.initial_state].compact))
+        lines.concat(state_class_lines('final', @automaton.final_states))
+        lines.concat(state_class_lines('unreachable', @automaton.unreachable_states))
+        lines.concat(state_class_lines('dead', @automaton.dead_states))
+        lines.concat(state_class_lines('trap', @automaton.trap_states))
+        lines
+      end
+
+      def state_class_lines(class_name, states)
+        states.filter_map do |state|
+          next unless @automaton.states.key?(state)
+
+          "    class #{sanitize_state_name(state)} #{class_name};"
+        end
       end
 
       def escape_mermaid_string(text)

@@ -959,15 +959,17 @@ class Graphomaton
     File.binwrite(filename, to_png(width, height, theme: theme, scale: scale, converter: converter, **svg_options))
   end
 
-  def to_mermaid(direction: Exporters::Mermaid::DEFAULT_DIRECTION, notes: Exporters::Mermaid::DEFAULT_NOTES)
-    Exporters::Mermaid.new(self, direction: direction, notes: notes).export
+  def to_mermaid(direction: Exporters::Mermaid::DEFAULT_DIRECTION, notes: Exporters::Mermaid::DEFAULT_NOTES,
+                 class_defs: Exporters::Mermaid::DEFAULT_CLASS_DEFS)
+    Exporters::Mermaid.new(self, direction: direction, notes: notes, class_defs: class_defs).export
   end
 
   def to_html(direction: Exporters::Mermaid::DEFAULT_DIRECTION, theme: Exporters::Mermaid::DEFAULT_THEME,
               cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil,
               lang: Exporters::Mermaid::DEFAULT_LANG, show_source: Exporters::Mermaid::DEFAULT_SHOW_SOURCE,
-              notes: Exporters::Mermaid::DEFAULT_NOTES)
-    Exporters::Mermaid.new(self, direction: direction, notes: notes).export_html(
+              notes: Exporters::Mermaid::DEFAULT_NOTES,
+              class_defs: Exporters::Mermaid::DEFAULT_CLASS_DEFS)
+    Exporters::Mermaid.new(self, direction: direction, notes: notes, class_defs: class_defs).export_html(
       theme: theme,
       cdn: cdn,
       inline_mermaid: inline_mermaid,
@@ -981,7 +983,8 @@ class Graphomaton
   def save_html(filename, direction: Exporters::Mermaid::DEFAULT_DIRECTION, theme: Exporters::Mermaid::DEFAULT_THEME,
                 cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil,
                 lang: Exporters::Mermaid::DEFAULT_LANG, show_source: Exporters::Mermaid::DEFAULT_SHOW_SOURCE,
-                notes: Exporters::Mermaid::DEFAULT_NOTES)
+                notes: Exporters::Mermaid::DEFAULT_NOTES,
+                class_defs: Exporters::Mermaid::DEFAULT_CLASS_DEFS)
     File.write(
       filename,
       to_html(
@@ -993,7 +996,8 @@ class Graphomaton
         title: title,
         lang: lang,
         show_source: show_source,
-        notes: notes
+        notes: notes,
+        class_defs: class_defs
       )
     )
   end

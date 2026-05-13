@@ -165,6 +165,7 @@ Generates a PNG file by converting Graphomaton's native SVG output. Requires one
 automaton.save_html('diagram.html')
 automaton.save_html('diagram.html', show_source: true)
 automaton.save_html('diagram.html', notes: true)
+automaton.save_html('diagram.html', class_defs: true)
 ```
 Generates an HTML file with embedded Mermaid.js state diagram. The diagram is rendered in the browser using Mermaid.js from CDN.
 
