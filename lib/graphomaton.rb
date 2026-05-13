@@ -101,6 +101,52 @@ class Graphomaton
     @states.keys - reachable_states
   end
 
+  def states_reaching_final
+    defined_final_states = @final_states.select { |state| @states.key?(state) }
+    return [] if defined_final_states.empty?
+
+    reverse_edges = Hash.new { |hash, key| hash[key] = [] }
+    @transitions.each do |transition|
+      from = transition[:from]
+      to = transition[:to]
+      next unless @states.key?(from) && @states.key?(to)
+
+      reverse_edges[to] << from
+    end
+
+    reachable = {}
+    queue = defined_final_states.dup
+    until queue.empty?
+      state = queue.shift
+      next if reachable[state]
+
+      reachable[state] = true
+      reverse_edges[state].each do |previous|
+        queue << previous unless reachable[previous]
+      end
+    end
+
+    ordered_state_names.select { |state| reachable[state] }
+  end
+
+  def dead_states
+    reaching_final = states_reaching_final
+    return [] if reaching_final.empty?
+
+    @states.keys - reaching_final
+  end
+
+  def trap_states
+    ordered_state_names.select do |state|
+      outgoing = @transitions.select do |transition|
+        transition[:from] == state && @states.key?(transition[:to])
+      end
+      next false if outgoing.empty?
+
+      outgoing.all? { |transition| transition[:to] == state }
+    end
+  end
+
   def layout_warnings(width = 800, height = 600, layout: :linear, direction: :lr,
                       state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
                       node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
@@ -744,6 +790,7 @@ class Graphomaton
              label_border: Exporters::Svg::DEFAULT_LABEL_BORDER,
              label_padding: Exporters::Svg::DEFAULT_LABEL_PADDING,
              highlight_unreachable: false,
+             highlight_dead_states: Exporters::Svg::DEFAULT_HIGHLIGHT_DEAD_STATES,
              highlight_transitions: Exporters::Svg::DEFAULT_HIGHLIGHT_TRANSITIONS,
              xml_declaration: Exporters::Svg::DEFAULT_XML_DECLARATION,
              loop_position: Exporters::Svg::DEFAULT_LOOP_POSITION,
@@ -773,6 +820,7 @@ class Graphomaton
       label_border: label_border,
       label_padding: label_padding,
       highlight_unreachable: highlight_unreachable,
+      highlight_dead_states: highlight_dead_states,
       highlight_transitions: highlight_transitions,
       xml_declaration: xml_declaration,
       loop_position: loop_position,
@@ -801,6 +849,7 @@ class Graphomaton
                label_border: Exporters::Svg::DEFAULT_LABEL_BORDER,
                label_padding: Exporters::Svg::DEFAULT_LABEL_PADDING,
                highlight_unreachable: false,
+               highlight_dead_states: Exporters::Svg::DEFAULT_HIGHLIGHT_DEAD_STATES,
                highlight_transitions: Exporters::Svg::DEFAULT_HIGHLIGHT_TRANSITIONS,
                xml_declaration: Exporters::Svg::DEFAULT_XML_DECLARATION,
                loop_position: Exporters::Svg::DEFAULT_LOOP_POSITION,
@@ -832,6 +881,7 @@ class Graphomaton
         label_border: label_border,
         label_padding: label_padding,
         highlight_unreachable: highlight_unreachable,
+        highlight_dead_states: highlight_dead_states,
         highlight_transitions: highlight_transitions,
         xml_declaration: xml_declaration,
         loop_position: loop_position,

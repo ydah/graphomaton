@@ -188,6 +188,32 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe '#states_reaching_final, #dead_states, and #trap_states' do
+    it 'reports states that cannot reach a final state and trap states' do
+      automaton.add_state('q0')
+      automaton.add_state('q1')
+      automaton.add_state('dead')
+      automaton.add_state('trap')
+      automaton.set_initial('q0')
+      automaton.add_final('q1')
+      automaton.add_transition('q0', 'q1', 'accept')
+      automaton.add_transition('dead', 'trap', 'fallthrough')
+      automaton.add_transition('trap', 'trap', 'loop')
+
+      expect(automaton.states_reaching_final).to contain_exactly('q0', 'q1')
+      expect(automaton.dead_states).to contain_exactly('dead', 'trap')
+      expect(automaton.trap_states).to contain_exactly('trap')
+    end
+
+    it 'does not report every state as dead when no final state exists' do
+      automaton.add_state('q0')
+      automaton.add_state('q1')
+      automaton.add_transition('q0', 'q1', 'a')
+
+      expect(automaton.dead_states).to be_empty
+    end
+  end
+
   describe '#layout_warnings' do
     it 'returns warnings for states that may be clipped by the canvas' do
       automaton.add_state('q0', 10, 10)
@@ -770,6 +796,29 @@ RSpec.describe Graphomaton do
       unreachable = REXML::XPath.first(doc, '//g[@id="state-q3"]')
 
       expect(unreachable.attributes['class']).to include('unreachable-state')
+    end
+
+    it 'can highlight dead and trap states' do
+      local = described_class.new
+      local.add_state('q0')
+      local.add_state('accept')
+      local.add_state('dead')
+      local.add_state('trap')
+      local.set_initial('q0')
+      local.add_final('accept')
+      local.add_transition('q0', 'accept', 'ok')
+      local.add_transition('dead', 'trap', 'miss')
+      local.add_transition('trap', 'trap', 'loop')
+
+      svg_output = local.to_svg(highlight_dead_states: true)
+      doc = REXML::Document.new(svg_output)
+      dead = REXML::XPath.first(doc, '//g[@id="state-dead"]')
+      trap = REXML::XPath.first(doc, '//g[@id="state-trap"]')
+      style = REXML::XPath.first(doc, '//style')
+
+      expect(dead.attributes['class']).to include('dead-state')
+      expect(trap.attributes['class']).to include('trap-state')
+      expect(style.text).to include('.dead-state')
     end
 
     it 'supports force layout' do

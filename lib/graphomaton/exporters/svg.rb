@@ -16,6 +16,7 @@ class Graphomaton
       DEFAULT_LABEL_BORDER = false
       DEFAULT_LABEL_PADDING = 10
       DEFAULT_HIGHLIGHT_UNREACHABLE = false
+      DEFAULT_HIGHLIGHT_DEAD_STATES = false
       DEFAULT_HIGHLIGHT_TRANSITIONS = [].freeze
       DEFAULT_XML_DECLARATION = false
       DEFAULT_LOOP_POSITION = :auto
@@ -123,6 +124,7 @@ class Graphomaton
                  label_border: DEFAULT_LABEL_BORDER,
                  label_padding: DEFAULT_LABEL_PADDING,
                  highlight_unreachable: DEFAULT_HIGHLIGHT_UNREACHABLE,
+                 highlight_dead_states: DEFAULT_HIGHLIGHT_DEAD_STATES,
                  highlight_transitions: DEFAULT_HIGHLIGHT_TRANSITIONS,
                  xml_declaration: DEFAULT_XML_DECLARATION,
                  loop_position: DEFAULT_LOOP_POSITION,
@@ -143,8 +145,11 @@ class Graphomaton
         @label_border = label_border
         @label_padding = [label_padding.to_f, 0].max
         @highlight_unreachable = highlight_unreachable
+        @highlight_dead_states = highlight_dead_states
         @highlight_transitions = Array(highlight_transitions)
         @unreachable_states = @highlight_unreachable ? @automaton.unreachable_states : []
+        @dead_states = @highlight_dead_states ? @automaton.dead_states : []
+        @trap_states = @highlight_dead_states ? @automaton.trap_states : []
         @padding = padding
         @node_spacing = node_spacing
         @rank_spacing = rank_spacing
@@ -379,6 +384,9 @@ class Graphomaton
       .final-arrow { stroke: #{@theme[:stroke]}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .label-bg { fill: #{@theme[:label_background]}; opacity: #{@theme[:label_opacity]}; #{label_border_css} }
       .unreachable-state { opacity: 0.45; }
+      .dead-state { opacity: 0.65; }
+      .dead-state .state-circle { stroke-dasharray: 6 4; }
+      .trap-state .state-circle { stroke-dasharray: 2 4; }
       .highlighted-transition .transition-line { stroke: #ef4444; stroke-width: 2.5; }
       .inactive-transition { opacity: 0.25; }
         CSS
@@ -1139,6 +1147,8 @@ class Graphomaton
       def state_group_attributes(name)
         classes = ['state']
         classes << 'unreachable-state' if @unreachable_states.include?(name)
+        classes << 'dead-state' if @dead_states.include?(name)
+        classes << 'trap-state' if @trap_states.include?(name)
 
         {
           'class' => classes.join(' '),
