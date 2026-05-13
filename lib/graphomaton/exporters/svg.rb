@@ -202,6 +202,7 @@ class Graphomaton
                  edge_style: DEFAULT_EDGE_STYLE,
                  show_final_arrows: DEFAULT_SHOW_FINAL_ARROWS,
                  preserve_manual_positions: Graphomaton::DEFAULT_PRESERVE_MANUAL_POSITIONS,
+                 fit: Graphomaton::DEFAULT_FIT,
                  title: nil, description: nil)
         @state_radius = state_radius.to_f
         @state_shape = resolve_state_shape(state_shape)
@@ -262,7 +263,8 @@ class Graphomaton
           layout_seed: @layout_seed,
           initial_position: initial_position,
           final_position: final_position,
-          preserve_manual_positions: preserve_manual_positions
+          preserve_manual_positions: preserve_manual_positions,
+          fit: fit
         )
         if auto_size
           width, height = auto_size_canvas(width, height)

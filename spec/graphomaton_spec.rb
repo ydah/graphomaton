@@ -369,6 +369,12 @@ RSpec.describe Graphomaton do
 
       expect(automaton.layout_warnings(200, 200)).to be_empty
     end
+
+    it 'can fit clipped positions inside the canvas before reporting warnings' do
+      automaton.add_state('q0', -500, -500)
+
+      expect(automaton.layout_warnings(200, 200, fit: :contain)).to be_empty
+    end
   end
 
   describe '#auto_layout' do
@@ -587,6 +593,19 @@ RSpec.describe Graphomaton do
         expect(positions['q0'][:x]).not_to eq(70)
         expect(automaton.states['q0'][:x]).to eq(70)
         expect(automaton.states['q0'][:y]).to eq(120)
+      end
+
+      it 'can fit manual positions into the requested canvas' do
+        automaton = described_class.new
+        automaton.add_state('left', -1000, 0)
+        automaton.add_state('right', 1000, 0)
+
+        positions = automaton.layout_positions(200, 200, layout: :manual, fit: :contain)
+
+        expect(positions['left'][:x]).to be >= 40
+        expect(positions['right'][:x]).to be <= 160
+        expect(positions['left'][:y]).to eq(100.0)
+        expect(positions['right'][:y]).to eq(100.0)
       end
 
       it 'keeps auto layout non-destructive for render-only operations' do

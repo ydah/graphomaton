@@ -49,8 +49,10 @@ class Graphomaton
   DEFAULT_RANK_SPACING = 120
   DEFAULT_FORCE_ITERATIONS = 120
   DEFAULT_PRESERVE_MANUAL_POSITIONS = true
+  DEFAULT_FIT = :none
   LAYOUT_OPTIONS = %i[linear circle grid layered bfs force manual].freeze
   DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
+  FIT_OPTIONS = %i[none contain].freeze
   INITIAL_POSITION_OPTIONS = %i[auto start].freeze
   FINAL_POSITION_OPTIONS = %i[auto end].freeze
   FORMAT_OPTIONS = %i[svg png pdf webp html mermaid mmd dot plantuml puml].freeze
@@ -309,7 +311,8 @@ class Graphomaton
                       node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                       force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
                       initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
-                      preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS)
+                      preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
+                      fit: DEFAULT_FIT)
     positions = layout_positions(
       width,
       height,
@@ -323,7 +326,8 @@ class Graphomaton
       layout_seed: layout_seed,
       initial_position: initial_position,
       final_position: final_position,
-      preserve_manual_positions: preserve_manual_positions
+      preserve_manual_positions: preserve_manual_positions,
+      fit: fit
     )
 
     canvas_warnings(positions, width, height, state_radius)
@@ -334,11 +338,13 @@ class Graphomaton
                       node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                       force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
                       initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
-                      preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS)
+                      preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
+                      fit: DEFAULT_FIT)
     return {} if @states.empty?
 
     resolved_layout = resolve_layout(layout)
     resolved_direction = resolve_direction(direction)
+    resolved_fit = resolve_fit(fit)
     resolved_initial_position = resolve_initial_position(initial_position)
     resolved_final_position = resolve_final_position(final_position)
     resolved_padding = [padding.to_f, 0].max
@@ -401,6 +407,7 @@ class Graphomaton
                     end
 
     positions = manual_positions.merge(auto_positions)
+    positions = fit_positions_contain(positions, width, height, state_radius, resolved_padding) if resolved_fit == :contain
     @state_positions = positions
     positions
   end
@@ -421,7 +428,8 @@ class Graphomaton
                  node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                  force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
                  initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
-                 preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS)
+                 preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
+                 fit: DEFAULT_FIT)
     return if @states.empty?
 
     resolved_layout = resolve_layout(layout)
@@ -440,7 +448,8 @@ class Graphomaton
       layout_seed: layout_seed,
       initial_position: initial_position,
       final_position: final_position,
-      preserve_manual_positions: effective_preserve_manual_positions
+      preserve_manual_positions: effective_preserve_manual_positions,
+      fit: fit
     ).each do |name, position|
       state = @states[name]
       next if effective_preserve_manual_positions && manual_position?(name)
@@ -991,6 +1000,7 @@ class Graphomaton
              edge_style: Exporters::Svg::DEFAULT_EDGE_STYLE,
              show_final_arrows: Exporters::Svg::DEFAULT_SHOW_FINAL_ARROWS,
              preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
+             fit: DEFAULT_FIT,
              title: nil, description: nil)
     Exporters::Svg.new(self).export(
       width,
@@ -1037,6 +1047,7 @@ class Graphomaton
       edge_style: edge_style,
       show_final_arrows: show_final_arrows,
       preserve_manual_positions: preserve_manual_positions,
+      fit: fit,
       wrap: wrap,
       max_transition_label_width: max_transition_label_width,
       state_wrap: state_wrap,
@@ -1092,6 +1103,7 @@ class Graphomaton
                edge_style: Exporters::Svg::DEFAULT_EDGE_STYLE,
                show_final_arrows: Exporters::Svg::DEFAULT_SHOW_FINAL_ARROWS,
                preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
+               fit: DEFAULT_FIT,
                title: nil, description: nil)
     File.write(
       filename,
@@ -1140,6 +1152,7 @@ class Graphomaton
         edge_style: edge_style,
         show_final_arrows: show_final_arrows,
         preserve_manual_positions: preserve_manual_positions,
+        fit: fit,
         wrap: wrap,
         max_transition_label_width: max_transition_label_width,
         state_wrap: state_wrap,
@@ -1264,6 +1277,13 @@ class Graphomaton
     raise ArgumentError, "Unknown direction: #{direction.inspect}. Available directions: #{DIRECTION_OPTIONS.join(', ')}"
   end
 
+  def resolve_fit(fit)
+    resolved = fit.to_sym
+    return resolved if FIT_OPTIONS.include?(resolved)
+
+    raise ArgumentError, "Unknown fit: #{fit.inspect}. Available values: #{FIT_OPTIONS.join(', ')}"
+  end
+
   def resolve_initial_position(initial_position)
     resolved = initial_position.to_sym
     return resolved if INITIAL_POSITION_OPTIONS.include?(resolved)
@@ -1313,6 +1333,46 @@ class Graphomaton
       if y - radius < 0 || y + radius > height.to_f
         warnings << "State #{name.inspect} may be clipped vertically"
       end
+    end
+  end
+
+  def fit_positions_contain(positions, width, height, state_radius, padding)
+    return positions if positions.empty?
+
+    margin = [padding.to_f, state_radius.to_f].max
+    target_width = width.to_f - (2 * margin)
+    target_height = height.to_f - (2 * margin)
+    center_x = width.to_f / 2.0
+    center_y = height.to_f / 2.0
+
+    if target_width <= 0 || target_height <= 0
+      return positions.transform_values { { x: center_x, y: center_y } }
+    end
+
+    x_values = positions.values.map { |position| position[:x].to_f }
+    y_values = positions.values.map { |position| position[:y].to_f }
+    min_x, max_x = x_values.minmax
+    min_y, max_y = y_values.minmax
+    span_x = max_x - min_x
+    span_y = max_y - min_y
+
+    if span_x.zero? && span_y.zero?
+      return positions.transform_values { { x: center_x, y: center_y } }
+    end
+
+    scale_x = span_x.zero? ? Float::INFINITY : target_width / span_x
+    scale_y = span_y.zero? ? Float::INFINITY : target_height / span_y
+    scale = [scale_x, scale_y].min
+    scaled_width = span_x * scale
+    scaled_height = span_y * scale
+    offset_x = margin + ((target_width - scaled_width) / 2.0)
+    offset_y = margin + ((target_height - scaled_height) / 2.0)
+
+    positions.transform_values do |position|
+      {
+        x: span_x.zero? ? center_x : offset_x + ((position[:x].to_f - min_x) * scale),
+        y: span_y.zero? ? center_y : offset_y + ((position[:y].to_f - min_y) * scale)
+      }
     end
   end
 
