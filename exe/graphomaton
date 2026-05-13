@@ -1,0 +1,65 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'optparse'
+
+lib_path = File.expand_path('../lib', __dir__)
+$LOAD_PATH.unshift(lib_path) if File.directory?(lib_path)
+
+require 'graphomaton'
+
+options = {
+  width: 800,
+  height: 600
+}
+
+parser = OptionParser.new do |opts|
+  opts.banner = 'Usage: graphomaton --input automaton.yml --output diagram.svg [options]'
+
+  opts.on('-i', '--input PATH', 'Input JSON or YAML file') { |value| options[:input] = value }
+  opts.on('-o', '--output PATH', 'Output file path') { |value| options[:output] = value }
+  opts.on('-f', '--format FORMAT', 'Output format override') { |value| options[:format] = value.to_sym }
+  opts.on('--width WIDTH', Integer, 'Output width for size-aware formats') { |value| options[:width] = value }
+  opts.on('--height HEIGHT', Integer, 'Output height for size-aware formats') { |value| options[:height] = value }
+  opts.on('--theme THEME', 'Theme name') { |value| options[:theme] = value.to_sym }
+  opts.on('--layout LAYOUT', 'SVG layout') { |value| options[:layout] = value.to_sym }
+  opts.on('--direction DIRECTION', 'Layout direction') { |value| options[:direction] = value.to_sym }
+  opts.on('-h', '--help', 'Print help') do
+    puts opts
+    exit 0
+  end
+end
+
+parser.parse!
+
+input_path = options[:input] || ARGV.shift
+output_path = options[:output] || ARGV.shift
+
+if input_path.nil? || output_path.nil?
+  warn parser
+  exit 1
+end
+
+input = File.read(input_path)
+automaton = case File.extname(input_path).downcase
+            when '.json'
+              Graphomaton.from_json(input)
+            when '.yml', '.yaml'
+              Graphomaton.from_yaml(input)
+            else
+              warn 'Input file must use .json, .yml, or .yaml extension'
+              exit 1
+            end
+
+save_options = {}
+save_options[:theme] = options[:theme] if options[:theme]
+save_options[:layout] = options[:layout] if options[:layout]
+save_options[:direction] = options[:direction] if options[:direction]
+
+automaton.save(
+  output_path,
+  format: options[:format],
+  width: options[:width],
+  height: options[:height],
+  **save_options
+)

@@ -95,6 +95,14 @@ Graphomaton.from_json(File.read('automaton.json'))
 Graphomaton.from_yaml(File.read('automaton.yml'))
 ```
 
+### CLI
+
+```bash
+graphomaton --input automaton.yml --output diagram.svg
+graphomaton --input automaton.json --output diagram.png --format png --theme dark
+graphomaton --input automaton.yml --output diagram.svg --layout layered --direction lr
+```
+
 ### Themes
 
 Native SVG and PNG output can be rendered with a named theme:
