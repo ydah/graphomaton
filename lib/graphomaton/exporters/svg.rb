@@ -82,6 +82,15 @@ class Graphomaton
           transition_label: '#d55e00',
           label_background: '#f7f7f7',
           label_opacity: '0.95'
+        },
+        print: {
+          background: '#ffffff',
+          state_fill: '#ffffff',
+          stroke: '#000000',
+          state_text: '#000000',
+          transition_label: '#000000',
+          label_background: '#ffffff',
+          label_opacity: '1'
         }
       }.freeze
 

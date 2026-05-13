@@ -526,6 +526,13 @@ RSpec.describe Graphomaton do
       expect(color_blind).to include('#0072b2')
     end
 
+    it 'supports print named theme' do
+      svg_output = automaton.to_svg(theme: :print)
+
+      expect(svg_output).to include('#ffffff')
+      expect(svg_output).to include('stroke: #000000')
+    end
+
     it 'creates circles for each state' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)
