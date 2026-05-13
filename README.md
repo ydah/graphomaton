@@ -86,7 +86,7 @@ automaton.save_png('output_forest.png', theme: :forest)
 automaton.save_svg('output_auto.svg', theme: :auto) # follows prefers-color-scheme
 ```
 
-Available themes: `:light`, `:dark`, `:forest`, `:ocean`, `:high_contrast`, `:color_blind`, `:print`, `:auto`.
+Available themes: `:light`, `:dark`, `:forest`, `:ocean`, `:high_contrast`, `:color_blind`, `:print`, `:minimal`, `:academic`, `:presentation`, `:auto`.
 
 ### Output Formats
 

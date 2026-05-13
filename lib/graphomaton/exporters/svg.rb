@@ -125,6 +125,33 @@ class Graphomaton
           transition_label: '#000000',
           label_background: '#ffffff',
           label_opacity: '1'
+        },
+        minimal: {
+          background: nil,
+          state_fill: '#ffffff',
+          stroke: '#111827',
+          state_text: '#111827',
+          transition_label: '#374151',
+          label_background: '#ffffff',
+          label_opacity: '0.85'
+        },
+        academic: {
+          background: '#ffffff',
+          state_fill: '#f8fafc',
+          stroke: '#1e3a8a',
+          state_text: '#111827',
+          transition_label: '#1e40af',
+          label_background: '#ffffff',
+          label_opacity: '0.95'
+        },
+        presentation: {
+          background: '#0f172a',
+          state_fill: '#f8fafc',
+          stroke: '#38bdf8',
+          state_text: '#0f172a',
+          transition_label: '#facc15',
+          label_background: '#0f172a',
+          label_opacity: '0.9'
         }
       }.freeze
 

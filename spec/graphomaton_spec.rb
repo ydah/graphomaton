@@ -744,6 +744,16 @@ RSpec.describe Graphomaton do
       expect(svg_output).to include('stroke: #000000')
     end
 
+    it 'supports style preset named themes' do
+      minimal = automaton.to_svg(theme: :minimal)
+      academic = automaton.to_svg(theme: :academic)
+      presentation = automaton.to_svg(theme: :presentation)
+
+      expect(minimal).to include('#111827')
+      expect(academic).to include('#1e3a8a')
+      expect(presentation).to include('#38bdf8')
+    end
+
     it 'supports optional SVG state effects' do
       svg_output = automaton.to_svg(state_effect: :shadow)
       doc = REXML::Document.new(svg_output)
