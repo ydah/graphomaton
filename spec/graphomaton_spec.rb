@@ -554,6 +554,20 @@ RSpec.describe Graphomaton do
       expect(style.text).to include('stroke-width: 2.0')
     end
 
+    it 'supports custom SVG font family and weights' do
+      svg_output = automaton.to_svg(
+        font_family: '"Noto Sans JP", sans-serif',
+        state_font_weight: 700,
+        transition_font_weight: 500
+      )
+      doc = REXML::Document.new(svg_output)
+      style = REXML::XPath.first(doc, '//style')
+
+      expect(style.text).to include('font-family: "Noto Sans JP", sans-serif')
+      expect(style.text).to include('font-weight: 700')
+      expect(style.text).to include('font-weight: 500')
+    end
+
     it 'includes styles' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)

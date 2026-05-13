@@ -788,6 +788,9 @@ class Graphomaton
              merge_parallel_transitions: true, wrap: Exporters::Svg::DEFAULT_WRAP,
              max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, state_wrap: false,
              max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH,
+             font_family: Exporters::Svg::DEFAULT_FONT_FAMILY,
+             state_font_weight: Exporters::Svg::DEFAULT_STATE_FONT_WEIGHT,
+             transition_font_weight: Exporters::Svg::DEFAULT_TRANSITION_FONT_WEIGHT,
              label_background: Exporters::Svg::DEFAULT_LABEL_BACKGROUND,
              label_border: Exporters::Svg::DEFAULT_LABEL_BORDER,
              label_padding: Exporters::Svg::DEFAULT_LABEL_PADDING,
@@ -844,6 +847,9 @@ class Graphomaton
       max_transition_label_width: max_transition_label_width,
       state_wrap: state_wrap,
       max_state_label_width: max_state_label_width,
+      font_family: font_family,
+      state_font_weight: state_font_weight,
+      transition_font_weight: transition_font_weight,
       title: title,
       description: description
     )
@@ -861,6 +867,9 @@ class Graphomaton
                merge_parallel_transitions: true, wrap: Exporters::Svg::DEFAULT_WRAP,
                max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, state_wrap: false,
                max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH,
+               font_family: Exporters::Svg::DEFAULT_FONT_FAMILY,
+               state_font_weight: Exporters::Svg::DEFAULT_STATE_FONT_WEIGHT,
+               transition_font_weight: Exporters::Svg::DEFAULT_TRANSITION_FONT_WEIGHT,
                label_background: Exporters::Svg::DEFAULT_LABEL_BACKGROUND,
                label_border: Exporters::Svg::DEFAULT_LABEL_BORDER,
                label_padding: Exporters::Svg::DEFAULT_LABEL_PADDING,
@@ -919,6 +928,9 @@ class Graphomaton
         max_transition_label_width: max_transition_label_width,
         state_wrap: state_wrap,
         max_state_label_width: max_state_label_width,
+        font_family: font_family,
+        state_font_weight: state_font_weight,
+        transition_font_weight: transition_font_weight,
         title: title,
         description: description
       )

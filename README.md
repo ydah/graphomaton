@@ -104,6 +104,7 @@ automaton.save_svg('diagram.svg', 800, 600, layout: :bfs, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :force, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :manual)
 automaton.save_svg('diagram.svg', 800, 600, state_stroke_width: 3, transition_stroke_width: 2)
+automaton.save_svg('diagram.svg', 800, 600, font_family: '"Noto Sans JP", sans-serif', state_font_weight: 700)
 automaton.save_svg(
   'diagram.svg',
   800,

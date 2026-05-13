@@ -18,6 +18,9 @@ class Graphomaton
       DEFAULT_LABEL_BACKGROUND = true
       DEFAULT_LABEL_BORDER = false
       DEFAULT_LABEL_PADDING = 10
+      DEFAULT_FONT_FAMILY = 'Arial, sans-serif'
+      DEFAULT_STATE_FONT_WEIGHT = nil
+      DEFAULT_TRANSITION_FONT_WEIGHT = nil
       DEFAULT_HIGHLIGHT_UNREACHABLE = false
       DEFAULT_HIGHLIGHT_DEAD_STATES = false
       DEFAULT_HIGHLIGHT_INITIAL_STATE = false
@@ -126,6 +129,9 @@ class Graphomaton
                  transition_stroke_width: DEFAULT_TRANSITION_STROKE_WIDTH,
                  wrap: DEFAULT_WRAP, max_transition_label_width: DEFAULT_MAX_LABEL_WIDTH,
                  state_wrap: DEFAULT_STATE_WRAP, max_state_label_width: DEFAULT_MAX_STATE_LABEL_WIDTH,
+                 font_family: DEFAULT_FONT_FAMILY,
+                 state_font_weight: DEFAULT_STATE_FONT_WEIGHT,
+                 transition_font_weight: DEFAULT_TRANSITION_FONT_WEIGHT,
                  padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                  force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil, auto_size: DEFAULT_AUTO_SIZE,
                  arrow_size: DEFAULT_ARROW_SIZE,
@@ -182,6 +188,9 @@ class Graphomaton
         @state_wrap = state_wrap
         @max_state_label_width = max_state_label_width
         @max_transition_label_width = max_transition_label_width
+        @font_family = font_family
+        @state_font_weight = state_font_weight
+        @transition_font_weight = transition_font_weight
         @positions = @automaton.layout_positions(
           width,
           height,
@@ -425,9 +434,9 @@ class Graphomaton
       .diagram-background { fill: #{background}; }
       .state-circle { fill: #{theme_css_value(:state_fill)}; stroke: #{theme_css_value(:stroke)}; stroke-width: #{@state_stroke_width}; vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; #{state_effect_css} }
       .final-state { stroke-width: #{final_state_stroke_width}; }
-      .state-text { font-family: Arial, sans-serif; text-anchor: middle; fill: #{theme_css_value(:state_text)}; text-rendering: geometricPrecision; }
+      .state-text { font-family: #{@font_family}; text-anchor: middle; fill: #{theme_css_value(:state_text)}; text-rendering: geometricPrecision; #{font_weight_css(@state_font_weight)} }
       .transition-line { stroke: #{theme_css_value(:stroke)}; stroke-width: #{@transition_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
-      .transition-label { font-family: Arial, sans-serif; font-size: 14px; fill: #{theme_css_value(:transition_label)}; text-rendering: geometricPrecision; }
+      .transition-label { font-family: #{@font_family}; font-size: 14px; fill: #{theme_css_value(:transition_label)}; text-rendering: geometricPrecision; #{font_weight_css(@transition_font_weight)} }
       .initial-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .final-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .label-bg { fill: #{theme_css_value(:label_background)}; opacity: #{theme_css_value(:label_opacity)}; #{label_border_css} }
@@ -446,6 +455,12 @@ class Graphomaton
         return 'stroke: none;' unless @label_border
 
         "stroke: #{theme_css_value(:stroke)}; stroke-width: 1; vector-effect: non-scaling-stroke;"
+      end
+
+      def font_weight_css(weight)
+        return '' if weight.nil?
+
+        "font-weight: #{weight};"
       end
 
       def css_variables_css
