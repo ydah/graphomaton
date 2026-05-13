@@ -103,6 +103,7 @@ automaton.save_svg(
 `initial_position` accepts `:auto` and `:start`. `:start` places the initial state near the start side of the layout.
 `final_position` accepts `:auto` and `:end`. `:end` moves final states toward the end side of the layout.
 `layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`, `:force`.
+`auto_size` expands SVG viewport automatically to the rendered positions when set to `true`.
 `force` accepts optional tuning keys `padding`, `node_spacing`, `rank_spacing`, `force_iterations`, and `layout_seed`.
 
 You can also control label display behavior:

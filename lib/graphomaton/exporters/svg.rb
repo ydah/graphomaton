@@ -17,6 +17,7 @@ class Graphomaton
       DEFAULT_FORCE_ITERATIONS = 120
       DEFAULT_INITIAL_POSITION = :auto
       DEFAULT_FINAL_POSITION = :auto
+      DEFAULT_AUTO_SIZE = false
       DEFAULT_MAX_LABEL_WIDTH = 120
       DEFAULT_STATE_WRAP = false
       DEFAULT_MAX_STATE_LABEL_WIDTH = 120
@@ -71,7 +72,7 @@ class Graphomaton
                  state_radius: DEFAULT_STATE_RADIUS, wrap: DEFAULT_WRAP, max_transition_label_width: DEFAULT_MAX_LABEL_WIDTH,
                  state_wrap: DEFAULT_STATE_WRAP, max_state_label_width: DEFAULT_MAX_STATE_LABEL_WIDTH,
                  padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
-                 force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
+                 force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil, auto_size: DEFAULT_AUTO_SIZE,
                  initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
                  title: nil, description: nil)
@@ -103,6 +104,9 @@ class Graphomaton
           initial_position: initial_position,
           final_position: final_position
         )
+        if auto_size
+          width, height = auto_size_canvas(width, height)
+        end
         @label_boxes = []
         @title_text = title
         @description_text = description
@@ -158,6 +162,35 @@ class Graphomaton
         return resolved if DIRECTION_OPTIONS.include?(resolved)
 
         raise ArgumentError, "Unknown direction: #{direction.inspect}. Available directions: #{DIRECTION_OPTIONS.join(', ')}"
+      end
+
+      def auto_size_canvas(width, height)
+        x_values = @positions.values.map { |position| position[:x].to_f }
+        y_values = @positions.values.map { |position| position[:y].to_f }
+        return [width.to_f, height.to_f] if x_values.empty? || y_values.empty?
+
+        min_x = x_values.min
+        max_x = x_values.max
+        min_y = y_values.min
+        max_y = y_values.max
+
+        return [width.to_f, height.to_f] unless min_x && max_x && min_y && max_y
+
+        horizontal_margin = [@padding.to_f, @state_radius + 20].max
+        vertical_margin = [@padding.to_f, @state_radius + 20].max
+        shift_x = min_x - horizontal_margin
+        shift_y = min_y - vertical_margin
+
+        if shift_x.nonzero? || shift_y.nonzero?
+          @positions.each_value do |position|
+            position[:x] -= shift_x
+            position[:y] -= shift_y
+          end
+        end
+
+        width = (max_x - min_x) + (horizontal_margin * 2)
+        height = (max_y - min_y) + (vertical_margin * 2)
+        [width.to_f, height.to_f]
       end
 
       def svg_root_attributes(width, height, responsive:)

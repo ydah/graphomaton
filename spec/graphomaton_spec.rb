@@ -445,6 +445,15 @@ RSpec.describe Graphomaton do
       expect(circles[1].attributes['cy'].to_f).to be < circles[2].attributes['cy'].to_f
     end
 
+    it 'supports auto_size option' do
+      svg_output = automaton.to_svg(100, 100, auto_size: true, node_spacing: 200)
+      doc = REXML::Document.new(svg_output)
+      svg = doc.root
+
+      expect(svg.attributes['width'].to_f).to be > 100.0
+      expect(svg.attributes['height'].to_f).to be > 100.0
+    end
+
     it 'supports responsive output' do
       svg_output = automaton.to_svg(800, 600, responsive: true)
       doc = REXML::Document.new(svg_output)
