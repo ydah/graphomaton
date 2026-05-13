@@ -24,6 +24,14 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe '.png_available?' do
+    it 'delegates to the PNG exporter availability check' do
+      allow(Graphomaton::Exporters::Png).to receive(:available?).and_return(true)
+
+      expect(described_class.png_available?).to be true
+    end
+  end
+
   describe '#add_state' do
     context 'when adding a state without position' do
       it 'adds a state with nil coordinates' do

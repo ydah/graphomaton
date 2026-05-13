@@ -22,6 +22,20 @@ RSpec.describe Graphomaton::Exporters::Png do
     end
   end
 
+  describe '.available?' do
+    it 'returns true when a converter command is available' do
+      allow(described_class).to receive(:available_command).and_return(command)
+
+      expect(described_class.available?).to be true
+    end
+
+    it 'returns false when no converter command is available' do
+      allow(described_class).to receive(:available_command).and_return(nil)
+
+      expect(described_class.available?).to be false
+    end
+  end
+
   describe '#export' do
     before do
       allow(png_exporter).to receive(:available_command).and_return(command)

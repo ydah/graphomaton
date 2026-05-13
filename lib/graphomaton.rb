@@ -21,6 +21,10 @@ class Graphomaton
   DEFAULT_FINAL_POSITION = :auto
   attr_accessor :states, :transitions, :initial_state, :final_states
 
+  def self.png_available?
+    Exporters::Png.available?
+  end
+
   def initialize
     @states = {}
     @transitions = []

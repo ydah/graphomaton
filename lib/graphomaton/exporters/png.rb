@@ -18,6 +18,14 @@ class Graphomaton
         ['convert', 'svg:-', 'png:-']
       ].freeze
 
+      def self.available?
+        !available_command.nil?
+      end
+
+      def self.available_command
+        CONVERTER_COMMANDS.find { |command| executable?(command.first) }
+      end
+
       def initialize(automaton)
         @automaton = automaton
       end
@@ -45,10 +53,14 @@ class Graphomaton
       private
 
       def available_command
-        CONVERTER_COMMANDS.find { |command| executable?(command.first) }
+        self.class.available_command
       end
 
       def executable?(command)
+        self.class.send(:executable?, command)
+      end
+
+      def self.executable?(command)
         paths.any? do |path|
           executable_path = File.join(path, command)
           File.file?(executable_path) && File.executable?(executable_path)
@@ -62,7 +74,7 @@ class Graphomaton
         scaled
       end
 
-      def paths
+      def self.paths
         ENV.fetch('PATH', '').split(File::PATH_SEPARATOR)
       end
 
