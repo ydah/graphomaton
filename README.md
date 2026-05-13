@@ -58,6 +58,7 @@ automaton.add_transition('q2', 'q1', 'a')
 # Save in different formats
 automaton.save_svg('output.svg')              # SVG format
 automaton.save_png('output.png')              # PNG format (requires a converter)
+automaton.save_pdf('output.pdf')              # PDF format (requires a converter)
 automaton.save_html('output.html')            # HTML with Mermaid.js (requires internet)
 automaton.save_dot('output.dot')              # GraphViz DOT format
 automaton.save_plantuml('output.puml')        # PlantUML format
@@ -168,7 +169,15 @@ Graphomaton.png_available?(converter: :auto) #=> true when a PNG converter is in
 ```
 Generates a PNG file by converting Graphomaton's native SVG output. Requires one of these commands to be available on `PATH`: `rsvg-convert`, `magick`, or `convert`.
 
-#### 3. HTML (Mermaid.js)
+#### 3. PDF
+```ruby
+automaton.save_pdf('diagram.pdf', 800, 600, theme: :print)
+automaton.save_pdf('diagram.pdf', 800, 600, converter: :magick)
+Graphomaton.pdf_available?(converter: :auto) #=> true when a PDF converter is installed
+```
+Generates a PDF file by converting Graphomaton's native SVG output. Requires one of these commands to be available on `PATH`: `rsvg-convert`, `magick`, or `convert`.
+
+#### 4. HTML (Mermaid.js)
 ```ruby
 automaton.save_html('diagram.html')
 automaton.save_html('diagram.html', show_source: true)
@@ -180,7 +189,7 @@ Generates an HTML file with embedded Mermaid.js state diagram. The diagram is re
 
 **Note:** Requires internet connection to load Mermaid.js from CDN. Does not work in offline environments.
 
-#### 4. GraphViz (DOT)
+#### 5. GraphViz (DOT)
 ```ruby
 automaton.save_dot('diagram.dot')
 automaton.save_dot('diagram.dot', theme: :ocean)
@@ -199,7 +208,7 @@ sfdp -Tsvg diagram.dot -o diagram-sfdp.svg
 
 Use `dot` for ranked left-to-right or top-to-bottom state-machine layouts. Use `neato` or `sfdp` when you want GraphViz to spread dense or highly connected graphs more freely.
 
-#### 5. PlantUML
+#### 6. PlantUML
 ```ruby
 automaton.save_plantuml('diagram.puml')
 automaton.save_plantuml('diagram.puml', theme: :forest)
