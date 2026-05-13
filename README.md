@@ -69,7 +69,7 @@ automaton.layout_warnings(800, 600)
 ```
 
 `label` is used as the display name in SVG, DOT, Mermaid, and PlantUML while the state ID remains stable for transitions.
-State metadata `tooltip`/`description` is used as SVG tooltip text. State metadata `url`/`href` creates a clickable SVG state link.
+State and transition metadata `tooltip`/`description` is used as SVG tooltip text. Metadata `url`/`href` creates clickable SVG links.
 
 ### Themes
 

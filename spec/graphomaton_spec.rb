@@ -637,6 +637,20 @@ RSpec.describe Graphomaton do
       expect(line.attributes['style']).to include('stroke-width: 3')
     end
 
+    it 'uses transition metadata URL as an SVG link' do
+      local = described_class.new
+      local.add_state('q0')
+      local.add_state('q1')
+      local.add_transition('q0', 'q1', 'docs', metadata: { url: 'https://example.com/edge' })
+
+      svg_output = local.to_svg
+      doc = REXML::Document.new(svg_output)
+      link = REXML::XPath.first(doc, '//g[@id="transition-q0-q1-docs"]/a')
+
+      expect(link.attributes['href']).to eq('https://example.com/edge')
+      expect(REXML::XPath.first(link, './/*[@class="transition-line"]')).not_to be_nil
+    end
+
     it 'can highlight selected transitions and fade inactive transitions' do
       svg_output = automaton.to_svg(highlight_transitions: [{ from: 'q0', to: 'q1', label: 'a' }])
       doc = REXML::Document.new(svg_output)

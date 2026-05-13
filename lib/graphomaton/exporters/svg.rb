@@ -578,6 +578,7 @@ class Graphomaton
       def add_self_loop(svg, state, trans, loop_index = 0)
         transition_node = svg.add_element('g', transition_group_attributes(trans))
         add_transition_tooltip(transition_node, trans)
+        transition_content = transition_link_container(transition_node, trans)
         cx = state[:x]
         cy = state[:y]
         orientation, layer = self_loop_placement(loop_index)
@@ -606,27 +607,27 @@ class Graphomaton
 
         path_d = "M #{start_x} #{start_y} C #{control1_x} #{control1_y}, #{control2_x} #{control2_y}, #{end_x} #{end_y}"
 
-        transition_node.add_element('path', transition_line_attributes(trans, 'd' => path_d))
+        transition_content.add_element('path', transition_line_attributes(trans, 'd' => path_d))
 
         text_width = calculate_text_width(trans[:label])
         label_y_shift = loop_offset * (loop_index.odd? ? -1 : 1)
         if @label_background
-          transition_node.add_element('rect', {
-                                        'class' => 'label-bg',
-                                        'x' => (cx + loop_specs[:label_offset][:x] - (text_width / 2)).to_s,
-                                        'y' => (cy + loop_specs[:label_offset][:y] - 5 + label_y_shift).to_s,
-                                        'width' => text_width.to_s,
-                                        'height' => '20',
-                                        'rx' => '3'
-                                      })
+          transition_content.add_element('rect', {
+                                           'class' => 'label-bg',
+                                           'x' => (cx + loop_specs[:label_offset][:x] - (text_width / 2)).to_s,
+                                           'y' => (cy + loop_specs[:label_offset][:y] - 5 + label_y_shift).to_s,
+                                           'width' => text_width.to_s,
+                                           'height' => '20',
+                                           'rx' => '3'
+                                         })
         end
 
-        label = transition_node.add_element('text', {
-                                             'class' => 'transition-label',
-                                             'x' => (cx + loop_specs[:label_offset][:x]).to_s,
-                                             'y' => (cy + loop_specs[:label_offset][:y] + 10 + label_y_shift).to_s,
-                                             'text-anchor' => 'middle'
-                                           })
+        label = transition_content.add_element('text', {
+                                                'class' => 'transition-label',
+                                                'x' => (cx + loop_specs[:label_offset][:x]).to_s,
+                                                'y' => (cy + loop_specs[:label_offset][:y] + 10 + label_y_shift).to_s,
+                                                'text-anchor' => 'middle'
+                                              })
         label.text = trans[:label]
       end
 
@@ -838,6 +839,7 @@ class Graphomaton
       def add_transition(svg, from_state, to_state, trans, processed_pairs, from_state_index)
         transition_node = svg.add_element('g', transition_group_attributes(trans))
         add_transition_tooltip(transition_node, trans)
+        transition_content = transition_link_container(transition_node, trans)
         x1 = from_state[:x]
         y1 = from_state[:y]
         x2 = to_state[:x]
@@ -855,7 +857,7 @@ class Graphomaton
         dy = y2 - y1
         dist = Math.sqrt((dx**2) + (dy**2))
         if dist <= 0
-          add_overlapping_state_transition(transition_node, x1, y1, trans)
+          add_overlapping_state_transition(transition_content, x1, y1, trans)
           return
         end
 
@@ -873,10 +875,10 @@ class Graphomaton
         states_between = (to_index - from_index).abs - 1
 
         if @edge_style == :straight
-          add_straight_line(transition_node, start_x, start_y, end_x, end_y, trans)
+          add_straight_line(transition_content, start_x, start_y, end_x, end_y, trans)
         elsif @edge_style == :curved
           add_curved_line(
-            transition_node,
+            transition_content,
             start_x,
             start_y,
             end_x,
@@ -892,12 +894,12 @@ class Graphomaton
             from_state_index
           )
         elsif @edge_style == :orthogonal
-          add_orthogonal_line(transition_node, start_x, start_y, end_x, end_y, trans)
+          add_orthogonal_line(transition_content, start_x, start_y, end_x, end_y, trans)
         elsif is_adjacent && forward_direction?(x1, y1, x2, y2)
-          add_straight_line(transition_node, start_x, start_y, end_x, end_y, trans)
+          add_straight_line(transition_content, start_x, start_y, end_x, end_y, trans)
         else
           add_curved_line(
-            transition_node,
+            transition_content,
             start_x,
             start_y,
             end_x,
@@ -1321,6 +1323,24 @@ class Graphomaton
 
         title = transition_node.add_element('title')
         title.text = tooltip
+      end
+
+      def transition_link_container(transition_node, transition)
+        url = transition_url(transition)
+        return transition_node unless url
+
+        transition_node.add_element('a', {
+                                      'href' => url.to_s,
+                                      'target' => '_blank',
+                                      'rel' => 'noopener noreferrer'
+                                    })
+      end
+
+      def transition_url(transition)
+        metadata = transition[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:url] || metadata['url'] || metadata[:href] || metadata['href']
       end
 
       def transition_tooltip(transition)
