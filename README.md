@@ -77,9 +77,10 @@ Native SVG and PNG output can be rendered with a named theme:
 ```ruby
 automaton.save_svg('output_dark.svg', theme: :dark)
 automaton.save_png('output_forest.png', theme: :forest)
+automaton.save_svg('output_auto.svg', theme: :auto) # follows prefers-color-scheme
 ```
 
-Available themes: `:light`, `:dark`, `:forest`, `:ocean`, `:high_contrast`, `:color_blind`, `:print`.
+Available themes: `:light`, `:dark`, `:forest`, `:ocean`, `:high_contrast`, `:color_blind`, `:print`, `:auto`.
 
 ### Output Formats
 

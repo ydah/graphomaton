@@ -136,6 +136,7 @@ class Graphomaton
         @state_radius = state_radius.to_f
         @state_shape = resolve_state_shape(state_shape)
         @arrow_size = [arrow_size.to_f, 1.0].max
+        @auto_dark_theme = false
         @theme = resolve_theme(theme)
         @layout = resolve_layout(layout)
         @direction = resolve_direction(direction)
@@ -149,7 +150,7 @@ class Graphomaton
         @highlight_unreachable = highlight_unreachable
         @highlight_dead_states = highlight_dead_states
         @highlight_transitions = Array(highlight_transitions)
-        @css_variables = css_variables
+        @css_variables = css_variables || @auto_dark_theme
         @unreachable_states = @highlight_unreachable ? @automaton.unreachable_states : []
         @dead_states = @highlight_dead_states ? @automaton.dead_states : []
         @trap_states = @highlight_dead_states ? @automaton.trap_states : []
@@ -212,9 +213,14 @@ class Graphomaton
         return normalize_theme(theme) if theme.is_a?(Hash)
 
         theme_name = theme.to_s.to_sym
+        if theme_name == :auto
+          @auto_dark_theme = true
+          return THEMES.fetch(DEFAULT_THEME)
+        end
+
         THEMES.fetch(theme_name)
       rescue KeyError
-        available_themes = THEMES.keys.join(', ')
+        available_themes = (THEMES.keys + [:auto]).join(', ')
         raise ArgumentError, "Unknown SVG theme: #{theme.inspect}. Available themes: #{available_themes}"
       end
 
@@ -406,15 +412,25 @@ class Graphomaton
       def css_variables_css
         return '' unless @css_variables
 
+        base_css = css_variable_scope(@svg_id, @theme)
+        return base_css unless @auto_dark_theme
+
+        <<-CSS
+#{base_css}      @media (prefers-color-scheme: dark) {
+#{css_variable_scope(@svg_id, THEMES.fetch(:dark), indentation: '        ')}      }
+        CSS
+      end
+
+      def css_variable_scope(svg_id, theme, indentation: '      ')
         variable_keys = %i[background state_fill stroke state_text transition_label label_background label_opacity]
         declarations = variable_keys.filter_map do |key|
-          value = @theme[key] || (key == :background ? 'transparent' : nil)
+          value = theme[key] || (key == :background ? 'transparent' : nil)
           next unless value
 
-          "        --graphomaton-#{css_variable_name(key)}: #{value};"
+          "#{indentation}  --graphomaton-#{css_variable_name(key)}: #{value};"
         end.join("\n")
 
-        "      ##{@svg_id} {\n#{declarations}\n      }\n"
+        "#{indentation}##{svg_id} {\n#{declarations}\n#{indentation}}\n"
       end
 
       def theme_css_value(key, fallback: nil)

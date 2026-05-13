@@ -652,6 +652,16 @@ RSpec.describe Graphomaton do
       expect(svg_output).to include('stroke: #000000')
     end
 
+    it 'supports automatic dark mode with prefers-color-scheme' do
+      svg_output = automaton.to_svg(theme: :auto)
+      doc = REXML::Document.new(svg_output)
+      style = REXML::XPath.first(doc, '//style')
+
+      expect(style.text).to include('@media (prefers-color-scheme: dark)')
+      expect(style.text).to include('--graphomaton-background: #111827')
+      expect(style.text).to include('var(--graphomaton-state-fill')
+    end
+
     it 'creates circles for each state' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)
