@@ -109,14 +109,22 @@ RSpec.describe Graphomaton do
       expect(automaton.transitions).to include({ from: 'q1', to: 'q0', label: 'eps, a' })
     end
 
-    it 'supports optional transition style and metadata' do
-      automaton.add_transition('q0', 'q1', 'a', style: { stroke: '#ef4444' }, metadata: { tooltip: 'Hot path' })
+    it 'supports optional transition style, line style, and metadata' do
+      automaton.add_transition(
+        'q0',
+        'q1',
+        'a',
+        style: { stroke: '#ef4444' },
+        line_style: :dashed,
+        metadata: { tooltip: 'Hot path' }
+      )
 
       expect(automaton.transitions).to include(
         from: 'q0',
         to: 'q1',
         label: 'a',
         style: { stroke: '#ef4444' },
+        line_style: :dashed,
         metadata: { tooltip: 'Hot path' }
       )
     end
@@ -683,7 +691,7 @@ RSpec.describe Graphomaton do
       local = described_class.new
       local.add_state('q0')
       local.add_state('q1')
-      local.add_transition('q0', 'q1', 'a', style: { stroke: '#ef4444', stroke_width: 3 }, metadata: { tooltip: 'Hot path' })
+      local.add_transition('q0', 'q1', 'a', style: { stroke: '#ef4444', stroke_width: 3 }, line_style: :dashed, metadata: { tooltip: 'Hot path' })
 
       svg_output = local.to_svg
       doc = REXML::Document.new(svg_output)
@@ -693,6 +701,7 @@ RSpec.describe Graphomaton do
       expect(REXML::XPath.first(transition, './title').text).to eq('Hot path')
       expect(line.attributes['style']).to include('stroke: #ef4444')
       expect(line.attributes['style']).to include('stroke-width: 3')
+      expect(line.attributes['style']).to include('stroke-dasharray: 8 5')
     end
 
     it 'uses transition metadata URL as an SVG link' do

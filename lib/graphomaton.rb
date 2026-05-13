@@ -50,10 +50,12 @@ class Graphomaton
     name
   end
 
-  def add_transition(from, to, label, style: nil, metadata: nil, epsilon_label: DEFAULT_EPSILON_LABEL, sort_labels: false)
+  def add_transition(from, to, label, style: nil, metadata: nil, line_style: nil,
+                     epsilon_label: DEFAULT_EPSILON_LABEL, sort_labels: false)
     transition = { from: from, to: to, label: normalize_transition_label(label, epsilon_label: epsilon_label, sort_labels: sort_labels) }
     transition[:style] = style unless style.nil?
     transition[:metadata] = metadata unless metadata.nil?
+    transition[:line_style] = line_style unless line_style.nil?
     @transitions << transition
   end
 

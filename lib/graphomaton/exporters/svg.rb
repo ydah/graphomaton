@@ -61,6 +61,7 @@ class Graphomaton
       STATE_SHAPE_OPTIONS = %i[circle ellipse rounded_rect].freeze
       STATE_EFFECT_OPTIONS = %i[none shadow glow].freeze
       ARROW_SHAPE_OPTIONS = %i[triangle vee stealth].freeze
+      TRANSITION_LINE_STYLE_OPTIONS = %i[solid dashed dotted].freeze
 
       THEMES = {
         light: {
@@ -1452,9 +1453,35 @@ class Graphomaton
 
       def transition_line_attributes(transition, attributes)
         line_attributes = { 'class' => 'transition-line' }.merge(attributes)
-        style = css_style(transition[:style])
+        style = transition_css_style(transition)
         line_attributes['style'] = style unless style.empty?
         line_attributes
+      end
+
+      def transition_css_style(transition)
+        style = []
+        line_style = transition[:line_style]
+        line_style_value = line_style_css(line_style) if line_style
+        style << line_style_value unless line_style_value.to_s.empty?
+        custom_style = css_style(transition[:style])
+        style << custom_style unless custom_style.empty?
+        style.join('; ')
+      end
+
+      def line_style_css(line_style)
+        resolved = line_style.to_sym
+        unless TRANSITION_LINE_STYLE_OPTIONS.include?(resolved)
+          raise ArgumentError, "Unknown transition line_style: #{line_style.inspect}. Available values: #{TRANSITION_LINE_STYLE_OPTIONS.join(', ')}"
+        end
+
+        case resolved
+        when :dashed
+          'stroke-dasharray: 8 5'
+        when :dotted
+          'stroke-dasharray: 2 5'
+        else
+          ''
+        end
       end
 
       def add_transition_tooltip(transition_node, transition)
