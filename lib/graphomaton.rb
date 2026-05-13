@@ -19,7 +19,7 @@ class Graphomaton
   DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
   INITIAL_POSITION_OPTIONS = %i[auto start].freeze
   FINAL_POSITION_OPTIONS = %i[auto end].freeze
-  FORMAT_OPTIONS = %i[svg png pdf html mermaid mmd dot plantuml puml].freeze
+  FORMAT_OPTIONS = %i[svg png pdf webp html mermaid mmd dot plantuml puml].freeze
   FORMAT_ALIASES = {
     mmd: :mermaid,
     puml: :plantuml
@@ -35,6 +35,10 @@ class Graphomaton
 
   def self.pdf_available?(converter: Exporters::Pdf::DEFAULT_CONVERTER)
     Exporters::Pdf.available?(converter: converter)
+  end
+
+  def self.webp_available?(converter: Exporters::Webp::DEFAULT_CONVERTER)
+    Exporters::Webp.available?(converter: converter)
   end
 
   def self.from_hash(data)
@@ -851,6 +855,8 @@ class Graphomaton
       to_png(width, height, **options)
     when :pdf
       to_pdf(width, height, **options)
+    when :webp
+      to_webp(width, height, **options)
     when :html
       to_html(**options)
     when :mermaid
@@ -872,6 +878,8 @@ class Graphomaton
       save_png(filename, width, height, **options)
     when :pdf
       save_pdf(filename, width, height, **options)
+    when :webp
+      save_webp(filename, width, height, **options)
     when :html
       save_html(filename, **options)
     when :mermaid
@@ -1102,6 +1110,16 @@ class Graphomaton
   def save_pdf(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
                converter: Exporters::Pdf::DEFAULT_CONVERTER, **svg_options)
     File.binwrite(filename, to_pdf(width, height, theme: theme, converter: converter, **svg_options))
+  end
+
+  def to_webp(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
+              converter: Exporters::Webp::DEFAULT_CONVERTER, **svg_options)
+    Exporters::Webp.new(self).export(width, height, theme: theme, converter: converter, **svg_options)
+  end
+
+  def save_webp(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
+                converter: Exporters::Webp::DEFAULT_CONVERTER, **svg_options)
+    File.binwrite(filename, to_webp(width, height, theme: theme, converter: converter, **svg_options))
   end
 
   def to_mermaid(direction: Exporters::Mermaid::DEFAULT_DIRECTION, notes: Exporters::Mermaid::DEFAULT_NOTES,

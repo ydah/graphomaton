@@ -1,6 +1,6 @@
 # Graphomaton [![Gem Version](https://badge.fury.io/rb/graphomaton.svg?icon=si%3Arubygems)](https://badge.fury.io/rb/graphomaton) [![CI](https://github.com/ydah/graphomaton/actions/workflows/ci.yml/badge.svg)](https://github.com/ydah/graphomaton/actions/workflows/ci.yml)
 
-A tiny Ruby library for generating finite state machine (automaton) diagrams in multiple formats: SVG, PNG, PDF, HTML (Mermaid.js), GraphViz (DOT), and PlantUML.
+A tiny Ruby library for generating finite state machine (automaton) diagrams in multiple formats: SVG, PNG, PDF, WebP, HTML (Mermaid.js), GraphViz (DOT), and PlantUML.
 
 ![Image](https://github.com/user-attachments/assets/6907869c-1077-4a73-8394-4117f25adc17)
 
@@ -59,6 +59,7 @@ automaton.add_transition('q2', 'q1', 'a')
 automaton.save_svg('output.svg')              # SVG format
 automaton.save_png('output.png')              # PNG format (requires a converter)
 automaton.save_pdf('output.pdf')              # PDF format (requires a converter)
+automaton.save_webp('output.webp')            # WebP format (requires ImageMagick)
 automaton.save_html('output.html')            # HTML with Mermaid.js (requires internet)
 automaton.save_dot('output.dot')              # GraphViz DOT format
 automaton.save_plantuml('output.puml')        # PlantUML format
@@ -202,7 +203,15 @@ Graphomaton.pdf_available?(converter: :auto) #=> true when a PDF converter is in
 ```
 Generates a PDF file by converting Graphomaton's native SVG output. Requires one of these commands to be available on `PATH`: `rsvg-convert`, `magick`, or `convert`.
 
-#### 4. HTML (Mermaid.js)
+#### 4. WebP
+```ruby
+automaton.save_webp('diagram.webp', 800, 600, theme: :dark)
+automaton.save_webp('diagram.webp', 800, 600, converter: :magick)
+Graphomaton.webp_available?(converter: :auto) #=> true when a WebP converter is installed
+```
+Generates a WebP file by converting Graphomaton's native SVG output. Requires ImageMagick's `magick` or `convert` command to be available on `PATH`.
+
+#### 5. HTML (Mermaid.js)
 ```ruby
 automaton.save_html('diagram.html')
 automaton.save_html('diagram.html', show_source: true)
@@ -214,7 +223,7 @@ Generates an HTML file with embedded Mermaid.js state diagram. The diagram is re
 
 **Note:** Requires internet connection to load Mermaid.js from CDN. Does not work in offline environments.
 
-#### 5. GraphViz (DOT)
+#### 6. GraphViz (DOT)
 ```ruby
 automaton.save_dot('diagram.dot')
 automaton.save_dot('diagram.dot', theme: :ocean)
@@ -233,7 +242,7 @@ sfdp -Tsvg diagram.dot -o diagram-sfdp.svg
 
 Use `dot` for ranked left-to-right or top-to-bottom state-machine layouts. Use `neato` or `sfdp` when you want GraphViz to spread dense or highly connected graphs more freely.
 
-#### 6. PlantUML
+#### 7. PlantUML
 ```ruby
 automaton.save_plantuml('diagram.puml')
 automaton.save_plantuml('diagram.puml', theme: :forest)
