@@ -47,6 +47,18 @@ RSpec.describe Graphomaton::Exporters::Png do
       png_exporter.export(1000, 800)
     end
 
+    it 'scales SVG dimensions before PNG conversion' do
+      expect(Open3).to receive(:capture3) do |*args|
+        options = args.last
+        expect(options[:stdin_data]).to include("width='2000'")
+        expect(options[:stdin_data]).to include("height='1600'")
+
+        [png_data, '', successful_status]
+      end
+
+      png_exporter.export(1000, 800, scale: 2.0)
+    end
+
     it 'passes custom themes to the SVG renderer' do
       expect(Open3).to receive(:capture3) do |*args|
         options = args.last

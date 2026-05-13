@@ -10,6 +10,7 @@ class Graphomaton
       class ConversionError < StandardError; end
 
       PNG_SIGNATURE = "\x89PNG\r\n\x1A\n".b.freeze
+      DEFAULT_SCALE = 1.0
 
       CONVERTER_COMMANDS = [
         ['rsvg-convert', '--format', 'png', '-'],
@@ -21,11 +22,17 @@ class Graphomaton
         @automaton = automaton
       end
 
-      def export(width = 800, height = 600, theme: Svg::DEFAULT_THEME, **svg_options)
+      def export(width = 800, height = 600, theme: Svg::DEFAULT_THEME, scale: DEFAULT_SCALE, **svg_options)
         command = available_command
         raise ConversionError, missing_converter_message unless command
 
-        svg = Svg.new(@automaton).export(width, height, theme: theme, **svg_options)
+        resolved_scale = [scale.to_f, 0.1].max
+        svg = Svg.new(@automaton).export(
+          scaled_dimension(width, resolved_scale),
+          scaled_dimension(height, resolved_scale),
+          theme: theme,
+          **svg_options
+        )
         png, error, status = Open3.capture3(*command, stdin_data: svg, binmode: true)
         png = png.b
 
@@ -46,6 +53,13 @@ class Graphomaton
           executable_path = File.join(path, command)
           File.file?(executable_path) && File.executable?(executable_path)
         end
+      end
+
+      def scaled_dimension(value, scale)
+        scaled = value.to_f * scale
+        return scaled.to_i if scaled == scaled.to_i
+
+        scaled
       end
 
       def paths

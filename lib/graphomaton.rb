@@ -776,12 +776,12 @@ class Graphomaton
     )
   end
 
-  def to_png(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME, **svg_options)
-    Exporters::Png.new(self).export(width, height, theme: theme, **svg_options)
+  def to_png(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME, scale: Exporters::Png::DEFAULT_SCALE, **svg_options)
+    Exporters::Png.new(self).export(width, height, theme: theme, scale: scale, **svg_options)
   end
 
-  def save_png(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME, **svg_options)
-    File.binwrite(filename, to_png(width, height, theme: theme, **svg_options))
+  def save_png(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME, scale: Exporters::Png::DEFAULT_SCALE, **svg_options)
+    File.binwrite(filename, to_png(width, height, theme: theme, scale: scale, **svg_options))
   end
 
   def to_mermaid(direction: Exporters::Mermaid::DEFAULT_DIRECTION)
