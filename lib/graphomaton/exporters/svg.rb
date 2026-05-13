@@ -20,6 +20,7 @@ class Graphomaton
       DEFAULT_XML_DECLARATION = false
       DEFAULT_LOOP_POSITION = :auto
       DEFAULT_EDGE_STYLE = :auto
+      DEFAULT_SHOW_FINAL_ARROWS = false
       DEFAULT_PADDING = 80
       DEFAULT_NODE_SPACING = 120
       DEFAULT_RANK_SPACING = 120
@@ -126,6 +127,7 @@ class Graphomaton
                  xml_declaration: DEFAULT_XML_DECLARATION,
                  loop_position: DEFAULT_LOOP_POSITION,
                  edge_style: DEFAULT_EDGE_STYLE,
+                 show_final_arrows: DEFAULT_SHOW_FINAL_ARROWS,
                  title: nil, description: nil)
         @state_radius = state_radius.to_f
         @state_shape = resolve_state_shape(state_shape)
@@ -135,6 +137,7 @@ class Graphomaton
         @direction = resolve_direction(direction)
         @loop_position = resolve_loop_position(loop_position)
         @edge_style = resolve_edge_style(edge_style)
+        @show_final_arrows = show_final_arrows
         @merge_parallel_transitions = merge_parallel_transitions
         @label_background = label_background
         @label_border = label_border
@@ -186,6 +189,7 @@ class Graphomaton
         state_group = svg.add_element('g', { 'class' => 'states' })
         add_transitions(transition_group)
         add_initial_arrow(transition_group) if @automaton.initial_state
+        add_final_arrows(transition_group) if @show_final_arrows
         add_states(state_group)
 
         svg_output = doc.to_s
@@ -372,6 +376,7 @@ class Graphomaton
       .transition-line { stroke: #{@theme[:stroke]}; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .transition-label { font-family: Arial, sans-serif; font-size: 14px; fill: #{@theme[:transition_label]}; text-rendering: geometricPrecision; }
       .initial-arrow { stroke: #{@theme[:stroke]}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      .final-arrow { stroke: #{@theme[:stroke]}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .label-bg { fill: #{@theme[:label_background]}; opacity: #{@theme[:label_opacity]}; #{label_border_css} }
       .unreachable-state { opacity: 0.45; }
       .highlighted-transition .transition-line { stroke: #ef4444; stroke-width: 2.5; }
@@ -966,6 +971,52 @@ class Graphomaton
                                                 'text-anchor' => 'end'
                                               })
         start_label.text = 'start'
+      end
+
+      def add_final_arrows(svg)
+        @automaton.final_states.each do |state_name|
+          state = state_position(state_name) || @automaton.states[state_name]
+          next unless state && state[:x] && state[:y]
+
+          x1, y1, x2, y2, label_x, label_y, anchor = final_arrow_points(state)
+          final_node = svg.add_element('g', {
+                                         'class' => 'final-transition',
+                                         'id' => unique_svg_id("transition-#{svg_id_component(state_name)}-final"),
+                                         'data-from' => state_name.to_s
+                                       })
+          final_node.add_element('line', {
+                                   'class' => 'final-arrow',
+                                   'x1' => x1.to_s,
+                                   'y1' => y1.to_s,
+                                   'x2' => x2.to_s,
+                                   'y2' => y2.to_s
+                                 })
+          label = final_node.add_element('text', {
+                                          'class' => 'transition-label',
+                                          'x' => label_x.to_s,
+                                          'y' => label_y.to_s,
+                                          'text-anchor' => anchor
+                                        })
+          label.text = 'final'
+        end
+      end
+
+      def final_arrow_points(state)
+        x = state[:x].to_f
+        y = state[:y].to_f
+        radius = @state_radius
+        length = 32
+
+        case @direction
+        when :rl
+          [x - radius, y, x - radius - length, y, x - radius - length - 8, y - 8, 'end']
+        when :tb
+          [x, y + radius, x, y + radius + length, x + 8, y + radius + length + 16, 'start']
+        when :bt
+          [x, y - radius, x, y - radius - length, x + 8, y - radius - length - 8, 'start']
+        else
+          [x + radius, y, x + radius + length, y, x + radius + length + 8, y - 8, 'start']
+        end
       end
 
       def add_states(svg)

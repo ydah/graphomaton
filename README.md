@@ -133,6 +133,7 @@ automaton.save_svg('diagram.svg', 800, 600, xml_declaration: true)
 automaton.save_svg('diagram.svg', 800, 600, loop_position: :right)
 automaton.save_svg('diagram.svg', 800, 600, edge_style: :orthogonal)
 automaton.save_svg('diagram.svg', 800, 600, state_shape: :ellipse)
+automaton.save_svg('diagram.svg', 800, 600, show_final_arrows: true)
 ```
 
 #### 2. PNG

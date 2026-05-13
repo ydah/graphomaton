@@ -725,6 +725,7 @@ class Graphomaton
              xml_declaration: Exporters::Svg::DEFAULT_XML_DECLARATION,
              loop_position: Exporters::Svg::DEFAULT_LOOP_POSITION,
              edge_style: Exporters::Svg::DEFAULT_EDGE_STYLE,
+             show_final_arrows: Exporters::Svg::DEFAULT_SHOW_FINAL_ARROWS,
              title: nil, description: nil)
     Exporters::Svg.new(self).export(
       width,
@@ -753,6 +754,7 @@ class Graphomaton
       xml_declaration: xml_declaration,
       loop_position: loop_position,
       edge_style: edge_style,
+      show_final_arrows: show_final_arrows,
       wrap: wrap,
       max_transition_label_width: max_transition_label_width,
       state_wrap: state_wrap,
@@ -780,6 +782,7 @@ class Graphomaton
                xml_declaration: Exporters::Svg::DEFAULT_XML_DECLARATION,
                loop_position: Exporters::Svg::DEFAULT_LOOP_POSITION,
                edge_style: Exporters::Svg::DEFAULT_EDGE_STYLE,
+               show_final_arrows: Exporters::Svg::DEFAULT_SHOW_FINAL_ARROWS,
                title: nil, description: nil)
     File.write(
       filename,
@@ -810,6 +813,7 @@ class Graphomaton
         xml_declaration: xml_declaration,
         loop_position: loop_position,
         edge_style: edge_style,
+        show_final_arrows: show_final_arrows,
         wrap: wrap,
         max_transition_label_width: max_transition_label_width,
         state_wrap: state_wrap,

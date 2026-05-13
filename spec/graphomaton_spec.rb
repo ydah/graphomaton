@@ -656,6 +656,16 @@ RSpec.describe Graphomaton do
       expect(initial_arrow).not_to be_nil
     end
 
+    it 'can create final arrows' do
+      svg_output = automaton.to_svg(show_final_arrows: true)
+      doc = REXML::Document.new(svg_output)
+      final_arrow = REXML::XPath.first(doc, '//line[@class="final-arrow"]')
+      final_label = REXML::XPath.match(doc, '//text[@class="transition-label"]').find { |label| label.text == 'final' }
+
+      expect(final_arrow).not_to be_nil
+      expect(final_label).not_to be_nil
+    end
+
     it 'creates paths for transitions' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)
