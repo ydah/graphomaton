@@ -1138,25 +1138,42 @@ class Graphomaton
                                          'data-to' => @automaton.initial_state.to_s
                                        })
 
-        arrow_end_x = init[:x] - 30
-        arrow_start_x = arrow_end_x - @initial_arrow_length
+        x1, y1, x2, y2, label_x, label_y, anchor = initial_arrow_points(init)
         initial_node.add_element('line', {
                                    'class' => 'initial-arrow',
-                                   'x1' => arrow_start_x.to_s,
-                                   'y1' => init[:y].to_s,
-                                   'x2' => arrow_end_x.to_s,
-                                   'y2' => init[:y].to_s
+                                   'x1' => x1.to_s,
+                                   'y1' => y1.to_s,
+                                   'x2' => x2.to_s,
+                                   'y2' => y2.to_s
                                  })
 
         return if @initial_arrow_label.nil?
 
         start_label = initial_node.add_element('text', {
                                                 'class' => 'transition-label',
-                                                'x' => (arrow_start_x - 10).to_s,
-                                                'y' => (init[:y] - 10).to_s,
-                                                'text-anchor' => 'end'
+                                                'x' => label_x.to_s,
+                                                'y' => label_y.to_s,
+                                                'text-anchor' => anchor
                                               })
         start_label.text = @initial_arrow_label
+      end
+
+      def initial_arrow_points(state)
+        x = state[:x].to_f
+        y = state[:y].to_f
+        gap = 30
+        length = @initial_arrow_length
+
+        case @direction
+        when :rl
+          [x + gap + length, y, x + gap, y, x + gap + length + 10, y - 10, 'start']
+        when :tb
+          [x, y - gap - length, x, y - gap, x + 8, y - gap - length - 8, 'start']
+        when :bt
+          [x, y + gap + length, x, y + gap, x + 8, y + gap + length + 16, 'start']
+        else
+          [x - gap - length, y, x - gap, y, x - gap - length - 10, y - 10, 'end']
+        end
       end
 
       def add_final_arrows(svg)

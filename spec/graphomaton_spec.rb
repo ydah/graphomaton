@@ -815,6 +815,15 @@ RSpec.describe Graphomaton do
       expect(label).not_to be_nil
     end
 
+    it 'aligns initial arrows with the SVG direction' do
+      svg_output = automaton.to_svg(direction: :tb)
+      doc = REXML::Document.new(svg_output)
+      initial_arrow = REXML::XPath.first(doc, '//line[@class="initial-arrow"]')
+
+      expect(initial_arrow.attributes['y1'].to_f).to be < initial_arrow.attributes['y2'].to_f
+      expect(initial_arrow.attributes['x1'].to_f).to eq(initial_arrow.attributes['x2'].to_f)
+    end
+
     it 'can create final arrows' do
       svg_output = automaton.to_svg(show_final_arrows: true)
       doc = REXML::Document.new(svg_output)
