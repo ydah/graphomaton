@@ -14,6 +14,7 @@ class Graphomaton
   DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
   INITIAL_POSITION_OPTIONS = %i[auto start].freeze
   FINAL_POSITION_OPTIONS = %i[auto end].freeze
+  FORMAT_OPTIONS = %i[svg png html mermaid dot plantuml puml].freeze
   DEFAULT_INITIAL_POSITION = :auto
   DEFAULT_FINAL_POSITION = :auto
   attr_accessor :states, :transitions, :initial_state, :final_states
@@ -615,6 +616,42 @@ class Graphomaton
     index
   end
 
+  def render(format: :svg, width: 800, height: 600, **options)
+    case resolve_format(format)
+    when :svg
+      to_svg(width, height, **options)
+    when :png
+      to_png(width, height, **options)
+    when :html
+      to_html(**options)
+    when :mermaid
+      to_mermaid(**options)
+    when :dot
+      to_dot(**options)
+    when :plantuml, :puml
+      to_plantuml(**options)
+    end
+  end
+
+  def save(filename, format: nil, width: 800, height: 600, **options)
+    resolved_format = resolve_format(format || File.extname(filename).delete_prefix('.'))
+
+    case resolved_format
+    when :svg
+      save_svg(filename, width, height, **options)
+    when :png
+      save_png(filename, width, height, **options)
+    when :html
+      save_html(filename, **options)
+    when :mermaid
+      File.write(filename, to_mermaid(**options))
+    when :dot
+      save_dot(filename, **options)
+    when :plantuml, :puml
+      save_plantuml(filename, **options)
+    end
+  end
+
   def to_svg(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
              layout: :linear, direction: :lr, responsive: false, state_radius: DEFAULT_STATE_RADIUS,
              padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
@@ -696,12 +733,12 @@ class Graphomaton
     )
   end
 
-  def to_png(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME)
-    Exporters::Png.new(self).export(width, height, theme: theme)
+  def to_png(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME, **svg_options)
+    Exporters::Png.new(self).export(width, height, theme: theme, **svg_options)
   end
 
-  def save_png(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME)
-    File.binwrite(filename, to_png(width, height, theme: theme))
+  def save_png(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME, **svg_options)
+    File.binwrite(filename, to_png(width, height, theme: theme, **svg_options))
   end
 
   def to_mermaid(direction: Exporters::Mermaid::DEFAULT_DIRECTION)
@@ -780,6 +817,13 @@ class Graphomaton
     return resolved if FINAL_POSITION_OPTIONS.include?(resolved)
 
     raise ArgumentError, "Unknown final_position: #{final_position.inspect}. Available values: #{FINAL_POSITION_OPTIONS.join(', ')}"
+  end
+
+  def resolve_format(format)
+    resolved = format.to_s.delete_prefix('.').to_sym
+    return resolved if FORMAT_OPTIONS.include?(resolved)
+
+    raise ArgumentError, "Unknown format: #{format.inspect}. Available formats: #{FORMAT_OPTIONS.join(', ')}"
   end
 
   def arrange_auto_states(auto_states, initial_position:, final_position:)

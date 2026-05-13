@@ -55,6 +55,10 @@ automaton.save_png('output.png')              # PNG format (requires a converter
 automaton.save_html('output.html')            # HTML with Mermaid.js (requires internet)
 automaton.save_dot('output.dot')              # GraphViz DOT format
 automaton.save_plantuml('output.puml')        # PlantUML format
+
+# Or use the unified API
+automaton.render(format: :svg, width: 800, height: 600)
+automaton.save('output.svg', format: :svg, width: 800, height: 600)
 ```
 
 ### Themes

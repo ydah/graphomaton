@@ -710,6 +710,46 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe '#render and #save' do
+    let(:temp_file) { 'test_output.render.dot' }
+
+    after do
+      FileUtils.rm_f(temp_file)
+    end
+
+    before do
+      automaton.add_state('q0')
+      automaton.add_state('q1')
+      automaton.add_transition('q0', 'q1', 'a')
+    end
+
+    it 'renders SVG through the unified render API' do
+      svg_output = automaton.render(format: :svg, width: 900, height: 700, layout: :grid)
+      doc = REXML::Document.new(svg_output)
+
+      expect(doc.root.attributes['width']).to eq('900')
+      expect(doc.root.attributes['height']).to eq('700')
+    end
+
+    it 'renders text formats through the unified render API' do
+      dot_output = automaton.render(format: :dot, direction: :tb)
+
+      expect(dot_output).to include('rankdir=TB')
+    end
+
+    it 'saves by inferring format from filename extension' do
+      automaton.save(temp_file, direction: :rl)
+
+      expect(File.read(temp_file)).to include('rankdir=RL')
+    end
+
+    it 'rejects unknown render formats' do
+      expect do
+        automaton.render(format: :unknown)
+      end.to raise_error(ArgumentError, /Unknown format/)
+    end
+  end
+
   describe 'complex automaton example' do
     it 'handles a complete DFA correctly' do
       # Create a DFA that accepts strings ending with 'ab'
