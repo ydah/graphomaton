@@ -13,6 +13,7 @@ class Graphomaton
       DEFAULT_WRAP = false
       DEFAULT_LABEL_BACKGROUND = true
       DEFAULT_HIGHLIGHT_UNREACHABLE = false
+      DEFAULT_XML_DECLARATION = false
       DEFAULT_PADDING = 80
       DEFAULT_NODE_SPACING = 120
       DEFAULT_RANK_SPACING = 120
@@ -99,6 +100,7 @@ class Graphomaton
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
                  label_background: DEFAULT_LABEL_BACKGROUND,
                  highlight_unreachable: DEFAULT_HIGHLIGHT_UNREACHABLE,
+                 xml_declaration: DEFAULT_XML_DECLARATION,
                  title: nil, description: nil)
         @state_radius = state_radius.to_f
         @arrow_size = [arrow_size.to_f, 1.0].max
@@ -154,7 +156,10 @@ class Graphomaton
         add_initial_arrow(transition_group) if @automaton.initial_state
         add_states(state_group)
 
-        doc.to_s
+        svg_output = doc.to_s
+        return svg_output unless xml_declaration
+
+        %(<?xml version="1.0" encoding="UTF-8"?>\n#{svg_output})
       end
 
       private

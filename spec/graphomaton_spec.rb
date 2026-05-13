@@ -440,6 +440,12 @@ RSpec.describe Graphomaton do
       expect(svg.attributes['height']).to eq('800')
     end
 
+    it 'can include an XML declaration' do
+      svg_output = automaton.to_svg(xml_declaration: true)
+
+      expect(svg_output).to start_with('<?xml version="1.0" encoding="UTF-8"?>')
+    end
+
     it 'includes marker definition for arrowheads' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)
