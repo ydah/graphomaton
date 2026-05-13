@@ -188,7 +188,11 @@ State and transition metadata keys `url`/`href` and `tooltip`/`description` are 
 dot -Tpng diagram.dot -o diagram.png
 dot -Tsvg diagram.dot -o diagram.svg
 dot -Tpdf diagram.dot -o diagram.pdf
+neato -Tsvg diagram.dot -o diagram-neato.svg
+sfdp -Tsvg diagram.dot -o diagram-sfdp.svg
 ```
+
+Use `dot` for ranked left-to-right or top-to-bottom state-machine layouts. Use `neato` or `sfdp` when you want GraphViz to spread dense or highly connected graphs more freely.
 
 #### 5. PlantUML
 ```ruby
