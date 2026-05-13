@@ -499,6 +499,16 @@ RSpec.describe Graphomaton do
       expect(style.text).to include('state-circle')
     end
 
+    it 'includes generator metadata' do
+      svg_output = automaton.to_svg
+      doc = REXML::Document.new(svg_output)
+      metadata = REXML::XPath.first(doc, '//metadata/graphomaton')
+
+      expect(metadata.attributes['generator']).to eq('graphomaton')
+      expect(metadata.attributes['version']).to eq(Graphomaton::VERSION)
+      expect(metadata.attributes['format']).to eq('svg')
+    end
+
     it 'keeps stroke widths stable when SVG is scaled' do
       svg_output = automaton.to_svg(responsive: true)
       doc = REXML::Document.new(svg_output)

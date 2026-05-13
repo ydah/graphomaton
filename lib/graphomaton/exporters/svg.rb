@@ -180,6 +180,7 @@ class Graphomaton
         add_defs(svg)
         add_style(svg)
         add_accessibility_metadata(svg)
+        add_embedded_metadata(svg)
         add_background(svg, width, height)
         transition_group = svg.add_element('g', { 'class' => 'transitions' })
         state_group = svg.add_element('g', { 'class' => 'states' })
@@ -306,6 +307,15 @@ class Graphomaton
         transition_count = @automaton.transitions.size
 
         "Automaton with #{state_count} states and #{transition_count} transitions."
+      end
+
+      def add_embedded_metadata(svg)
+        metadata = svg.add_element('metadata')
+        metadata.add_element('graphomaton', {
+                               'generator' => 'graphomaton',
+                               'version' => Graphomaton::VERSION,
+                               'format' => 'svg'
+                             })
       end
 
       def calculate_text_width(text)
