@@ -66,6 +66,9 @@ automaton.save('output.svg', format: :svg, width: 800, height: 600)
 # Validate references before rendering if desired
 automaton.validate!
 automaton.layout_warnings(800, 600)
+automaton.live_states
+automaton.dead_states
+automaton.trap_states
 ```
 
 `label` is used as the display name in SVG, DOT, Mermaid, and PlantUML while the state ID remains stable for transitions.

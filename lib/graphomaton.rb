@@ -136,6 +136,10 @@ class Graphomaton
     @states.keys - reaching_final
   end
 
+  def live_states
+    states_reaching_final
+  end
+
   def trap_states
     ordered_state_names.select do |state|
       outgoing = @transitions.select do |transition|

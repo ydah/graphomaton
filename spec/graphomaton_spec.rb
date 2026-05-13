@@ -201,6 +201,7 @@ RSpec.describe Graphomaton do
       automaton.add_transition('trap', 'trap', 'loop')
 
       expect(automaton.states_reaching_final).to contain_exactly('q0', 'q1')
+      expect(automaton.live_states).to contain_exactly('q0', 'q1')
       expect(automaton.dead_states).to contain_exactly('dead', 'trap')
       expect(automaton.trap_states).to contain_exactly('trap')
     end
