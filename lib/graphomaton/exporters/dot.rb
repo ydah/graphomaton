@@ -105,7 +105,10 @@ class Graphomaton
       end
 
       def escape_label(label)
-        label.to_s.gsub('"', '\\"')
+        label.to_s
+             .gsub('\\') { '\\\\' }
+             .gsub('"') { '\\"' }
+             .gsub("\n") { '\\n' }
       end
     end
   end

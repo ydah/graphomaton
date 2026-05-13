@@ -125,6 +125,14 @@ RSpec.describe Graphomaton::Exporters::Dot do
         dot_output = dot_exporter.export
         expect(dot_output).to match(/label="a\/b"/)
       end
+
+      it 'escapes quotes, backslashes, and newlines' do
+        automaton.add_transition('State 1', 'State-2', "a\"b\\c\nd")
+
+        dot_output = dot_exporter.export
+
+        expect(dot_output).to include('label="a\"b\\\\c\\nd"')
+      end
     end
 
     context 'with complete automaton' do
