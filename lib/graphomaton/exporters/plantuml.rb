@@ -27,7 +27,7 @@ class Graphomaton
         @automaton.transitions.each do |trans|
           from = sanitize_state_name(trans[:from])
           to = sanitize_state_name(trans[:to])
-          label = trans[:label]
+          label = escape_label(trans[:label])
           lines << "#{from} --> #{to} : #{label}"
         end
 
@@ -100,6 +100,12 @@ class Graphomaton
         else
           sanitized
         end
+      end
+
+      def escape_label(label)
+        label.to_s
+             .gsub('\\') { '\\\\' }
+             .gsub("\n") { '\\n' }
       end
     end
   end

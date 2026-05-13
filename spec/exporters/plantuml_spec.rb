@@ -100,6 +100,14 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
         plantuml_output = plantuml_exporter.export
         expect(plantuml_output).to include('a/b')
       end
+
+      it 'escapes backslashes and newlines in labels' do
+        automaton.add_transition('State 1', 'State-2', "a\\b\nc")
+
+        plantuml_output = plantuml_exporter.export
+
+        expect(plantuml_output).to include('a\\\\b\\nc')
+      end
     end
 
     context 'with complete automaton' do
