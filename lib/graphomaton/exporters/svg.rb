@@ -12,6 +12,8 @@ class Graphomaton
       DEFAULT_MERGE_PARALLEL_TRANSITIONS = true
       DEFAULT_WRAP = false
       DEFAULT_LABEL_BACKGROUND = true
+      DEFAULT_LABEL_BORDER = false
+      DEFAULT_LABEL_PADDING = 10
       DEFAULT_HIGHLIGHT_UNREACHABLE = false
       DEFAULT_HIGHLIGHT_TRANSITIONS = [].freeze
       DEFAULT_XML_DECLARATION = false
@@ -102,6 +104,7 @@ class Graphomaton
       def initialize(automaton)
         @automaton = automaton
         @state_radius = DEFAULT_STATE_RADIUS
+        @label_padding = DEFAULT_LABEL_PADDING
       end
 
       def export(width = 800, height = 600, theme: DEFAULT_THEME, layout: DEFAULT_LAYOUT, direction: DEFAULT_DIRECTION, responsive: false,
@@ -113,6 +116,8 @@ class Graphomaton
                  initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
                  label_background: DEFAULT_LABEL_BACKGROUND,
+                 label_border: DEFAULT_LABEL_BORDER,
+                 label_padding: DEFAULT_LABEL_PADDING,
                  highlight_unreachable: DEFAULT_HIGHLIGHT_UNREACHABLE,
                  highlight_transitions: DEFAULT_HIGHLIGHT_TRANSITIONS,
                  xml_declaration: DEFAULT_XML_DECLARATION,
@@ -128,6 +133,8 @@ class Graphomaton
         @edge_style = resolve_edge_style(edge_style)
         @merge_parallel_transitions = merge_parallel_transitions
         @label_background = label_background
+        @label_border = label_border
+        @label_padding = [label_padding.to_f, 0].max
         @highlight_unreachable = highlight_unreachable
         @highlight_transitions = Array(highlight_transitions)
         @unreachable_states = @highlight_unreachable ? @automaton.unreachable_states : []
@@ -294,7 +301,7 @@ class Graphomaton
         ascii_chars = text.chars.count { |c| c.ascii_only? }
         non_ascii_chars = text.length - ascii_chars
 
-        width = (ascii_chars * 8) + (non_ascii_chars * 16) + 20
+        width = (ascii_chars * 8) + (non_ascii_chars * 16) + (@label_padding * 2)
         [width, 60].max
       end
 
@@ -344,11 +351,17 @@ class Graphomaton
       .transition-line { stroke: #{@theme[:stroke]}; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .transition-label { font-family: Arial, sans-serif; font-size: 14px; fill: #{@theme[:transition_label]}; text-rendering: geometricPrecision; }
       .initial-arrow { stroke: #{@theme[:stroke]}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
-      .label-bg { fill: #{@theme[:label_background]}; opacity: #{@theme[:label_opacity]}; }
+      .label-bg { fill: #{@theme[:label_background]}; opacity: #{@theme[:label_opacity]}; #{label_border_css} }
       .unreachable-state { opacity: 0.45; }
       .highlighted-transition .transition-line { stroke: #ef4444; stroke-width: 2.5; }
       .inactive-transition { opacity: 0.25; }
         CSS
+      end
+
+      def label_border_css
+        return 'stroke: none;' unless @label_border
+
+        "stroke: #{@theme[:stroke]}; stroke-width: 1; vector-effect: non-scaling-stroke;"
       end
 
       def add_background(svg, width, height)
