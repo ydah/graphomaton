@@ -137,9 +137,11 @@ class Graphomaton
         add_style(svg)
         add_accessibility_metadata(svg)
         add_background(svg, width, height)
-        add_transitions(svg)
-        add_initial_arrow(svg) if @automaton.initial_state
-        add_states(svg)
+        transition_group = svg.add_element('g', { 'class' => 'transitions' })
+        state_group = svg.add_element('g', { 'class' => 'states' })
+        add_transitions(transition_group)
+        add_initial_arrow(transition_group) if @automaton.initial_state
+        add_states(state_group)
 
         doc.to_s
       end

@@ -407,6 +407,14 @@ RSpec.describe Graphomaton do
       expect(style.text).to include('state-circle')
     end
 
+    it 'groups transitions and states for SVG styling' do
+      svg_output = automaton.to_svg
+      doc = REXML::Document.new(svg_output)
+
+      expect(REXML::XPath.first(doc, '//g[@class="transitions"]')).not_to be_nil
+      expect(REXML::XPath.first(doc, '//g[@class="states"]')).not_to be_nil
+    end
+
     it 'applies custom themes' do
       svg_output = automaton.to_svg(theme: :ocean)
       doc = REXML::Document.new(svg_output)
