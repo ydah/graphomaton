@@ -39,6 +39,7 @@ class Graphomaton
       DEFAULT_RANK_SPACING = 120
       DEFAULT_FORCE_ITERATIONS = 120
       DEFAULT_ARROW_SIZE = 10
+      DEFAULT_ARROW_SHAPE = :triangle
       DEFAULT_INITIAL_POSITION = :auto
       DEFAULT_FINAL_POSITION = :auto
       DEFAULT_AUTO_SIZE = false
@@ -51,6 +52,7 @@ class Graphomaton
       EDGE_STYLE_OPTIONS = %i[auto straight curved orthogonal].freeze
       STATE_SHAPE_OPTIONS = %i[circle ellipse rounded_rect].freeze
       STATE_EFFECT_OPTIONS = %i[none shadow glow].freeze
+      ARROW_SHAPE_OPTIONS = %i[triangle vee stealth].freeze
 
       THEMES = {
         light: {
@@ -136,6 +138,7 @@ class Graphomaton
                  padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                  force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil, auto_size: DEFAULT_AUTO_SIZE,
                  arrow_size: DEFAULT_ARROW_SIZE,
+                 arrow_shape: DEFAULT_ARROW_SHAPE,
                  initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
                  label_background: DEFAULT_LABEL_BACKGROUND,
@@ -160,6 +163,7 @@ class Graphomaton
         @state_stroke_width = [state_stroke_width.to_f, 0.1].max
         @transition_stroke_width = [transition_stroke_width.to_f, 0.1].max
         @arrow_size = [arrow_size.to_f, 1.0].max
+        @arrow_shape = resolve_arrow_shape(arrow_shape)
         @auto_dark_theme = false
         @theme = resolve_theme(theme)
         @layout = resolve_layout(layout)
@@ -319,6 +323,13 @@ class Graphomaton
         raise ArgumentError, "Unknown state_effect: #{state_effect.inspect}. Available values: #{STATE_EFFECT_OPTIONS.join(', ')}"
       end
 
+      def resolve_arrow_shape(arrow_shape)
+        resolved = arrow_shape.to_sym
+        return resolved if ARROW_SHAPE_OPTIONS.include?(resolved)
+
+        raise ArgumentError, "Unknown arrow_shape: #{arrow_shape.inspect}. Available values: #{ARROW_SHAPE_OPTIONS.join(', ')}"
+      end
+
       def auto_size_canvas(width, height)
         x_values = @positions.values.map { |position| position[:x].to_f }
         y_values = @positions.values.map { |position| position[:y].to_f }
@@ -422,10 +433,31 @@ class Graphomaton
                                     'orient' => 'auto',
                                     'markerUnits' => 'strokeWidth'
                                   })
-        marker.add_element('polygon', {
-                             'points' => "0 0, #{@arrow_size} #{marker_height / 2}, 0 #{marker_height}",
-                             'fill' => theme_css_value(:stroke)
-                           })
+        add_arrowhead_shape(marker, marker_height)
+      end
+
+      def add_arrowhead_shape(marker, marker_height)
+        case @arrow_shape
+        when :vee
+          marker.add_element('polyline', {
+                               'points' => "0 0, #{@arrow_size} #{marker_height / 2}, 0 #{marker_height}",
+                               'fill' => 'none',
+                               'stroke' => theme_css_value(:stroke),
+                               'stroke-width' => '1.5',
+                               'stroke-linecap' => 'round',
+                               'stroke-linejoin' => 'round'
+                             })
+        when :stealth
+          marker.add_element('polygon', {
+                               'points' => "0 0, #{@arrow_size} #{marker_height / 2}, 0 #{marker_height}, #{@arrow_size * 0.35} #{marker_height / 2}",
+                               'fill' => theme_css_value(:stroke)
+                             })
+        else
+          marker.add_element('polygon', {
+                               'points' => "0 0, #{@arrow_size} #{marker_height / 2}, 0 #{marker_height}",
+                               'fill' => theme_css_value(:stroke)
+                             })
+        end
       end
 
       def add_style(svg)

@@ -127,6 +127,7 @@ automaton.save_svg(
 `layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`, `:bfs`, `:force`, `:manual`.
 `auto_size` expands SVG viewport automatically to the rendered positions when set to `true`.
 `arrow_size` controls SVG arrowhead size.
+`arrow_shape` accepts `:triangle`, `:vee`, and `:stealth`.
 `force` accepts optional tuning keys `padding`, `node_spacing`, `rank_spacing`, `force_iterations`, and `layout_seed`.
 
 You can also control label display behavior:

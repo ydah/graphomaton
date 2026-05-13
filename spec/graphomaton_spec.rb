@@ -546,6 +546,14 @@ RSpec.describe Graphomaton do
       expect(marker.attributes['markerUnits']).to eq('strokeWidth')
     end
 
+    it 'supports custom arrowhead shapes' do
+      svg_output = automaton.to_svg(800, 600, arrow_shape: :vee)
+      doc = REXML::Document.new(svg_output)
+      marker = REXML::XPath.first(doc, '//marker')
+
+      expect(REXML::XPath.first(marker, './polyline')).not_to be_nil
+    end
+
     it 'supports custom state and transition stroke widths' do
       svg_output = automaton.to_svg(state_stroke_width: 3, transition_stroke_width: 2)
       doc = REXML::Document.new(svg_output)
