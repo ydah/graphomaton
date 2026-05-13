@@ -417,6 +417,14 @@ RSpec.describe Graphomaton do
       expect(background).not_to be_nil
     end
 
+    it 'supports accessibility focused named themes' do
+      high_contrast = automaton.to_svg(theme: :high_contrast)
+      color_blind = automaton.to_svg(theme: :color_blind)
+
+      expect(high_contrast).to include('#ffff00')
+      expect(color_blind).to include('#0072b2')
+    end
+
     it 'creates circles for each state' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)

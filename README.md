@@ -66,7 +66,7 @@ automaton.save_svg('output_dark.svg', theme: :dark)
 automaton.save_png('output_forest.png', theme: :forest)
 ```
 
-Available themes: `:light`, `:dark`, `:forest`, `:ocean`.
+Available themes: `:light`, `:dark`, `:forest`, `:ocean`, `:high_contrast`, `:color_blind`.
 
 ### Output Formats
 

@@ -60,6 +60,24 @@ class Graphomaton
           transition_label: '#0284c7',
           label_background: '#eff6ff',
           label_opacity: '0.95'
+        },
+        high_contrast: {
+          background: '#000000',
+          state_fill: '#ffffff',
+          stroke: '#ffffff',
+          state_text: '#000000',
+          transition_label: '#ffff00',
+          label_background: '#000000',
+          label_opacity: '0.95'
+        },
+        color_blind: {
+          background: '#f7f7f7',
+          state_fill: '#ffffff',
+          stroke: '#0072b2',
+          state_text: '#000000',
+          transition_label: '#d55e00',
+          label_background: '#f7f7f7',
+          label_opacity: '0.95'
         }
       }.freeze
 
