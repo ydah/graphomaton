@@ -23,6 +23,7 @@ class Graphomaton
   }.freeze
   DEFAULT_INITIAL_POSITION = :auto
   DEFAULT_FINAL_POSITION = :auto
+  DEFAULT_EPSILON_LABEL = "\u03b5"
   attr_accessor :states, :transitions, :initial_state, :final_states
 
   def self.png_available?(converter: Exporters::Png::DEFAULT_CONVERTER)
@@ -49,8 +50,8 @@ class Graphomaton
     name
   end
 
-  def add_transition(from, to, label, style: nil, metadata: nil)
-    transition = { from: from, to: to, label: normalize_transition_label(label) }
+  def add_transition(from, to, label, style: nil, metadata: nil, epsilon_label: DEFAULT_EPSILON_LABEL)
+    transition = { from: from, to: to, label: normalize_transition_label(label, epsilon_label: epsilon_label) }
     transition[:style] = style unless style.nil?
     transition[:metadata] = metadata unless metadata.nil?
     @transitions << transition
@@ -1080,8 +1081,16 @@ class Graphomaton
     raise ArgumentError, "Unknown format: #{format.inspect}. Available formats: #{FORMAT_OPTIONS.join(', ')}"
   end
 
-  def normalize_transition_label(label)
-    return label.map(&:to_s).uniq.join(', ') if label.is_a?(Array)
+  def normalize_transition_label(label, epsilon_label: DEFAULT_EPSILON_LABEL)
+    if label.is_a?(Array)
+      return label.map { |item| normalize_single_transition_label(item, epsilon_label: epsilon_label) }.uniq.join(', ')
+    end
+
+    normalize_single_transition_label(label, epsilon_label: epsilon_label)
+  end
+
+  def normalize_single_transition_label(label, epsilon_label: DEFAULT_EPSILON_LABEL)
+    return epsilon_label if label == :epsilon
 
     label
   end

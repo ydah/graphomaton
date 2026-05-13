@@ -95,6 +95,14 @@ RSpec.describe Graphomaton do
       expect(automaton.transitions).to include({ from: 'q0', to: 'q1', label: 'a, b' })
     end
 
+    it 'normalizes epsilon transition labels' do
+      automaton.add_transition('q0', 'q1', :epsilon)
+      automaton.add_transition('q1', 'q0', [:epsilon, 'a'], epsilon_label: 'eps')
+
+      expect(automaton.transitions).to include({ from: 'q0', to: 'q1', label: Graphomaton::DEFAULT_EPSILON_LABEL })
+      expect(automaton.transitions).to include({ from: 'q1', to: 'q0', label: 'eps, a' })
+    end
+
     it 'supports optional transition style and metadata' do
       automaton.add_transition('q0', 'q1', 'a', style: { stroke: '#ef4444' }, metadata: { tooltip: 'Hot path' })
 
