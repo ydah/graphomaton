@@ -865,6 +865,7 @@ class Graphomaton
           lines = state_label_lines(label)
           position = state_position(name) || state
           state_node = svg.add_element('g', state_group_attributes(name))
+          add_state_tooltip(state_node, state)
           circle_class = 'state-circle'
           circle_class += ' final-state' if @automaton.final_states.include?(name)
 
@@ -904,6 +905,21 @@ class Graphomaton
 
       def state_label(name, state)
         state.fetch(:label, name)
+      end
+
+      def add_state_tooltip(state_node, state)
+        tooltip = state_tooltip(state)
+        return unless tooltip
+
+        title = state_node.add_element('title')
+        title.text = tooltip
+      end
+
+      def state_tooltip(state)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:tooltip] || metadata['tooltip'] || metadata[:description] || metadata['description']
       end
 
       def state_circle_attributes(circle_class, position, state, radius: @state_radius)

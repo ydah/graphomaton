@@ -36,7 +36,7 @@ automaton = Graphomaton.new
 automaton.add_state('q0')
 automaton.add_state('q1')
 automaton.add_state('q2')
-automaton.add_state('q_named', label: 'Named State', style: { fill: '#fee2e2' })
+automaton.add_state('q_named', label: 'Named State', style: { fill: '#fee2e2' }, metadata: { tooltip: 'Shown in SVG' })
 
 # Set initial and final states
 automaton.set_initial('q0')

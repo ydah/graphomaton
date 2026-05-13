@@ -569,6 +569,17 @@ RSpec.describe Graphomaton do
       expect(circle.attributes['style']).to include('stroke: #dc2626')
     end
 
+    it 'uses state metadata as SVG tooltip' do
+      local = described_class.new
+      local.add_state('q0', metadata: { tooltip: 'Entry point' })
+
+      svg_output = local.to_svg
+      doc = REXML::Document.new(svg_output)
+      title = REXML::XPath.first(doc, '//g[@id="state-q0"]/title')
+
+      expect(title.text).to eq('Entry point')
+    end
+
     it 'creates double circle for final states' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)
