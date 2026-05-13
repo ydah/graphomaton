@@ -707,6 +707,7 @@ class Graphomaton
              label_background: Exporters::Svg::DEFAULT_LABEL_BACKGROUND,
              highlight_unreachable: false,
              xml_declaration: Exporters::Svg::DEFAULT_XML_DECLARATION,
+             loop_position: Exporters::Svg::DEFAULT_LOOP_POSITION,
              title: nil, description: nil)
     Exporters::Svg.new(self).export(
       width,
@@ -729,6 +730,7 @@ class Graphomaton
       label_background: label_background,
       highlight_unreachable: highlight_unreachable,
       xml_declaration: xml_declaration,
+      loop_position: loop_position,
       wrap: wrap,
       max_transition_label_width: max_transition_label_width,
       state_wrap: state_wrap,
@@ -750,6 +752,7 @@ class Graphomaton
                label_background: Exporters::Svg::DEFAULT_LABEL_BACKGROUND,
                highlight_unreachable: false,
                xml_declaration: Exporters::Svg::DEFAULT_XML_DECLARATION,
+               loop_position: Exporters::Svg::DEFAULT_LOOP_POSITION,
                title: nil, description: nil)
     File.write(
       filename,
@@ -774,6 +777,7 @@ class Graphomaton
         label_background: label_background,
         highlight_unreachable: highlight_unreachable,
         xml_declaration: xml_declaration,
+        loop_position: loop_position,
         wrap: wrap,
         max_transition_label_width: max_transition_label_width,
         state_wrap: state_wrap,

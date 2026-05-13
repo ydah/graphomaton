@@ -14,6 +14,7 @@ class Graphomaton
       DEFAULT_LABEL_BACKGROUND = true
       DEFAULT_HIGHLIGHT_UNREACHABLE = false
       DEFAULT_XML_DECLARATION = false
+      DEFAULT_LOOP_POSITION = :auto
       DEFAULT_PADDING = 80
       DEFAULT_NODE_SPACING = 120
       DEFAULT_RANK_SPACING = 120
@@ -27,6 +28,7 @@ class Graphomaton
       DEFAULT_MAX_STATE_LABEL_WIDTH = 120
       LAYOUT_OPTIONS = %i[linear circle grid layered bfs force manual].freeze
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
+      LOOP_POSITION_OPTIONS = %i[auto top right bottom left].freeze
 
       THEMES = {
         light: {
@@ -110,12 +112,14 @@ class Graphomaton
                  label_background: DEFAULT_LABEL_BACKGROUND,
                  highlight_unreachable: DEFAULT_HIGHLIGHT_UNREACHABLE,
                  xml_declaration: DEFAULT_XML_DECLARATION,
+                 loop_position: DEFAULT_LOOP_POSITION,
                  title: nil, description: nil)
         @state_radius = state_radius.to_f
         @arrow_size = [arrow_size.to_f, 1.0].max
         @theme = resolve_theme(theme)
         @layout = resolve_layout(layout)
         @direction = resolve_direction(direction)
+        @loop_position = resolve_loop_position(loop_position)
         @merge_parallel_transitions = merge_parallel_transitions
         @label_background = label_background
         @highlight_unreachable = highlight_unreachable
@@ -207,6 +211,13 @@ class Graphomaton
         return resolved if DIRECTION_OPTIONS.include?(resolved)
 
         raise ArgumentError, "Unknown direction: #{direction.inspect}. Available directions: #{DIRECTION_OPTIONS.join(', ')}"
+      end
+
+      def resolve_loop_position(loop_position)
+        resolved = loop_position.to_sym
+        return resolved if LOOP_POSITION_OPTIONS.include?(resolved)
+
+        raise ArgumentError, "Unknown loop_position: #{loop_position.inspect}. Available values: #{LOOP_POSITION_OPTIONS.join(', ')}"
       end
 
       def auto_size_canvas(width, height)
@@ -451,6 +462,8 @@ class Graphomaton
       end
 
       def self_loop_placement(loop_index)
+        return [@loop_position, loop_index] unless @loop_position == :auto
+
         orientations = %i[top right bottom left]
         [orientations[loop_index % orientations.size], loop_index / orientations.size]
       end

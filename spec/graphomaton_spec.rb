@@ -665,6 +665,15 @@ RSpec.describe Graphomaton do
         self_loop_paths = paths.select { |p| p.attributes['d'].include?('C') }
         expect(self_loop_paths).not_to be_empty
       end
+
+      it 'supports explicit self-loop placement' do
+        svg_output = automaton.to_svg(loop_position: :right)
+        doc = REXML::Document.new(svg_output)
+        state = REXML::XPath.first(doc, '//g[@id="state-q1"]/circle')
+        loop_label = REXML::XPath.match(doc, '//text[@class="transition-label"]').find { |label| label.text == 'loop' }
+
+        expect(loop_label.attributes['x'].to_f).to be > state.attributes['cx'].to_f
+      end
     end
 
     context 'with parallel transitions' do

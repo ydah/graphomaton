@@ -124,6 +124,7 @@ automaton.save_svg('diagram.svg', 800, 600, wrap: true, max_transition_label_wid
 automaton.save_svg('diagram.svg', 800, 600, label_background: false)
 automaton.save_svg('diagram.svg', 800, 600, highlight_unreachable: true)
 automaton.save_svg('diagram.svg', 800, 600, xml_declaration: true)
+automaton.save_svg('diagram.svg', 800, 600, loop_position: :right)
 ```
 
 #### 2. PNG
