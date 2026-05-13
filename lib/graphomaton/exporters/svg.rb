@@ -13,6 +13,7 @@ class Graphomaton
       DEFAULT_WRAP = false
       DEFAULT_LABEL_BACKGROUND = true
       DEFAULT_HIGHLIGHT_UNREACHABLE = false
+      DEFAULT_HIGHLIGHT_TRANSITIONS = [].freeze
       DEFAULT_XML_DECLARATION = false
       DEFAULT_LOOP_POSITION = :auto
       DEFAULT_PADDING = 80
@@ -111,6 +112,7 @@ class Graphomaton
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
                  label_background: DEFAULT_LABEL_BACKGROUND,
                  highlight_unreachable: DEFAULT_HIGHLIGHT_UNREACHABLE,
+                 highlight_transitions: DEFAULT_HIGHLIGHT_TRANSITIONS,
                  xml_declaration: DEFAULT_XML_DECLARATION,
                  loop_position: DEFAULT_LOOP_POSITION,
                  title: nil, description: nil)
@@ -123,6 +125,7 @@ class Graphomaton
         @merge_parallel_transitions = merge_parallel_transitions
         @label_background = label_background
         @highlight_unreachable = highlight_unreachable
+        @highlight_transitions = Array(highlight_transitions)
         @unreachable_states = @highlight_unreachable ? @automaton.unreachable_states : []
         @padding = padding
         @node_spacing = node_spacing
@@ -332,6 +335,8 @@ class Graphomaton
       .initial-arrow { stroke: #{@theme[:stroke]}; stroke-width: 2; fill: none; marker-end: url(#arrowhead); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .label-bg { fill: #{@theme[:label_background]}; opacity: #{@theme[:label_opacity]}; }
       .unreachable-state { opacity: 0.45; }
+      .highlighted-transition .transition-line { stroke: #ef4444; stroke-width: 2.5; }
+      .inactive-transition { opacity: 0.25; }
         CSS
       end
 
@@ -406,6 +411,7 @@ class Graphomaton
 
       def add_self_loop(svg, state, trans, loop_index = 0)
         transition_node = svg.add_element('g', transition_group_attributes(trans))
+        add_transition_tooltip(transition_node, trans)
         cx = state[:x]
         cy = state[:y]
         orientation, layer = self_loop_placement(loop_index)
@@ -434,10 +440,7 @@ class Graphomaton
 
         path_d = "M #{start_x} #{start_y} C #{control1_x} #{control1_y}, #{control2_x} #{control2_y}, #{end_x} #{end_y}"
 
-        transition_node.add_element('path', {
-                                      'class' => 'transition-line',
-                                      'd' => path_d
-                                    })
+        transition_node.add_element('path', transition_line_attributes(trans, 'd' => path_d))
 
         text_width = calculate_text_width(trans[:label])
         label_y_shift = loop_offset * (loop_index.odd? ? -1 : 1)
@@ -668,6 +671,7 @@ class Graphomaton
 
       def add_transition(svg, from_state, to_state, trans, processed_pairs, from_state_index)
         transition_node = svg.add_element('g', transition_group_attributes(trans))
+        add_transition_tooltip(transition_node, trans)
         x1 = from_state[:x]
         y1 = from_state[:y]
         x2 = to_state[:x]
@@ -721,13 +725,16 @@ class Graphomaton
       end
 
       def add_straight_line(svg, start_x, start_y, end_x, end_y, trans)
-        svg.add_element('line', {
-                          'class' => 'transition-line',
-                          'x1' => start_x.to_s,
-                          'y1' => start_y.to_s,
-                          'x2' => end_x.to_s,
-                          'y2' => end_y.to_s
-                        })
+        svg.add_element(
+          'line',
+          transition_line_attributes(
+            trans,
+            'x1' => start_x.to_s,
+            'y1' => start_y.to_s,
+            'x2' => end_x.to_s,
+            'y2' => end_y.to_s
+          )
+        )
 
         label_x = (start_x + end_x) / 2
         label_y = ((start_y + end_y) / 2) - 10
@@ -775,10 +782,7 @@ class Graphomaton
 
         path_d = "M #{start_x} #{start_y} Q #{control_x} #{control_y}, #{end_x} #{end_y}"
 
-        svg.add_element('path', {
-                          'class' => 'transition-line',
-                          'd' => path_d
-                        })
+        svg.add_element('path', transition_line_attributes(trans, 'd' => path_d))
 
         t = 0.5
         label_x = ((1 - t) * (1 - t) * start_x) + (2 * (1 - t) * t * control_x) + (t * t * end_x)
@@ -957,8 +961,15 @@ class Graphomaton
         from = transition[:from]
         to = transition[:to]
         label = transition[:label]
+        classes = ['transition']
+        if highlighted_transition?(transition)
+          classes << 'highlighted-transition'
+        elsif @highlight_transitions.any?
+          classes << 'inactive-transition'
+        end
+
         {
-          'class' => 'transition',
+          'class' => classes.join(' '),
           'id' => unique_svg_id(
             "transition-#{svg_id_component(from)}-#{svg_id_component(to)}-#{svg_id_component(label)}"
           ),
@@ -966,6 +977,56 @@ class Graphomaton
           'data-to' => to.to_s,
           'data-label' => label.to_s
         }
+      end
+
+      def transition_line_attributes(transition, attributes)
+        line_attributes = { 'class' => 'transition-line' }.merge(attributes)
+        style = css_style(transition[:style])
+        line_attributes['style'] = style unless style.empty?
+        line_attributes
+      end
+
+      def add_transition_tooltip(transition_node, transition)
+        tooltip = transition_tooltip(transition)
+        return unless tooltip
+
+        title = transition_node.add_element('title')
+        title.text = tooltip
+      end
+
+      def transition_tooltip(transition)
+        metadata = transition[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:tooltip] || metadata['tooltip'] || metadata[:description] || metadata['description']
+      end
+
+      def highlighted_transition?(transition)
+        @highlight_transitions.any? do |target|
+          transition_highlight_match?(transition, target)
+        end
+      end
+
+      def transition_highlight_match?(transition, target)
+        case target
+        when Hash
+          transition_match_value?(transition, target, :from) &&
+            transition_match_value?(transition, target, :to) &&
+            transition_match_value?(transition, target, :label)
+        when Array
+          transition[:from] == target[0] &&
+            transition[:to] == target[1] &&
+            (target.size < 3 || transition[:label].to_s == target[2].to_s)
+        else
+          false
+        end
+      end
+
+      def transition_match_value?(transition, target, key)
+        return true unless target.key?(key) || target.key?(key.to_s)
+
+        value = target.key?(key) ? target[key] : target[key.to_s]
+        transition[key].to_s == value.to_s
       end
 
       def unique_svg_id(base_id)

@@ -93,6 +93,18 @@ RSpec.describe Graphomaton do
 
       expect(automaton.transitions).to include({ from: 'q0', to: 'q1', label: 'a, b' })
     end
+
+    it 'supports optional transition style and metadata' do
+      automaton.add_transition('q0', 'q1', 'a', style: { stroke: '#ef4444' }, metadata: { tooltip: 'Hot path' })
+
+      expect(automaton.transitions).to include(
+        from: 'q0',
+        to: 'q1',
+        label: 'a',
+        style: { stroke: '#ef4444' },
+        metadata: { tooltip: 'Hot path' }
+      )
+    end
   end
 
   describe '#set_initial' do
@@ -522,6 +534,32 @@ RSpec.describe Graphomaton do
       expect(transition.attributes['data-from']).to eq('q0')
       expect(transition.attributes['data-to']).to eq('q1')
       expect(transition.attributes['data-label']).to eq('a')
+    end
+
+    it 'renders transition styles and metadata tooltips in SVG output' do
+      local = described_class.new
+      local.add_state('q0')
+      local.add_state('q1')
+      local.add_transition('q0', 'q1', 'a', style: { stroke: '#ef4444', stroke_width: 3 }, metadata: { tooltip: 'Hot path' })
+
+      svg_output = local.to_svg
+      doc = REXML::Document.new(svg_output)
+      transition = REXML::XPath.first(doc, '//g[@id="transition-q0-q1-a"]')
+      line = REXML::XPath.first(transition, './/*[@class="transition-line"]')
+
+      expect(REXML::XPath.first(transition, './title').text).to eq('Hot path')
+      expect(line.attributes['style']).to include('stroke: #ef4444')
+      expect(line.attributes['style']).to include('stroke-width: 3')
+    end
+
+    it 'can highlight selected transitions and fade inactive transitions' do
+      svg_output = automaton.to_svg(highlight_transitions: [{ from: 'q0', to: 'q1', label: 'a' }])
+      doc = REXML::Document.new(svg_output)
+      highlighted = REXML::XPath.first(doc, '//g[@id="transition-q0-q1-a"]')
+      inactive = REXML::XPath.first(doc, '//g[@id="transition-q1-q2-b"]')
+
+      expect(highlighted.attributes['class']).to include('highlighted-transition')
+      expect(inactive.attributes['class']).to include('inactive-transition')
     end
 
     it 'applies custom themes' do

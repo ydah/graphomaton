@@ -48,8 +48,11 @@ class Graphomaton
     name
   end
 
-  def add_transition(from, to, label)
-    @transitions << { from: from, to: to, label: normalize_transition_label(label) }
+  def add_transition(from, to, label, style: nil, metadata: nil)
+    transition = { from: from, to: to, label: normalize_transition_label(label) }
+    transition[:style] = style unless style.nil?
+    transition[:metadata] = metadata unless metadata.nil?
+    @transitions << transition
   end
 
   def set_initial(state)
@@ -714,6 +717,7 @@ class Graphomaton
              max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH,
              label_background: Exporters::Svg::DEFAULT_LABEL_BACKGROUND,
              highlight_unreachable: false,
+             highlight_transitions: Exporters::Svg::DEFAULT_HIGHLIGHT_TRANSITIONS,
              xml_declaration: Exporters::Svg::DEFAULT_XML_DECLARATION,
              loop_position: Exporters::Svg::DEFAULT_LOOP_POSITION,
              title: nil, description: nil)
@@ -737,6 +741,7 @@ class Graphomaton
       merge_parallel_transitions: merge_parallel_transitions,
       label_background: label_background,
       highlight_unreachable: highlight_unreachable,
+      highlight_transitions: highlight_transitions,
       xml_declaration: xml_declaration,
       loop_position: loop_position,
       wrap: wrap,
@@ -759,6 +764,7 @@ class Graphomaton
                max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH,
                label_background: Exporters::Svg::DEFAULT_LABEL_BACKGROUND,
                highlight_unreachable: false,
+               highlight_transitions: Exporters::Svg::DEFAULT_HIGHLIGHT_TRANSITIONS,
                xml_declaration: Exporters::Svg::DEFAULT_XML_DECLARATION,
                loop_position: Exporters::Svg::DEFAULT_LOOP_POSITION,
                title: nil, description: nil)
@@ -784,6 +790,7 @@ class Graphomaton
         merge_parallel_transitions: merge_parallel_transitions,
         label_background: label_background,
         highlight_unreachable: highlight_unreachable,
+        highlight_transitions: highlight_transitions,
         xml_declaration: xml_declaration,
         loop_position: loop_position,
         wrap: wrap,
