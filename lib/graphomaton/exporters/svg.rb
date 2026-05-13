@@ -15,6 +15,7 @@ class Graphomaton
       DEFAULT_NODE_SPACING = 120
       DEFAULT_RANK_SPACING = 120
       DEFAULT_FORCE_ITERATIONS = 120
+      DEFAULT_ARROW_SIZE = 10
       DEFAULT_INITIAL_POSITION = :auto
       DEFAULT_FINAL_POSITION = :auto
       DEFAULT_AUTO_SIZE = false
@@ -91,10 +92,12 @@ class Graphomaton
                  state_wrap: DEFAULT_STATE_WRAP, max_state_label_width: DEFAULT_MAX_STATE_LABEL_WIDTH,
                  padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                  force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil, auto_size: DEFAULT_AUTO_SIZE,
+                 arrow_size: DEFAULT_ARROW_SIZE,
                  initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
                  title: nil, description: nil)
         @state_radius = state_radius.to_f
+        @arrow_size = [arrow_size.to_f, 1.0].max
         @theme = resolve_theme(theme)
         @layout = resolve_layout(layout)
         @direction = resolve_direction(direction)
@@ -268,16 +271,18 @@ class Graphomaton
 
       def add_defs(svg)
         defs = svg.add_element('defs')
+        marker_height = @arrow_size * 0.6
         marker = defs.add_element('marker', {
                                     'id' => 'arrowhead',
-                                    'markerWidth' => '10',
-                                    'markerHeight' => '10',
-                                    'refX' => '9',
-                                    'refY' => '3',
-                                    'orient' => 'auto'
+                                    'markerWidth' => @arrow_size.to_s,
+                                    'markerHeight' => marker_height.to_s,
+                                    'refX' => (@arrow_size * 0.9).to_s,
+                                    'refY' => (marker_height / 2).to_s,
+                                    'orient' => 'auto',
+                                    'markerUnits' => 'strokeWidth'
                                   })
         marker.add_element('polygon', {
-                             'points' => '0 0, 10 3, 0 6',
+                             'points' => "0 0, #{@arrow_size} #{marker_height / 2}, 0 #{marker_height}",
                              'fill' => @theme[:stroke]
                            })
       end

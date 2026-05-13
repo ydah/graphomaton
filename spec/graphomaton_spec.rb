@@ -399,6 +399,15 @@ RSpec.describe Graphomaton do
       expect(marker).not_to be_nil
     end
 
+    it 'supports custom arrowhead size' do
+      svg_output = automaton.to_svg(800, 600, arrow_size: 16)
+      doc = REXML::Document.new(svg_output)
+      marker = REXML::XPath.first(doc, '//marker[@id="arrowhead"]')
+
+      expect(marker.attributes['markerWidth']).to eq('16.0')
+      expect(marker.attributes['markerUnits']).to eq('strokeWidth')
+    end
+
     it 'includes styles' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)
