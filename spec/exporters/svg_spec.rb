@@ -37,6 +37,20 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(svg.attributes['preserveAspectRatio']).to eq('xMidYMid meet')
       end
 
+      it 'adds accessible title and description metadata' do
+        svg_output = svg_exporter.export(title: 'Order DFA', description: 'Accepts valid order events')
+        doc = REXML::Document.new(svg_output)
+        svg = doc.root
+        title = REXML::XPath.first(doc, '//title')
+        desc = REXML::XPath.first(doc, '//desc')
+
+        expect(svg.attributes['role']).to eq('img')
+        expect(svg.attributes['aria-labelledby']).to include(title.attributes['id'])
+        expect(svg.attributes['aria-labelledby']).to include(desc.attributes['id'])
+        expect(title.text).to eq('Order DFA')
+        expect(desc.text).to eq('Accepts valid order events')
+      end
+
       it 'accepts custom dimensions' do
         svg_output = svg_exporter.export(1000, 800)
         doc = REXML::Document.new(svg_output)
@@ -404,6 +418,24 @@ RSpec.describe Graphomaton::Exporters::Svg do
         # Background rectangles should have appropriate widths
         widths = label_bg.map { |rect| rect.attributes['width'].to_f }
         expect(widths).to all(be > 0)
+      end
+    end
+
+    context 'with XML-sensitive characters' do
+      before do
+        automaton.add_state('A&B', label: '<Start & "quoted">', metadata: { tooltip: 'State <tooltip> & docs' })
+        automaton.add_state('B')
+        automaton.add_transition('A&B', 'B', 'x < y & z', metadata: { tooltip: 'Edge <tooltip> & docs' })
+      end
+
+      it 'escapes state labels, transition labels, and tooltip text into valid SVG' do
+        svg_output = svg_exporter.export
+        doc = REXML::Document.new(svg_output)
+        text_nodes = REXML::XPath.match(doc, '//text')
+        title_nodes = REXML::XPath.match(doc, '//title')
+
+        expect(text_nodes.map(&:text)).to include('<Start & "quoted">', 'x < y & z')
+        expect(title_nodes.map(&:text)).to include('State <tooltip> & docs', 'Edge <tooltip> & docs')
       end
     end
 
