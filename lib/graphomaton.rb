@@ -720,6 +720,7 @@ class Graphomaton
              highlight_transitions: Exporters::Svg::DEFAULT_HIGHLIGHT_TRANSITIONS,
              xml_declaration: Exporters::Svg::DEFAULT_XML_DECLARATION,
              loop_position: Exporters::Svg::DEFAULT_LOOP_POSITION,
+             edge_style: Exporters::Svg::DEFAULT_EDGE_STYLE,
              title: nil, description: nil)
     Exporters::Svg.new(self).export(
       width,
@@ -744,6 +745,7 @@ class Graphomaton
       highlight_transitions: highlight_transitions,
       xml_declaration: xml_declaration,
       loop_position: loop_position,
+      edge_style: edge_style,
       wrap: wrap,
       max_transition_label_width: max_transition_label_width,
       state_wrap: state_wrap,
@@ -767,6 +769,7 @@ class Graphomaton
                highlight_transitions: Exporters::Svg::DEFAULT_HIGHLIGHT_TRANSITIONS,
                xml_declaration: Exporters::Svg::DEFAULT_XML_DECLARATION,
                loop_position: Exporters::Svg::DEFAULT_LOOP_POSITION,
+               edge_style: Exporters::Svg::DEFAULT_EDGE_STYLE,
                title: nil, description: nil)
     File.write(
       filename,
@@ -793,6 +796,7 @@ class Graphomaton
         highlight_transitions: highlight_transitions,
         xml_declaration: xml_declaration,
         loop_position: loop_position,
+        edge_style: edge_style,
         wrap: wrap,
         max_transition_label_width: max_transition_label_width,
         state_wrap: state_wrap,

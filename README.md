@@ -130,6 +130,7 @@ automaton.save_svg('diagram.svg', 800, 600, highlight_unreachable: true)
 automaton.save_svg('diagram.svg', 800, 600, highlight_transitions: [{ from: 'q0', to: 'q1', label: 'a' }])
 automaton.save_svg('diagram.svg', 800, 600, xml_declaration: true)
 automaton.save_svg('diagram.svg', 800, 600, loop_position: :right)
+automaton.save_svg('diagram.svg', 800, 600, edge_style: :orthogonal)
 ```
 
 #### 2. PNG

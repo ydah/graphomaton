@@ -16,6 +16,7 @@ class Graphomaton
       DEFAULT_HIGHLIGHT_TRANSITIONS = [].freeze
       DEFAULT_XML_DECLARATION = false
       DEFAULT_LOOP_POSITION = :auto
+      DEFAULT_EDGE_STYLE = :auto
       DEFAULT_PADDING = 80
       DEFAULT_NODE_SPACING = 120
       DEFAULT_RANK_SPACING = 120
@@ -30,6 +31,7 @@ class Graphomaton
       LAYOUT_OPTIONS = %i[linear circle grid layered bfs force manual].freeze
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
       LOOP_POSITION_OPTIONS = %i[auto top right bottom left].freeze
+      EDGE_STYLE_OPTIONS = %i[auto straight curved orthogonal].freeze
 
       THEMES = {
         light: {
@@ -115,6 +117,7 @@ class Graphomaton
                  highlight_transitions: DEFAULT_HIGHLIGHT_TRANSITIONS,
                  xml_declaration: DEFAULT_XML_DECLARATION,
                  loop_position: DEFAULT_LOOP_POSITION,
+                 edge_style: DEFAULT_EDGE_STYLE,
                  title: nil, description: nil)
         @state_radius = state_radius.to_f
         @arrow_size = [arrow_size.to_f, 1.0].max
@@ -122,6 +125,7 @@ class Graphomaton
         @layout = resolve_layout(layout)
         @direction = resolve_direction(direction)
         @loop_position = resolve_loop_position(loop_position)
+        @edge_style = resolve_edge_style(edge_style)
         @merge_parallel_transitions = merge_parallel_transitions
         @label_background = label_background
         @highlight_unreachable = highlight_unreachable
@@ -221,6 +225,13 @@ class Graphomaton
         return resolved if LOOP_POSITION_OPTIONS.include?(resolved)
 
         raise ArgumentError, "Unknown loop_position: #{loop_position.inspect}. Available values: #{LOOP_POSITION_OPTIONS.join(', ')}"
+      end
+
+      def resolve_edge_style(edge_style)
+        resolved = edge_style.to_sym
+        return resolved if EDGE_STYLE_OPTIONS.include?(resolved)
+
+        raise ArgumentError, "Unknown edge_style: #{edge_style.inspect}. Available values: #{EDGE_STYLE_OPTIONS.join(', ')}"
       end
 
       def auto_size_canvas(width, height)
@@ -706,7 +717,28 @@ class Graphomaton
         is_adjacent = (to_index - from_index).abs == 1
         states_between = (to_index - from_index).abs - 1
 
-        if is_adjacent && forward_direction?(x1, y1, x2, y2)
+        if @edge_style == :straight
+          add_straight_line(transition_node, start_x, start_y, end_x, end_y, trans)
+        elsif @edge_style == :curved
+          add_curved_line(
+            transition_node,
+            start_x,
+            start_y,
+            end_x,
+            end_y,
+            x1,
+            y1,
+            x2,
+            y2,
+            trans,
+            parallel_count,
+            pair_index,
+            states_between,
+            from_state_index
+          )
+        elsif @edge_style == :orthogonal
+          add_orthogonal_line(transition_node, start_x, start_y, end_x, end_y, trans)
+        elsif is_adjacent && forward_direction?(x1, y1, x2, y2)
           add_straight_line(transition_node, start_x, start_y, end_x, end_y, trans)
         else
           add_curved_line(
@@ -792,6 +824,23 @@ class Graphomaton
         label_x = ((1 - t) * (1 - t) * start_x) + (2 * (1 - t) * t * control_x) + (t * t * end_x)
         label_y = ((1 - t) * (1 - t) * start_y) + (2 * (1 - t) * t * control_y) + (t * t * end_y)
 
+        add_label(svg, label_x, label_y, trans[:label])
+      end
+
+      def add_orthogonal_line(svg, start_x, start_y, end_x, end_y, trans)
+        if vertical_direction?
+          mid_y = (start_y + end_y) / 2.0
+          path_d = "M #{start_x} #{start_y} L #{start_x} #{mid_y} L #{end_x} #{mid_y} L #{end_x} #{end_y}"
+          label_x = (start_x + end_x) / 2.0
+          label_y = mid_y - 8
+        else
+          mid_x = (start_x + end_x) / 2.0
+          path_d = "M #{start_x} #{start_y} L #{mid_x} #{start_y} L #{mid_x} #{end_y} L #{end_x} #{end_y}"
+          label_x = mid_x
+          label_y = ((start_y + end_y) / 2.0) - 8
+        end
+
+        svg.add_element('path', transition_line_attributes(trans, 'd' => path_d))
         add_label(svg, label_x, label_y, trans[:label])
       end
 

@@ -724,6 +724,33 @@ RSpec.describe Graphomaton do
       expect((x_positions.uniq.size > 1) || (y_positions.uniq.size > 1)).to be true
     end
 
+    it 'supports straight edge style' do
+      local = described_class.new
+      local.add_state('q0')
+      local.add_state('q1')
+      local.add_state('q2')
+      local.add_transition('q0', 'q2', 'skip')
+
+      svg_output = local.to_svg(edge_style: :straight)
+      doc = REXML::Document.new(svg_output)
+
+      expect(REXML::XPath.first(doc, '//line[@class="transition-line"]')).not_to be_nil
+      expect(REXML::XPath.match(doc, '//path[@class="transition-line"]')).to be_empty
+    end
+
+    it 'supports orthogonal edge style' do
+      local = described_class.new
+      local.add_state('q0')
+      local.add_state('q1')
+      local.add_transition('q0', 'q1', 'step')
+
+      svg_output = local.to_svg(edge_style: :orthogonal)
+      doc = REXML::Document.new(svg_output)
+      path = REXML::XPath.first(doc, '//path[@class="transition-line"]')
+
+      expect(path.attributes['d']).to include(' L ')
+    end
+
     context 'with self-loop' do
       before do
         automaton.add_transition('q1', 'q1', 'loop')
