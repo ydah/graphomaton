@@ -18,6 +18,8 @@ class Graphomaton
       DEFAULT_LABEL_PADDING = 10
       DEFAULT_HIGHLIGHT_UNREACHABLE = false
       DEFAULT_HIGHLIGHT_DEAD_STATES = false
+      DEFAULT_HIGHLIGHT_INITIAL_STATE = false
+      DEFAULT_HIGHLIGHT_FINAL_STATES = false
       DEFAULT_HIGHLIGHT_TRANSITIONS = [].freeze
       DEFAULT_XML_DECLARATION = false
       DEFAULT_CSS_VARIABLES = false
@@ -130,6 +132,8 @@ class Graphomaton
                  label_padding: DEFAULT_LABEL_PADDING,
                  highlight_unreachable: DEFAULT_HIGHLIGHT_UNREACHABLE,
                  highlight_dead_states: DEFAULT_HIGHLIGHT_DEAD_STATES,
+                 highlight_initial_state: DEFAULT_HIGHLIGHT_INITIAL_STATE,
+                 highlight_final_states: DEFAULT_HIGHLIGHT_FINAL_STATES,
                  highlight_transitions: DEFAULT_HIGHLIGHT_TRANSITIONS,
                  xml_declaration: DEFAULT_XML_DECLARATION,
                  css_variables: DEFAULT_CSS_VARIABLES,
@@ -156,6 +160,8 @@ class Graphomaton
         @label_padding = [label_padding.to_f, 0].max
         @highlight_unreachable = highlight_unreachable
         @highlight_dead_states = highlight_dead_states
+        @highlight_initial_state = highlight_initial_state
+        @highlight_final_states = highlight_final_states
         @highlight_transitions = Array(highlight_transitions)
         @css_variables = css_variables || @auto_dark_theme
         @unreachable_states = @highlight_unreachable ? @automaton.unreachable_states : []
@@ -420,6 +426,8 @@ class Graphomaton
       .final-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: 2; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .label-bg { fill: #{theme_css_value(:label_background)}; opacity: #{theme_css_value(:label_opacity)}; #{label_border_css} }
       .unreachable-state { opacity: 0.45; }
+      .initial-state .state-circle { fill: #dbeafe; }
+      .accepting-state .state-circle { fill: #dcfce7; }
       .dead-state { opacity: 0.65; }
       .dead-state .state-circle { stroke-dasharray: 6 4; }
       .trap-state .state-circle { stroke-dasharray: 2 4; }
@@ -1250,6 +1258,8 @@ class Graphomaton
         classes << 'unreachable-state' if @unreachable_states.include?(name)
         classes << 'dead-state' if @dead_states.include?(name)
         classes << 'trap-state' if @trap_states.include?(name)
+        classes << 'initial-state' if @highlight_initial_state && @automaton.initial_state == name
+        classes << 'accepting-state' if @highlight_final_states && @automaton.final_states.include?(name)
 
         {
           'class' => classes.join(' '),

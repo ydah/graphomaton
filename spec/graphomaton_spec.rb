@@ -873,6 +873,18 @@ RSpec.describe Graphomaton do
       expect(style.text).to include('.dead-state')
     end
 
+    it 'can highlight initial and accepting states' do
+      svg_output = automaton.to_svg(highlight_initial_state: true, highlight_final_states: true)
+      doc = REXML::Document.new(svg_output)
+      initial = REXML::XPath.first(doc, '//g[@id="state-q0"]')
+      final = REXML::XPath.first(doc, '//g[@id="state-q2"]')
+      style = REXML::XPath.first(doc, '//style')
+
+      expect(initial.attributes['class']).to include('initial-state')
+      expect(final.attributes['class']).to include('accepting-state')
+      expect(style.text).to include('.accepting-state')
+    end
+
     it 'supports force layout' do
       svg_output = automaton.to_svg(800, 600, layout: :force)
       doc = REXML::Document.new(svg_output)
