@@ -13,6 +13,14 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
         expect(plantuml_output).to start_with('@startuml')
         expect(plantuml_output).to end_with('@enduml')
       end
+
+      it 'applies SVG theme colors when requested' do
+        plantuml_output = described_class.new(automaton, theme: :ocean).export
+
+        expect(plantuml_output).to include('skinparam backgroundColor #eff6ff')
+        expect(plantuml_output).to include('BorderColor #0369a1')
+        expect(plantuml_output).to include('ArrowFontColor #0284c7')
+      end
     end
 
     context 'with states' do

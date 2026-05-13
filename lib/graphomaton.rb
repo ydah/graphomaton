@@ -828,12 +828,12 @@ class Graphomaton
     File.write(filename, to_dot(direction: direction, theme: theme))
   end
 
-  def to_plantuml(direction: Exporters::Plantuml::DEFAULT_DIRECTION)
-    Exporters::Plantuml.new(self, direction: direction).export
+  def to_plantuml(direction: Exporters::Plantuml::DEFAULT_DIRECTION, theme: nil)
+    Exporters::Plantuml.new(self, direction: direction, theme: theme).export
   end
 
-  def save_plantuml(filename, direction: Exporters::Plantuml::DEFAULT_DIRECTION)
-    File.write(filename, to_plantuml(direction: direction))
+  def save_plantuml(filename, direction: Exporters::Plantuml::DEFAULT_DIRECTION, theme: nil)
+    File.write(filename, to_plantuml(direction: direction, theme: theme))
   end
 
   private
