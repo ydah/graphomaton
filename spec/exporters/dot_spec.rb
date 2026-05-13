@@ -49,6 +49,14 @@ RSpec.describe Graphomaton::Exporters::Dot do
         expect(dot_output).to include('"B"')
       end
 
+      it 'uses explicit state labels when provided' do
+        automaton.add_state('q_named', label: 'Named State')
+
+        dot_output = dot_exporter.export
+
+        expect(dot_output).to include('"q_named" [label="Named State"];')
+      end
+
       it 'marks final states with double circle' do
         automaton.add_final('C')
         dot_output = dot_exporter.export

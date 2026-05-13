@@ -37,6 +37,14 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
         expect(plantuml_output).to include('B')
       end
 
+      it 'uses explicit state labels when provided' do
+        automaton.add_state('q_named', label: 'Named State')
+
+        plantuml_output = plantuml_exporter.export
+
+        expect(plantuml_output).to include('state "Named State" as q_named')
+      end
+
       it 'marks final states' do
         automaton.add_final('C')
         plantuml_output = plantuml_exporter.export

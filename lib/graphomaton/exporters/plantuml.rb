@@ -18,6 +18,7 @@ class Graphomaton
 
         lines << direction_keyword
         lines.concat(theme_lines) if @theme
+        lines.concat(state_alias_lines)
         lines << ''
 
         if @automaton.initial_state
@@ -105,6 +106,22 @@ class Graphomaton
       def escape_label(label)
         label.to_s
              .gsub('\\') { '\\\\' }
+             .gsub("\n") { '\\n' }
+      end
+
+      def state_alias_lines
+        @automaton.states.filter_map do |name, state|
+          label = state[:label]
+          next if label.nil? || label.to_s == name.to_s
+
+          "state \"#{escape_state_label(label)}\" as #{sanitize_state_name(name)}"
+        end
+      end
+
+      def escape_state_label(label)
+        label.to_s
+             .gsub('\\') { '\\\\' }
+             .gsub('"') { '\\"' }
              .gsub("\n") { '\\n' }
       end
     end

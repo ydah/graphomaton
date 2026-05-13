@@ -28,6 +28,14 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
         expect(mermaid_output).to include('B')
       end
 
+      it 'uses explicit state labels when provided' do
+        automaton.add_state('q_named', label: 'Named State')
+
+        mermaid_output = mermaid_exporter.export
+
+        expect(mermaid_output).to include('state "Named State" as q_named')
+      end
+
       it 'marks final states' do
         automaton.add_final('C')
         mermaid_output = mermaid_exporter.export

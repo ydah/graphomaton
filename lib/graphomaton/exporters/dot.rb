@@ -18,6 +18,8 @@ class Graphomaton
         lines << "    graph [bgcolor=\"#{escape_label(@theme[:background])}\"];" if @theme && @theme[:background]
         lines << "    node [#{node_attributes('circle')}];"
         lines << ''
+        lines.concat(state_label_lines)
+        lines << '' if state_label_lines.any?
 
         if @automaton.initial_state
           lines << '    __start__ [shape=point];'
@@ -89,6 +91,15 @@ class Graphomaton
           attributes << "fontcolor=\"#{escape_label(@theme[:transition_label])}\""
         end
         attributes.join(', ')
+      end
+
+      def state_label_lines
+        @state_label_lines ||= @automaton.states.filter_map do |name, state|
+          label = state[:label]
+          next if label.nil? || label.to_s == name.to_s
+
+          "    \"#{escape_label(name)}\" [label=\"#{escape_label(label)}\"];"
+        end
       end
 
       def rankdir

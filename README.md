@@ -67,6 +67,8 @@ automaton.save('output.svg', format: :svg, width: 800, height: 600)
 automaton.validate!
 ```
 
+`label` is used as the display name in SVG, DOT, Mermaid, and PlantUML while the state ID remains stable for transitions.
+
 ### Themes
 
 Native SVG and PNG output can be rendered with a named theme:

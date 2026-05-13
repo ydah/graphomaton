@@ -18,6 +18,7 @@ class Graphomaton
       def export
         lines = ['stateDiagram-v2']
         lines << "    direction #{direction_keyword}"
+        lines.concat(state_alias_lines)
 
         lines << "    [*] --> #{sanitize_state_name(@automaton.initial_state)}" if @automaton.initial_state
 
@@ -172,6 +173,22 @@ class Graphomaton
 
       def format_label(label)
         label.to_s.gsub("\n", '<br/>')
+      end
+
+      def state_alias_lines
+        @automaton.states.filter_map do |name, state|
+          label = state[:label]
+          next if label.nil? || label.to_s == name.to_s
+
+          "    state \"#{escape_mermaid_string(label)}\" as #{sanitize_state_name(name)}"
+        end
+      end
+
+      def escape_mermaid_string(text)
+        text.to_s
+            .gsub('\\') { '\\\\' }
+            .gsub('"') { '\\"' }
+            .gsub("\n") { '<br/>' }
       end
 
       def resolve_direction(direction)
