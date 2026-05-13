@@ -861,30 +861,21 @@ class Graphomaton
 
       def add_states(svg)
         @automaton.states.each do |name, state|
-          lines = state_label_lines(name)
+          label = state_label(name, state)
+          lines = state_label_lines(label)
           position = state_position(name) || state
           state_node = svg.add_element('g', state_group_attributes(name))
           circle_class = 'state-circle'
           circle_class += ' final-state' if @automaton.final_states.include?(name)
 
-          state_node.add_element('circle', {
-                                   'class' => circle_class,
-                                   'cx' => position[:x].to_s,
-                                   'cy' => position[:y].to_s,
-                                   'r' => @state_radius.to_s
-                                 })
+          state_node.add_element('circle', state_circle_attributes(circle_class, position, state))
 
           if @automaton.final_states.include?(name)
             inner_radius = [@state_radius - 8, 8].max
-            state_node.add_element('circle', {
-                                     'class' => 'state-circle',
-                                     'cx' => position[:x].to_s,
-                                     'cy' => position[:y].to_s,
-                                     'r' => inner_radius.to_s
-                                   })
+            state_node.add_element('circle', state_circle_attributes('state-circle', position, state, radius: inner_radius))
           end
 
-          font_size = calculate_state_font_size(name.to_s)
+          font_size = calculate_state_font_size(label.to_s)
           if lines.size == 1
             text = state_node.add_element('text', {
                                             'class' => 'state-text',
@@ -909,6 +900,30 @@ class Graphomaton
             end
           end
         end
+      end
+
+      def state_label(name, state)
+        state.fetch(:label, name)
+      end
+
+      def state_circle_attributes(circle_class, position, state, radius: @state_radius)
+        attributes = {
+          'class' => circle_class,
+          'cx' => position[:x].to_s,
+          'cy' => position[:y].to_s,
+          'r' => radius.to_s
+        }
+        style = css_style(state[:style])
+        attributes['style'] = style unless style.empty?
+        attributes
+      end
+
+      def css_style(style)
+        return '' unless style.is_a?(Hash)
+
+        style.map do |key, value|
+          "#{key.to_s.tr('_', '-')}: #{value}"
+        end.join('; ')
       end
 
       def state_group_attributes(name)

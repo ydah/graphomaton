@@ -34,9 +34,13 @@ class Graphomaton
     @manual_states = {}
   end
 
-  def add_state(name, x = nil, y = nil)
+  def add_state(name, x = nil, y = nil, label: nil, style: nil, metadata: nil)
     @manual_states[name] = !x.nil? && !y.nil?
-    @states[name] = { name: name, x: x, y: y }
+    state = { name: name, x: x, y: y }
+    state[:label] = label unless label.nil?
+    state[:style] = style unless style.nil?
+    state[:metadata] = metadata unless metadata.nil?
+    @states[name] = state
     name
   end
 

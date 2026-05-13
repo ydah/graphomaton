@@ -54,6 +54,16 @@ RSpec.describe Graphomaton do
       automaton.add_state('q2')
       expect(automaton.states.size).to eq(3)
     end
+
+    it 'supports optional display label, style, and metadata' do
+      automaton.add_state('q0', label: 'Start', style: { fill: '#fee2e2' }, metadata: { role: 'entry' })
+
+      expect(automaton.states['q0']).to include(
+        label: 'Start',
+        style: { fill: '#fee2e2' },
+        metadata: { role: 'entry' }
+      )
+    end
   end
 
   describe '#add_transition' do
@@ -544,6 +554,19 @@ RSpec.describe Graphomaton do
       doc = REXML::Document.new(svg_output)
       circles = REXML::XPath.match(doc, '//circle[@class="state-circle" or @class="state-circle final-state"]')
       expect(circles.size).to be >= 3
+    end
+
+    it 'uses state display labels and styles in SVG output' do
+      local = described_class.new
+      local.add_state('q0', label: 'Start State', style: { fill: '#fee2e2', stroke: '#dc2626' })
+
+      svg_output = local.to_svg
+      doc = REXML::Document.new(svg_output)
+      circle = REXML::XPath.first(doc, '//g[@id="state-q0"]/circle')
+
+      expect(svg_output).to include('Start State')
+      expect(circle.attributes['style']).to include('fill: #fee2e2')
+      expect(circle.attributes['style']).to include('stroke: #dc2626')
     end
 
     it 'creates double circle for final states' do
