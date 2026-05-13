@@ -141,6 +141,7 @@ automaton.save_svg('diagram.svg', 800, 600, highlight_initial_state: true, highl
 automaton.save_svg('diagram.svg', 800, 600, highlight_transitions: [{ from: 'q0', to: 'q1', label: 'a' }])
 automaton.save_svg('diagram.svg', 800, 600, xml_declaration: true)
 automaton.save_svg('diagram.svg', 800, 600, css_variables: true)
+automaton.save_svg('diagram.svg', 800, 600, embed_styles: false)
 automaton.save_svg('diagram.svg', 800, 600, pretty: true)
 automaton.save_svg('diagram.svg', 800, 600, state_effect: :shadow)
 automaton.save_svg('diagram.svg', 800, 600, loop_position: :right)

@@ -28,6 +28,7 @@ class Graphomaton
       DEFAULT_HIGHLIGHT_TRANSITIONS = [].freeze
       DEFAULT_XML_DECLARATION = false
       DEFAULT_CSS_VARIABLES = false
+      DEFAULT_EMBED_STYLES = true
       DEFAULT_PRETTY = false
       DEFAULT_STATE_EFFECT = :none
       DEFAULT_LOOP_POSITION = :auto
@@ -147,6 +148,7 @@ class Graphomaton
                  highlight_transitions: DEFAULT_HIGHLIGHT_TRANSITIONS,
                  xml_declaration: DEFAULT_XML_DECLARATION,
                  css_variables: DEFAULT_CSS_VARIABLES,
+                 embed_styles: DEFAULT_EMBED_STYLES,
                  pretty: DEFAULT_PRETTY,
                  state_effect: DEFAULT_STATE_EFFECT,
                  loop_position: DEFAULT_LOOP_POSITION,
@@ -219,7 +221,7 @@ class Graphomaton
         svg = doc.add_element('svg', svg_root_attributes(width, height, responsive: responsive))
 
         add_defs(svg)
-        add_style(svg)
+        add_style(svg) if embed_styles
         add_accessibility_metadata(svg)
         add_embedded_metadata(svg)
         add_background(svg, width, height)
