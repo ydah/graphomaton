@@ -26,6 +26,13 @@ RSpec.describe Graphomaton::Exporters::Dot do
         dot_output = dot_exporter.export
         expect(dot_output).to match(/node\s+\[shape\s+=\s+circle\]/)
       end
+
+      it 'applies SVG theme colors when requested' do
+        dot_output = described_class.new(automaton, theme: :ocean).export
+
+        expect(dot_output).to include('fillcolor="#f8fafc"')
+        expect(dot_output).to include('color="#0369a1"')
+      end
     end
 
     context 'with states' do
@@ -86,6 +93,12 @@ RSpec.describe Graphomaton::Exporters::Dot do
         dot_output = dot_exporter.export
         expect(dot_output).to match(/"A"\s+->\s+"B"\s+\[label="input_a"\]/)
         expect(dot_output).to match(/"B"\s+->\s+"C"\s+\[label="input_b"\]/)
+      end
+
+      it 'applies theme colors to edges' do
+        dot_output = described_class.new(automaton, theme: :forest).export
+
+        expect(dot_output).to include('"A" -> "B" [label="input_a", color="#166534", fontcolor="#15803d"]')
       end
 
       it 'handles self-loops' do

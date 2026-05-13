@@ -143,6 +143,7 @@ Generates an HTML file with embedded Mermaid.js state diagram. The diagram is re
 #### 4. GraphViz (DOT)
 ```ruby
 automaton.save_dot('diagram.dot')
+automaton.save_dot('diagram.dot', theme: :ocean)
 ```
 Generates a DOT file that can be converted to images using GraphViz:
 ```bash
