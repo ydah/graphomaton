@@ -12,6 +12,10 @@ class Graphomaton
   DEFAULT_FORCE_ITERATIONS = 120
   LAYOUT_OPTIONS = %i[linear circle grid layered force].freeze
   DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
+  INITIAL_POSITION_OPTIONS = %i[auto start].freeze
+  FINAL_POSITION_OPTIONS = %i[auto end].freeze
+  DEFAULT_INITIAL_POSITION = :auto
+  DEFAULT_FINAL_POSITION = :auto
   attr_accessor :states, :transitions, :initial_state, :final_states
 
   def initialize
@@ -20,9 +24,11 @@ class Graphomaton
     @initial_state = nil
     @final_states = []
     @state_positions = {}
+    @manual_states = {}
   end
 
   def add_state(name, x = nil, y = nil)
+    @manual_states[name] = !x.nil? && !y.nil?
     @states[name] = { name: name, x: x, y: y }
     name
   end
@@ -42,11 +48,14 @@ class Graphomaton
   def layout_positions(width = 800, height = 600, layout: :linear, direction: :lr,
                       state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
                       node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
-                      force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil)
+                      force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
+                      initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION)
     return {} if @states.empty?
 
     resolved_layout = resolve_layout(layout)
     resolved_direction = resolve_direction(direction)
+    resolved_initial_position = resolve_initial_position(initial_position)
+    resolved_final_position = resolve_final_position(final_position)
     resolved_padding = [padding.to_f, 0].max
     resolved_node_spacing = [node_spacing.to_f, (state_radius * 2.5)].max
     resolved_rank_spacing = [rank_spacing.to_f, (state_radius * 2.5)].max
@@ -57,12 +66,18 @@ class Graphomaton
 
     ordered_states.each do |name|
       state = @states[name]
-      if manual_position?(state)
+      if manual_position?(name)
         manual_positions[name] = { x: state[:x], y: state[:y] }
       else
         auto_states << name
       end
     end
+
+    auto_states = arrange_auto_states(
+      auto_states,
+      initial_position: resolved_initial_position,
+      final_position: resolved_final_position
+    )
 
     auto_positions = case resolved_layout
                     when :linear
@@ -75,7 +90,8 @@ class Graphomaton
                                            resolved_padding, resolved_node_spacing)
                     when :layered
                       layout_layered_positions(auto_states, width, height, resolved_direction, state_radius,
-                                              resolved_padding, resolved_node_spacing, resolved_rank_spacing)
+                                              resolved_padding, resolved_node_spacing, resolved_rank_spacing,
+                                              final_position: resolved_final_position)
                     when :force
                       layout_force_positions(
                         auto_states,
@@ -111,7 +127,8 @@ class Graphomaton
   def auto_layout(width = 800, height = 600, layout: :linear, direction: :lr,
                  state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
                  node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
-                 force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil)
+                 force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
+                 initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION)
     return if @states.empty?
 
     layout_positions(
@@ -124,10 +141,12 @@ class Graphomaton
       node_spacing: node_spacing,
       rank_spacing: rank_spacing,
       force_iterations: force_iterations,
-      layout_seed: layout_seed
+      layout_seed: layout_seed,
+      initial_position: initial_position,
+      final_position: final_position
     ).each do |name, position|
       state = @states[name]
-      next unless state[:x].nil? || state[:y].nil?
+      next if manual_position?(name)
 
       state[:x] = position[:x]
       state[:y] = position[:y]
@@ -237,10 +256,10 @@ class Graphomaton
 
   def layout_layered_positions(auto_states, width, height, direction, state_radius = DEFAULT_STATE_RADIUS,
                               padding = DEFAULT_PADDING, node_spacing = DEFAULT_NODE_SPACING,
-                              rank_spacing = DEFAULT_RANK_SPACING)
+                              rank_spacing = DEFAULT_RANK_SPACING, final_position: DEFAULT_FINAL_POSITION)
     return {} if auto_states.empty?
 
-    layer_groups = layout_layered_groups(auto_states)
+    layer_groups = layout_layered_groups(auto_states, final_position: final_position)
     return layout_linear_positions(auto_states, width, height, direction, state_radius, padding, node_spacing) if layer_groups.empty?
 
     margin = [padding, state_radius + 20].max
@@ -303,25 +322,40 @@ class Graphomaton
     positions
   end
 
-  def layout_layered_groups(auto_states)
+  def layout_layered_groups(auto_states, final_position: DEFAULT_FINAL_POSITION)
     return {} if auto_states.empty?
     distances = layered_distances
     return {} if distances.empty?
 
+    resolved_final_position = resolve_final_position(final_position)
     groups = Hash.new { |hash, key| hash[key] = [] }
-    ordered_state_names.each do |name|
-      next unless auto_states.include?(name)
+    auto_states.each do |name|
       next unless distances.key?(name)
 
       groups[distances[name]] << name
     end
 
     unreachable_states = auto_states.reject { |name| distances.key?(name) }
-    return groups if unreachable_states.empty?
+    if unreachable_states.any?
+      max_depth = distances.values.max || 0
+      weak_components(unreachable_states).each_with_index do |component, index|
+        groups[max_depth + 1 + index].concat(component)
+      end
+    end
 
-    max_depth = distances.values.max || 0
-    weak_components(unreachable_states).each_with_index do |component, index|
-      groups[max_depth + 1 + index].concat(component)
+    return groups unless resolved_final_position == :end
+
+    final_states = auto_states.select { |name| @final_states.include?(name) }
+    return groups if final_states.empty?
+
+    groups.each_value do |states|
+      states.reject! { |name| @final_states.include?(name) }
+    end
+
+    final_layer = (groups.keys.max || 0) + 1
+    groups[final_layer] = []
+    auto_states.each do |name|
+      groups[final_layer] << name if @final_states.include?(name)
     end
 
     groups
@@ -579,6 +613,7 @@ class Graphomaton
              layout: :linear, direction: :lr, responsive: false, state_radius: DEFAULT_STATE_RADIUS,
              padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
              force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
+             initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
              merge_parallel_transitions: true, wrap: Exporters::Svg::DEFAULT_WRAP,
              max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, state_wrap: false,
              max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH, title: nil, description: nil)
@@ -595,6 +630,8 @@ class Graphomaton
       rank_spacing: rank_spacing,
       force_iterations: force_iterations,
       layout_seed: layout_seed,
+      initial_position: initial_position,
+      final_position: final_position,
       merge_parallel_transitions: merge_parallel_transitions,
       wrap: wrap,
       max_transition_label_width: max_transition_label_width,
@@ -609,6 +646,7 @@ class Graphomaton
                layout: :linear, direction: :lr, responsive: false, state_radius: DEFAULT_STATE_RADIUS,
                padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
+               initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                merge_parallel_transitions: true, wrap: Exporters::Svg::DEFAULT_WRAP,
                max_transition_label_width: Exporters::Svg::DEFAULT_MAX_LABEL_WIDTH, state_wrap: false,
                max_state_label_width: Exporters::Svg::DEFAULT_MAX_STATE_LABEL_WIDTH, title: nil, description: nil)
@@ -627,6 +665,8 @@ class Graphomaton
         rank_spacing: rank_spacing,
         force_iterations: force_iterations,
         layout_seed: layout_seed,
+        initial_position: initial_position,
+        final_position: final_position,
         merge_parallel_transitions: merge_parallel_transitions,
         wrap: wrap,
         max_transition_label_width: max_transition_label_width,
@@ -710,10 +750,37 @@ class Graphomaton
     raise ArgumentError, "Unknown direction: #{direction.inspect}. Available directions: #{DIRECTION_OPTIONS.join(', ')}"
   end
 
-  def manual_position?(state)
-    return false unless state
+  def resolve_initial_position(initial_position)
+    resolved = initial_position.to_sym
+    return resolved if INITIAL_POSITION_OPTIONS.include?(resolved)
 
-    !state[:x].nil? && !state[:y].nil?
+    raise ArgumentError, "Unknown initial_position: #{initial_position.inspect}. Available values: #{INITIAL_POSITION_OPTIONS.join(', ')}"
+  end
+
+  def resolve_final_position(final_position)
+    resolved = final_position.to_sym
+    return resolved if FINAL_POSITION_OPTIONS.include?(resolved)
+
+    raise ArgumentError, "Unknown final_position: #{final_position.inspect}. Available values: #{FINAL_POSITION_OPTIONS.join(', ')}"
+  end
+
+  def arrange_auto_states(auto_states, initial_position:, final_position:)
+    ordered = auto_states.uniq
+
+    if initial_position == :start && @initial_state && ordered.include?(@initial_state)
+      ordered.delete(@initial_state)
+      ordered.unshift(@initial_state)
+    end
+
+    return ordered unless final_position == :end
+
+    non_final_states = ordered.reject { |name| @final_states.include?(name) }
+    final_states = ordered.select { |name| @final_states.include?(name) }
+    non_final_states + final_states
+  end
+
+  def manual_position?(state)
+    @manual_states[state]
   end
 
   def layout_linear_position(index, _count, width, height, margin, horizontal_step, vertical_step, direction)

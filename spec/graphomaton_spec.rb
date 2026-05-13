@@ -198,6 +198,35 @@ RSpec.describe Graphomaton do
         expect(x_values.uniq.size).to be > 2
       end
 
+      it 'moves final states to the end on linear layout' do
+        local = described_class.new
+        local.add_state('q0')
+        local.add_state('q1')
+        local.add_state('q2')
+        local.add_final('q1')
+        local.set_initial('q0')
+
+        local.auto_layout(1200, 600, layout: :linear, direction: :lr, final_position: :end)
+
+        expect(local.states['q1'][:x]).to be > [local.states['q0'][:x], local.states['q2'][:x]].max
+      end
+
+      it 'moves final states to the final layer in layered layout' do
+        local = described_class.new
+        local.add_state('q0')
+        local.add_state('q1')
+        local.add_state('q2')
+        local.set_initial('q0')
+        local.add_final('q2')
+
+        local.add_transition('q0', 'q1', 'a')
+        local.add_transition('q0', 'q2', 'b')
+
+        local.auto_layout(800, 600, layout: :layered, direction: :lr, final_position: :end)
+
+        expect(local.states['q2'][:x]).to be > local.states['q1'][:x]
+      end
+
       it 'supports force layout' do
         automaton.auto_layout(800, 600, layout: :force)
 
@@ -227,6 +256,25 @@ RSpec.describe Graphomaton do
         expect(automaton.states['q3'][:x]).to eq(500)
         expect(automaton.states['q3'][:y]).to eq(400)
         expect(automaton.states['q0'][:y]).to be > automaton.states['q1'][:y]
+      end
+
+      it 'recomputes auto layout coordinates on repeated calls while preserving manual positions' do
+        automaton = described_class.new
+        automaton.add_state('q0', 70, 120)
+        automaton.add_state('q1')
+        automaton.add_state('q2')
+        automaton.add_state('q3')
+        automaton.set_initial('q0')
+
+        automaton.auto_layout(220, 300, layout: :linear, direction: :lr, node_spacing: 200)
+        first = automaton.states.values_at('q1', 'q2', 'q3').map { |state| [state[:x], state[:y]] }
+
+        automaton.auto_layout(800, 300, layout: :linear, direction: :lr, node_spacing: 200)
+        second = automaton.states.values_at('q1', 'q2', 'q3').map { |state| [state[:x], state[:y]] }
+
+        expect(automaton.states['q0'][:x]).to eq(70)
+        expect(automaton.states['q0'][:y]).to eq(120)
+        expect(first).not_to eq(second)
       end
 
       it 'keeps auto layout non-destructive for render-only operations' do

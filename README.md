@@ -100,6 +100,8 @@ automaton.save_svg(
 ```
 
 `direction` accepts `:lr`, `:tb`, `:rl`, `:bt` for left-right, top-bottom, right-left, and bottom-top layouts.
+`initial_position` accepts `:auto` and `:start`. `:start` places the initial state near the start side of the layout.
+`final_position` accepts `:auto` and `:end`. `:end` moves final states toward the end side of the layout.
 `layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`, `:force`.
 `force` accepts optional tuning keys `padding`, `node_spacing`, `rank_spacing`, `force_iterations`, and `layout_seed`.
 

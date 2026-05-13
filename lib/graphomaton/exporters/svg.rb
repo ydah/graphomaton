@@ -15,6 +15,8 @@ class Graphomaton
       DEFAULT_NODE_SPACING = 120
       DEFAULT_RANK_SPACING = 120
       DEFAULT_FORCE_ITERATIONS = 120
+      DEFAULT_INITIAL_POSITION = :auto
+      DEFAULT_FINAL_POSITION = :auto
       DEFAULT_MAX_LABEL_WIDTH = 120
       DEFAULT_STATE_WRAP = false
       DEFAULT_MAX_STATE_LABEL_WIDTH = 120
@@ -70,6 +72,7 @@ class Graphomaton
                  state_wrap: DEFAULT_STATE_WRAP, max_state_label_width: DEFAULT_MAX_STATE_LABEL_WIDTH,
                  padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                  force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
+                 initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                  merge_parallel_transitions: DEFAULT_MERGE_PARALLEL_TRANSITIONS,
                  title: nil, description: nil)
         @state_radius = state_radius.to_f
@@ -96,7 +99,9 @@ class Graphomaton
           node_spacing: @node_spacing,
           rank_spacing: @rank_spacing,
           force_iterations: @force_iterations,
-          layout_seed: @layout_seed
+          layout_seed: @layout_seed,
+          initial_position: initial_position,
+          final_position: final_position
         )
         @label_boxes = []
         @title_text = title
