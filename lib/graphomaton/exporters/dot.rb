@@ -4,12 +4,14 @@ class Graphomaton
   module Exporters
     class Dot
       DEFAULT_DIRECTION = :lr
+      DEFAULT_RANK_CONSTRAINTS = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
 
-      def initialize(automaton, direction: DEFAULT_DIRECTION, theme: nil)
+      def initialize(automaton, direction: DEFAULT_DIRECTION, theme: nil, rank_constraints: DEFAULT_RANK_CONSTRAINTS)
         @automaton = automaton
         @direction = resolve_direction(direction)
         @theme = resolve_theme(theme)
+        @rank_constraints = rank_constraints
       end
 
       def export
@@ -34,6 +36,10 @@ class Graphomaton
           lines << "    node [#{node_attributes('circle')}];"
           lines << ''
         end
+
+        rank_constraints = rank_constraint_lines
+        lines.concat(rank_constraints)
+        lines << '' if rank_constraints.any?
 
         @automaton.transitions.each do |trans|
           from = escape_label(trans[:from])
@@ -105,7 +111,7 @@ class Graphomaton
 
       def state_attributes(name, state)
         attributes = []
-          label = state[:label]
+        label = state[:label]
         attributes << "label=\"#{escape_label(label)}\"" unless label.nil? || label.to_s == name.to_s
         add_metadata_attributes(attributes, state[:metadata])
         attributes
@@ -128,6 +134,22 @@ class Graphomaton
         end
 
         nil
+      end
+
+      def rank_constraint_lines
+        return [] unless @rank_constraints
+
+        lines = []
+        if @automaton.initial_state
+          lines << "    { rank=source; \"#{escape_label(@automaton.initial_state)}\"; }"
+        end
+
+        unless @automaton.final_states.empty?
+          final_states = @automaton.final_states.map { |state| "\"#{escape_label(state)}\";" }.join(' ')
+          lines << "    { rank=sink; #{final_states} }"
+        end
+
+        lines
       end
 
       def rankdir

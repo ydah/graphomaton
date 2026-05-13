@@ -974,12 +974,14 @@ class Graphomaton
     )
   end
 
-  def to_dot(direction: Exporters::Dot::DEFAULT_DIRECTION, theme: nil)
-    Exporters::Dot.new(self, direction: direction, theme: theme).export
+  def to_dot(direction: Exporters::Dot::DEFAULT_DIRECTION, theme: nil,
+             rank_constraints: Exporters::Dot::DEFAULT_RANK_CONSTRAINTS)
+    Exporters::Dot.new(self, direction: direction, theme: theme, rank_constraints: rank_constraints).export
   end
 
-  def save_dot(filename, direction: Exporters::Dot::DEFAULT_DIRECTION, theme: nil)
-    File.write(filename, to_dot(direction: direction, theme: theme))
+  def save_dot(filename, direction: Exporters::Dot::DEFAULT_DIRECTION, theme: nil,
+               rank_constraints: Exporters::Dot::DEFAULT_RANK_CONSTRAINTS)
+    File.write(filename, to_dot(direction: direction, theme: theme, rank_constraints: rank_constraints))
   end
 
   def to_plantuml(direction: Exporters::Plantuml::DEFAULT_DIRECTION, theme: nil)

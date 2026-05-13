@@ -70,6 +70,16 @@ RSpec.describe Graphomaton::Exporters::Dot do
         dot_output = dot_exporter.export
         expect(dot_output).to match(/node\s+\[shape\s+=\s+doublecircle\];\s+"C"/)
       end
+
+      it 'can emit rank constraints for initial and final states' do
+        automaton.set_initial('A')
+        automaton.add_final('C')
+
+        dot_output = described_class.new(automaton, rank_constraints: true).export
+
+        expect(dot_output).to include('{ rank=source; "A"; }')
+        expect(dot_output).to include('{ rank=sink; "C"; }')
+      end
     end
 
     context 'with initial state' do
