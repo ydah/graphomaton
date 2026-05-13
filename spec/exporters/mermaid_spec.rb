@@ -36,6 +36,14 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
         expect(mermaid_output).to include('state "Named State" as q_named')
       end
 
+      it 'can render state metadata as Mermaid notes' do
+        automaton.add_state('q_note', metadata: { note: 'Entry state' })
+
+        mermaid_output = described_class.new(automaton, notes: true).export
+
+        expect(mermaid_output).to include('note right of q_note: Entry state')
+      end
+
       it 'marks final states' do
         automaton.add_final('C')
         mermaid_output = mermaid_exporter.export

@@ -8,11 +8,13 @@ class Graphomaton
       DEFAULT_CDN = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
       DEFAULT_LANG = 'ja'
       DEFAULT_SHOW_SOURCE = false
+      DEFAULT_NOTES = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
 
-      def initialize(automaton, direction: DEFAULT_DIRECTION)
+      def initialize(automaton, direction: DEFAULT_DIRECTION, notes: DEFAULT_NOTES)
         @automaton = automaton
         @direction = resolve_direction(direction)
+        @notes = notes
       end
 
       def export
@@ -32,6 +34,8 @@ class Graphomaton
         @automaton.final_states.each do |state|
           lines << "    #{sanitize_state_name(state)} --> [*]"
         end
+
+        lines.concat(state_note_lines) if @notes
 
         lines.join("\n")
       end
@@ -182,6 +186,24 @@ class Graphomaton
 
           "    state \"#{escape_mermaid_string(label)}\" as #{sanitize_state_name(name)}"
         end
+      end
+
+      def state_note_lines
+        @automaton.states.filter_map do |name, state|
+          note = state_note(state)
+          next unless note
+
+          "    note right of #{sanitize_state_name(name)}: #{format_label(note)}"
+        end
+      end
+
+      def state_note(state)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:note] || metadata['note'] ||
+          metadata[:description] || metadata['description'] ||
+          metadata[:tooltip] || metadata['tooltip']
       end
 
       def escape_mermaid_string(text)

@@ -911,14 +911,15 @@ class Graphomaton
     File.binwrite(filename, to_png(width, height, theme: theme, scale: scale, converter: converter, **svg_options))
   end
 
-  def to_mermaid(direction: Exporters::Mermaid::DEFAULT_DIRECTION)
-    Exporters::Mermaid.new(self, direction: direction).export
+  def to_mermaid(direction: Exporters::Mermaid::DEFAULT_DIRECTION, notes: Exporters::Mermaid::DEFAULT_NOTES)
+    Exporters::Mermaid.new(self, direction: direction, notes: notes).export
   end
 
   def to_html(direction: Exporters::Mermaid::DEFAULT_DIRECTION, theme: Exporters::Mermaid::DEFAULT_THEME,
               cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil,
-              lang: Exporters::Mermaid::DEFAULT_LANG, show_source: Exporters::Mermaid::DEFAULT_SHOW_SOURCE)
-    Exporters::Mermaid.new(self, direction: direction).export_html(
+              lang: Exporters::Mermaid::DEFAULT_LANG, show_source: Exporters::Mermaid::DEFAULT_SHOW_SOURCE,
+              notes: Exporters::Mermaid::DEFAULT_NOTES)
+    Exporters::Mermaid.new(self, direction: direction, notes: notes).export_html(
       theme: theme,
       cdn: cdn,
       inline_mermaid: inline_mermaid,
@@ -931,7 +932,8 @@ class Graphomaton
 
   def save_html(filename, direction: Exporters::Mermaid::DEFAULT_DIRECTION, theme: Exporters::Mermaid::DEFAULT_THEME,
                 cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil,
-                lang: Exporters::Mermaid::DEFAULT_LANG, show_source: Exporters::Mermaid::DEFAULT_SHOW_SOURCE)
+                lang: Exporters::Mermaid::DEFAULT_LANG, show_source: Exporters::Mermaid::DEFAULT_SHOW_SOURCE,
+                notes: Exporters::Mermaid::DEFAULT_NOTES)
     File.write(
       filename,
       to_html(
@@ -942,7 +944,8 @@ class Graphomaton
         offline: offline,
         title: title,
         lang: lang,
-        show_source: show_source
+        show_source: show_source,
+        notes: notes
       )
     )
   end
