@@ -415,6 +415,18 @@ RSpec.describe Graphomaton do
       expect(REXML::XPath.first(doc, '//g[@class="states"]')).not_to be_nil
     end
 
+    it 'adds stable ids and data attributes for states and transitions' do
+      svg_output = automaton.to_svg
+      doc = REXML::Document.new(svg_output)
+      state = REXML::XPath.first(doc, '//g[@id="state-q0"]')
+      transition = REXML::XPath.first(doc, '//g[@id="transition-q0-q1-a"]')
+
+      expect(state.attributes['data-state']).to eq('q0')
+      expect(transition.attributes['data-from']).to eq('q0')
+      expect(transition.attributes['data-to']).to eq('q1')
+      expect(transition.attributes['data-label']).to eq('a')
+    end
+
     it 'applies custom themes' do
       svg_output = automaton.to_svg(theme: :ocean)
       doc = REXML::Document.new(svg_output)

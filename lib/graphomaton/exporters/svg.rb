@@ -129,6 +129,7 @@ class Graphomaton
         @title_text = title
         @description_text = description
         @svg_id = "graphomaton-#{object_id}"
+        @element_id_counts = Hash.new(0)
 
         doc = REXML::Document.new
         svg = doc.add_element('svg', svg_root_attributes(width, height, responsive: responsive))
@@ -366,6 +367,7 @@ class Graphomaton
       end
 
       def add_self_loop(svg, state, trans, loop_index = 0)
+        transition_node = svg.add_element('g', transition_group_attributes(trans))
         cx = state[:x]
         cy = state[:y]
         orientation, layer = self_loop_placement(loop_index)
@@ -394,28 +396,28 @@ class Graphomaton
 
         path_d = "M #{start_x} #{start_y} C #{control1_x} #{control1_y}, #{control2_x} #{control2_y}, #{end_x} #{end_y}"
 
-        svg.add_element('path', {
-                          'class' => 'transition-line',
-                          'd' => path_d
-                        })
+        transition_node.add_element('path', {
+                                      'class' => 'transition-line',
+                                      'd' => path_d
+                                    })
 
         text_width = calculate_text_width(trans[:label])
         label_y_shift = loop_offset * (loop_index.odd? ? -1 : 1)
-        svg.add_element('rect', {
-                          'class' => 'label-bg',
-                          'x' => (cx + loop_specs[:label_offset][:x] - (text_width / 2)).to_s,
-                          'y' => (cy + loop_specs[:label_offset][:y] - 5 + label_y_shift).to_s,
-                          'width' => text_width.to_s,
-                          'height' => '20',
-                          'rx' => '3'
-                        })
+        transition_node.add_element('rect', {
+                                      'class' => 'label-bg',
+                                      'x' => (cx + loop_specs[:label_offset][:x] - (text_width / 2)).to_s,
+                                      'y' => (cy + loop_specs[:label_offset][:y] - 5 + label_y_shift).to_s,
+                                      'width' => text_width.to_s,
+                                      'height' => '20',
+                                      'rx' => '3'
+                                    })
 
-        label = svg.add_element('text', {
-                                  'class' => 'transition-label',
-                                  'x' => (cx + loop_specs[:label_offset][:x]).to_s,
-                                  'y' => (cy + loop_specs[:label_offset][:y] + 10 + label_y_shift).to_s,
-                                  'text-anchor' => 'middle'
-                                })
+        label = transition_node.add_element('text', {
+                                             'class' => 'transition-label',
+                                             'x' => (cx + loop_specs[:label_offset][:x]).to_s,
+                                             'y' => (cy + loop_specs[:label_offset][:y] + 10 + label_y_shift).to_s,
+                                             'text-anchor' => 'middle'
+                                           })
         label.text = trans[:label]
       end
 
@@ -623,6 +625,7 @@ class Graphomaton
       end
 
       def add_transition(svg, from_state, to_state, trans, processed_pairs, from_state_index)
+        transition_node = svg.add_element('g', transition_group_attributes(trans))
         x1 = from_state[:x]
         y1 = from_state[:y]
         x2 = to_state[:x]
@@ -654,10 +657,10 @@ class Graphomaton
         states_between = (to_index - from_index).abs - 1
 
         if is_adjacent && forward_direction?(x1, y1, x2, y2)
-          add_straight_line(svg, start_x, start_y, end_x, end_y, trans)
+          add_straight_line(transition_node, start_x, start_y, end_x, end_y, trans)
         else
           add_curved_line(
-            svg,
+            transition_node,
             start_x,
             start_y,
             end_x,
@@ -789,20 +792,26 @@ class Graphomaton
 
         return unless init[:x] && init[:y]
 
-        svg.add_element('line', {
-                          'class' => 'initial-arrow',
-                          'x1' => (init[:x] - 60).to_s,
-                          'y1' => init[:y].to_s,
-                          'x2' => (init[:x] - 30).to_s,
-                          'y2' => init[:y].to_s
-                        })
+        initial_node = svg.add_element('g', {
+                                         'class' => 'initial-transition',
+                                         'id' => unique_svg_id("transition-start-#{svg_id_component(@automaton.initial_state)}"),
+                                         'data-to' => @automaton.initial_state.to_s
+                                       })
 
-        start_label = svg.add_element('text', {
-                                        'class' => 'transition-label',
-                                        'x' => (init[:x] - 70).to_s,
-                                        'y' => (init[:y] - 10).to_s,
-                                        'text-anchor' => 'end'
-                                      })
+        initial_node.add_element('line', {
+                                   'class' => 'initial-arrow',
+                                   'x1' => (init[:x] - 60).to_s,
+                                   'y1' => init[:y].to_s,
+                                   'x2' => (init[:x] - 30).to_s,
+                                   'y2' => init[:y].to_s
+                                 })
+
+        start_label = initial_node.add_element('text', {
+                                                'class' => 'transition-label',
+                                                'x' => (init[:x] - 70).to_s,
+                                                'y' => (init[:y] - 10).to_s,
+                                                'text-anchor' => 'end'
+                                              })
         start_label.text = 'start'
       end
 
@@ -810,44 +819,45 @@ class Graphomaton
         @automaton.states.each do |name, state|
           lines = state_label_lines(name)
           position = state_position(name) || state
+          state_node = svg.add_element('g', state_group_attributes(name))
           circle_class = 'state-circle'
           circle_class += ' final-state' if @automaton.final_states.include?(name)
 
-          svg.add_element('circle', {
-                            'class' => circle_class,
-                            'cx' => position[:x].to_s,
-                            'cy' => position[:y].to_s,
-                            'r' => @state_radius.to_s
-                          })
+          state_node.add_element('circle', {
+                                   'class' => circle_class,
+                                   'cx' => position[:x].to_s,
+                                   'cy' => position[:y].to_s,
+                                   'r' => @state_radius.to_s
+                                 })
 
           if @automaton.final_states.include?(name)
             inner_radius = [@state_radius - 8, 8].max
-            svg.add_element('circle', {
-                              'class' => 'state-circle',
-                              'cx' => position[:x].to_s,
-                              'cy' => position[:y].to_s,
-                              'r' => inner_radius.to_s
-                            })
+            state_node.add_element('circle', {
+                                     'class' => 'state-circle',
+                                     'cx' => position[:x].to_s,
+                                     'cy' => position[:y].to_s,
+                                     'r' => inner_radius.to_s
+                                   })
           end
 
           font_size = calculate_state_font_size(name.to_s)
           if lines.size == 1
-            text = svg.add_element('text', {
-                                     'class' => 'state-text',
-                                     'x' => position[:x].to_s,
-                                     'y' => (position[:y] + (font_size * 0.35)).to_s,
-                                     'font-size' => font_size.to_s
-                                   })
+            text = state_node.add_element('text', {
+                                            'class' => 'state-text',
+                                            'x' => position[:x].to_s,
+                                            'y' => (position[:y] + (font_size * 0.35)).to_s,
+                                            'font-size' => font_size.to_s
+                                          })
             text.text = lines.first
           else
             line_gap = font_size + 2
             text_start_y = position[:y].to_f - ((lines.size - 1) * line_gap / 2.0) + (line_gap * 0.35)
-            text = svg.add_element('text', {
-                                     'class' => 'state-text',
-                                     'x' => position[:x].to_s,
-                                     'y' => text_start_y.to_s,
-                                     'font-size' => font_size.to_s
-                                   })
+            text = state_node.add_element('text', {
+                                            'class' => 'state-text',
+                                            'x' => position[:x].to_s,
+                                            'y' => text_start_y.to_s,
+                                            'font-size' => font_size.to_s
+                                          })
             lines.each_with_index do |line, index|
               tspan = text.add_element('tspan', { 'x' => position[:x].to_s })
               tspan.text = line
@@ -855,6 +865,41 @@ class Graphomaton
             end
           end
         end
+      end
+
+      def state_group_attributes(name)
+        {
+          'class' => 'state',
+          'id' => unique_svg_id("state-#{svg_id_component(name)}"),
+          'data-state' => name.to_s
+        }
+      end
+
+      def transition_group_attributes(transition)
+        from = transition[:from]
+        to = transition[:to]
+        label = transition[:label]
+        {
+          'class' => 'transition',
+          'id' => unique_svg_id(
+            "transition-#{svg_id_component(from)}-#{svg_id_component(to)}-#{svg_id_component(label)}"
+          ),
+          'data-from' => from.to_s,
+          'data-to' => to.to_s,
+          'data-label' => label.to_s
+        }
+      end
+
+      def unique_svg_id(base_id)
+        @element_id_counts[base_id] += 1
+        return base_id if @element_id_counts[base_id] == 1
+
+        "#{base_id}-#{@element_id_counts[base_id]}"
+      end
+
+      def svg_id_component(value)
+        component = value.to_s.downcase.gsub(/[^a-z0-9_-]+/, '-').gsub(/\A-+|-+\z/, '')
+        component.empty? ? 'item' : component
       end
 
       def state_position(state_name)
