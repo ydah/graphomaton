@@ -518,6 +518,13 @@ RSpec.describe Graphomaton do
       expect(svg_output).to start_with('<?xml version="1.0" encoding="UTF-8"?>')
     end
 
+    it 'can pretty print SVG output' do
+      svg_output = automaton.to_svg(pretty: true)
+
+      expect { REXML::Document.new(svg_output) }.not_to raise_error
+      expect(svg_output).to include("\n  <")
+    end
+
     it 'includes marker definition for arrowheads' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)

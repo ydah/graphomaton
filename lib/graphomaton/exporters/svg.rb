@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'rexml/document'
+require 'rexml/formatters/pretty'
 
 class Graphomaton
   module Exporters
@@ -20,6 +21,7 @@ class Graphomaton
       DEFAULT_HIGHLIGHT_TRANSITIONS = [].freeze
       DEFAULT_XML_DECLARATION = false
       DEFAULT_CSS_VARIABLES = false
+      DEFAULT_PRETTY = false
       DEFAULT_LOOP_POSITION = :auto
       DEFAULT_EDGE_STYLE = :auto
       DEFAULT_SHOW_FINAL_ARROWS = false
@@ -129,6 +131,7 @@ class Graphomaton
                  highlight_transitions: DEFAULT_HIGHLIGHT_TRANSITIONS,
                  xml_declaration: DEFAULT_XML_DECLARATION,
                  css_variables: DEFAULT_CSS_VARIABLES,
+                 pretty: DEFAULT_PRETTY,
                  loop_position: DEFAULT_LOOP_POSITION,
                  edge_style: DEFAULT_EDGE_STYLE,
                  show_final_arrows: DEFAULT_SHOW_FINAL_ARROWS,
@@ -202,13 +205,23 @@ class Graphomaton
         add_final_arrows(transition_group) if @show_final_arrows
         add_states(state_group)
 
-        svg_output = doc.to_s
+        svg_output = serialize_document(doc, pretty: pretty)
         return svg_output unless xml_declaration
 
         %(<?xml version="1.0" encoding="UTF-8"?>\n#{svg_output})
       end
 
       private
+
+      def serialize_document(doc, pretty:)
+        return doc.to_s unless pretty
+
+        output = +''
+        formatter = REXML::Formatters::Pretty.new(2)
+        formatter.compact = true
+        formatter.write(doc, output)
+        output
+      end
 
       def resolve_theme(theme)
         return normalize_theme(theme) if theme.is_a?(Hash)
