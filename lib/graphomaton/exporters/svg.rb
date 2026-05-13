@@ -31,6 +31,7 @@ class Graphomaton
       DEFAULT_CSS_VARIABLES = false
       DEFAULT_EMBED_STYLES = true
       DEFAULT_PRETTY = false
+      DEFAULT_MINIFY = false
       DEFAULT_STATE_EFFECT = :none
       DEFAULT_LOOP_POSITION = :auto
       DEFAULT_EDGE_STYLE = :auto
@@ -163,6 +164,7 @@ class Graphomaton
                  css_variables: DEFAULT_CSS_VARIABLES,
                  embed_styles: DEFAULT_EMBED_STYLES,
                  pretty: DEFAULT_PRETTY,
+                 minify: DEFAULT_MINIFY,
                  state_effect: DEFAULT_STATE_EFFECT,
                  loop_position: DEFAULT_LOOP_POSITION,
                  edge_style: DEFAULT_EDGE_STYLE,
@@ -251,7 +253,7 @@ class Graphomaton
         add_final_arrows(transition_group) if @show_final_arrows
         add_states(state_group)
 
-        svg_output = serialize_document(doc, pretty: pretty)
+        svg_output = serialize_document(doc, pretty: pretty, minify: minify)
         return svg_output unless xml_declaration
 
         %(<?xml version="1.0" encoding="UTF-8"?>\n#{svg_output})
@@ -259,7 +261,10 @@ class Graphomaton
 
       private
 
-      def serialize_document(doc, pretty:)
+      def serialize_document(doc, pretty:, minify:)
+        raise ArgumentError, 'SVG pretty and minify options cannot both be true' if pretty && minify
+
+        return minify_document(doc) if minify
         return doc.to_s unless pretty
 
         output = +''
@@ -267,6 +272,14 @@ class Graphomaton
         formatter.compact = true
         formatter.write(doc, output)
         output
+      end
+
+      def minify_document(doc)
+        doc.elements.each('//style') do |style|
+          style.text = style.text.to_s.gsub(/\s+/, ' ').strip
+        end
+
+        doc.to_s.gsub(/>\s+</, '><')
       end
 
       def resolve_theme(theme)

@@ -534,6 +534,19 @@ RSpec.describe Graphomaton do
       expect(svg_output).to include("\n  <")
     end
 
+    it 'can minify SVG output' do
+      svg_output = automaton.to_svg(minify: true)
+
+      expect { REXML::Document.new(svg_output) }.not_to raise_error
+      expect(svg_output).not_to include("\n      .")
+    end
+
+    it 'rejects conflicting SVG serialization options' do
+      expect do
+        automaton.to_svg(pretty: true, minify: true)
+      end.to raise_error(ArgumentError, /pretty and minify/)
+    end
+
     it 'includes marker definition for arrowheads' do
       svg_output = automaton.to_svg
       doc = REXML::Document.new(svg_output)
