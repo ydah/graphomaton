@@ -91,6 +91,14 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
         mermaid_output = mermaid_exporter.export
         expect(mermaid_output).to include('a/b')
       end
+
+      it 'formats newlines in labels for Mermaid' do
+        automaton.add_transition('State 1', 'State-2', "a\nb")
+
+        mermaid_output = mermaid_exporter.export
+
+        expect(mermaid_output).to include('a<br/>b')
+      end
     end
 
     context 'with complete automaton' do
@@ -148,7 +156,15 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
     it 'includes the diagram code' do
       html_output = mermaid_exporter.export_html
       expect(html_output).to include('stateDiagram-v2')
-      expect(html_output).to include('A --> B : test')
+      expect(html_output).to include('A --&gt; B : test')
+    end
+
+    it 'escapes diagram code in HTML output' do
+      automaton.add_transition('A', 'B', '<tag>&value')
+
+      html_output = mermaid_exporter.export_html
+
+      expect(html_output).to include('&lt;tag&gt;&amp;value')
     end
 
     it 'includes mermaid initialization' do

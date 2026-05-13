@@ -24,7 +24,7 @@ class Graphomaton
         @automaton.transitions.each do |trans|
           from = sanitize_state_name(trans[:from])
           to = sanitize_state_name(trans[:to])
-          label = trans[:label]
+          label = format_label(trans[:label])
           lines << "    #{from} --> #{to} : #{label}"
         end
 
@@ -89,7 +89,7 @@ class Graphomaton
                   <p><strong>注意:</strong> #{offline ? 'Mermaid.js はローカルファイル経由で読み込まれます。' : 'この図はMermaid.jsを使用してブラウザ上でレンダリングされます。オフライン環境では動作しません。'}</p>
               </div>
               <div class="mermaid">
-          #{mermaid_code}
+          #{escape_text(mermaid_code)}
               </div>
               #{source_block(mermaid_code, show_source: show_source)}
           </body>
@@ -168,6 +168,10 @@ class Graphomaton
         else
           sanitized
         end
+      end
+
+      def format_label(label)
+        label.to_s.gsub("\n", '<br/>')
       end
 
       def resolve_direction(direction)
