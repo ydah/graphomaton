@@ -992,6 +992,20 @@ RSpec.describe Graphomaton do
       expect(circle.attributes['style']).to include('stroke: #dc2626')
     end
 
+    it 'renders SVG state groups from metadata' do
+      local = described_class.new
+      local.add_state('q0', 100, 100, metadata: { group: 'alpha' })
+      local.add_state('q1', 220, 100, metadata: { group: 'alpha' })
+
+      svg_output = local.to_svg(layout: :manual)
+      doc = REXML::Document.new(svg_output)
+      group_box = REXML::XPath.first(doc, '//rect[@class="state-group-box"]')
+      group_label = REXML::XPath.first(doc, '//text[@class="state-group-label"]')
+
+      expect(group_box).not_to be_nil
+      expect(group_label.text).to eq('alpha')
+    end
+
     it 'uses state metadata as SVG tooltip' do
       local = described_class.new
       local.add_state('q0', metadata: { tooltip: 'Entry point' })

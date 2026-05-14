@@ -323,6 +323,7 @@ class Graphomaton
         add_transitions(transition_group)
         add_initial_arrow(transition_group) if @automaton.initial_state
         add_final_arrows(transition_group) if @show_final_arrows
+        add_state_groups(state_group)
         add_states(state_group)
 
         svg_output = serialize_document(doc, pretty: pretty, minify: minify)
@@ -637,6 +638,8 @@ class Graphomaton
       .initial-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .final-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .label-bg { fill: #{theme_css_value(:label_background)}; opacity: #{theme_css_value(:label_opacity)}; #{label_border_css} }
+      .state-group-box { fill: #{theme_css_value(:stroke)}; opacity: 0.08; stroke: #{theme_css_value(:stroke)}; stroke-width: 1; stroke-dasharray: 6 4; }
+      .state-group-label { font-family: #{@font_family}; font-size: 12px; fill: #{theme_css_value(:state_text)}; font-weight: 700; text-rendering: geometricPrecision; }
       .unreachable-state { opacity: 0.45; }
       .initial-state .state-circle { fill: #dbeafe; }
       .accepting-state .state-circle { fill: #dcfce7; }
@@ -1445,6 +1448,64 @@ class Graphomaton
         else
           [x + radius, y, x + radius + length, y, x + radius + length + 8, y - 8, 'start']
         end
+      end
+
+      def add_state_groups(svg)
+        groups = grouped_state_positions
+        return if groups.empty?
+
+        groups.each do |name, positions|
+          bounds = state_group_bounds(positions)
+          svg.add_element('rect', {
+                            'class' => 'state-group-box',
+                            'x' => bounds[:x].to_s,
+                            'y' => bounds[:y].to_s,
+                            'width' => bounds[:width].to_s,
+                            'height' => bounds[:height].to_s,
+                            'rx' => '12'
+                          })
+          label = svg.add_element('text', {
+                                    'class' => 'state-group-label',
+                                    'x' => (bounds[:x] + 12).to_s,
+                                    'y' => (bounds[:y] + 22).to_s
+                                  })
+          label.text = name.to_s
+        end
+      end
+
+      def grouped_state_positions
+        @automaton.states.each_with_object({}) do |(name, state), groups|
+          group_name = state_group_name(state)
+          next unless group_name
+
+          position = state_position(name)
+          next unless position && position[:x] && position[:y]
+
+          groups[group_name] ||= []
+          groups[group_name] << position
+        end
+      end
+
+      def state_group_name(state)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:group] || metadata['group'] || metadata[:cluster] || metadata['cluster']
+      end
+
+      def state_group_bounds(positions)
+        padding = [@state_radius * 0.75, 28].max
+        min_x = positions.map { |position| position[:x].to_f }.min - @state_radius - padding
+        max_x = positions.map { |position| position[:x].to_f }.max + @state_radius + padding
+        min_y = positions.map { |position| position[:y].to_f }.min - @state_radius - padding
+        max_y = positions.map { |position| position[:y].to_f }.max + @state_radius + padding
+
+        {
+          x: min_x,
+          y: min_y,
+          width: max_x - min_x,
+          height: max_y - min_y
+        }
       end
 
       def add_states(svg)
