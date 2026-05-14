@@ -8,6 +8,7 @@ class Graphomaton
       DEFAULT_CDN = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
       DEFAULT_LANG = 'ja'
       DEFAULT_SHOW_SOURCE = false
+      DEFAULT_PAN_ZOOM = false
       DEFAULT_NOTES = false
       DEFAULT_CLASS_DEFS = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
@@ -47,7 +48,7 @@ class Graphomaton
       end
 
       def export_html(theme: DEFAULT_THEME, cdn: DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil, lang: DEFAULT_LANG,
-                      show_source: DEFAULT_SHOW_SOURCE)
+                      show_source: DEFAULT_SHOW_SOURCE, pan_zoom: DEFAULT_PAN_ZOOM)
         mermaid_code = export
         title_text = title || '状態図 - Graphomaton'
         language = lang || DEFAULT_LANG
@@ -92,6 +93,7 @@ class Graphomaton
                       overflow-x: auto;
                       padding: 16px;
                   }
+                  #{pan_zoom_css(pan_zoom)}
                   #{auto_theme_css(theme)}
               </style>
           </head>
@@ -100,10 +102,12 @@ class Graphomaton
               <div class="info">
                   <p><strong>注意:</strong> #{offline ? 'Mermaid.js はローカルファイル経由で読み込まれます。' : 'この図はMermaid.jsを使用してブラウザ上でレンダリングされます。オフライン環境では動作しません。'}</p>
               </div>
-              <div class="mermaid">
+              #{pan_zoom_controls(pan_zoom)}
+              <div class="mermaid#{pan_zoom ? ' pan-zoom-content' : ''}"#{pan_zoom ? ' data-pan-zoom-viewer' : ''}>
           #{escape_text(mermaid_code)}
               </div>
               #{source_block(mermaid_code, show_source: show_source)}
+              #{pan_zoom_script(pan_zoom)}
           </body>
           </html>
         HTML
@@ -190,6 +194,108 @@ class Graphomaton
 
         <<~HTML
           <pre class="mermaid-source"><code>#{escape_text(mermaid_code)}</code></pre>
+        HTML
+      end
+
+      def pan_zoom_css(enabled)
+        return '' unless enabled
+
+        <<~CSS
+                  .pan-zoom-controls {
+                      display: flex;
+                      gap: 8px;
+                      justify-content: flex-end;
+                      margin: 20px 0 8px;
+                  }
+                  .pan-zoom-controls button {
+                      background: #0f172a;
+                      border: 0;
+                      border-radius: 6px;
+                      color: white;
+                      cursor: pointer;
+                      font: inherit;
+                      padding: 8px 12px;
+                  }
+                  .pan-zoom-content {
+                      cursor: grab;
+                      overflow: auto;
+                      transform-origin: 0 0;
+                      user-select: none;
+                  }
+                  .pan-zoom-content.is-panning {
+                      cursor: grabbing;
+                  }
+        CSS
+      end
+
+      def pan_zoom_controls(enabled)
+        return '' unless enabled
+
+        <<~HTML
+              <div class="pan-zoom-controls" aria-label="Diagram zoom controls">
+                  <button type="button" data-zoom-out>-</button>
+                  <button type="button" data-zoom-reset>Reset</button>
+                  <button type="button" data-zoom-in>+</button>
+              </div>
+        HTML
+      end
+
+      def pan_zoom_script(enabled)
+        return '' unless enabled
+
+        <<~HTML
+              <script>
+                (() => {
+                  const viewer = document.querySelector('[data-pan-zoom-viewer]');
+                  if (!viewer) return;
+
+                  let scale = 1;
+                  let x = 0;
+                  let y = 0;
+                  let drag = null;
+
+                  const apply = () => {
+                    viewer.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+                  };
+                  const setScale = (nextScale) => {
+                    scale = Math.min(3, Math.max(0.4, nextScale));
+                    apply();
+                  };
+
+                  document.querySelector('[data-zoom-in]')?.addEventListener('click', () => setScale(scale + 0.2));
+                  document.querySelector('[data-zoom-out]')?.addEventListener('click', () => setScale(scale - 0.2));
+                  document.querySelector('[data-zoom-reset]')?.addEventListener('click', () => {
+                    scale = 1;
+                    x = 0;
+                    y = 0;
+                    apply();
+                  });
+
+                  viewer.addEventListener('wheel', (event) => {
+                    if (!event.ctrlKey && !event.metaKey) return;
+                    event.preventDefault();
+                    setScale(scale + (event.deltaY < 0 ? 0.1 : -0.1));
+                  }, { passive: false });
+                  viewer.addEventListener('pointerdown', (event) => {
+                    drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, x, y };
+                    viewer.classList.add('is-panning');
+                    viewer.setPointerCapture(event.pointerId);
+                  });
+                  viewer.addEventListener('pointermove', (event) => {
+                    if (!drag || drag.pointerId !== event.pointerId) return;
+                    x = drag.x + event.clientX - drag.startX;
+                    y = drag.y + event.clientY - drag.startY;
+                    apply();
+                  });
+                  const stopDrag = (event) => {
+                    if (!drag || drag.pointerId !== event.pointerId) return;
+                    viewer.classList.remove('is-panning');
+                    drag = null;
+                  };
+                  viewer.addEventListener('pointerup', stopDrag);
+                  viewer.addEventListener('pointercancel', stopDrag);
+                })();
+              </script>
         HTML
       end
 

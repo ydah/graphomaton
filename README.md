@@ -119,7 +119,7 @@ graphomaton --input automaton.yml --output diagram.svg --label-padding 20 --labe
 graphomaton --input automaton.yml --output diagram.svg --highlight-unreachable --highlight-dead-states
 graphomaton --input automaton.yml --output diagram.svg --no-preserve-manual-positions
 graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml
-graphomaton --input automaton.yml --output diagram.html --title "Automaton" --lang en --show-source --notes --class-defs
+graphomaton --input automaton.yml --output diagram.html --title "Automaton" --lang en --show-source --pan-zoom --notes --class-defs
 graphomaton --input automaton.yml --output diagram.html --cdn ./mermaid.min.js --inline-mermaid
 graphomaton --input automaton.yml --output diagram.dot --rank-constraints
 ```
@@ -244,6 +244,7 @@ automaton.save_html('diagram.html')
 automaton.save_html('diagram.html', show_source: true)
 automaton.save_html('diagram.html', theme: :auto)
 automaton.save_html('diagram.html', cdn: './mermaid.min.js', inline_mermaid: true)
+automaton.save_html('diagram.html', pan_zoom: true)
 automaton.save_html('diagram.html', notes: true)
 automaton.save_html('diagram.html', class_defs: true)
 ```

@@ -615,6 +615,7 @@ RSpec.describe 'graphomaton CLI' do
         mermaid_script,
         '--inline-mermaid',
         '--show-source',
+        '--pan-zoom',
         '--notes',
         '--class-defs'
       )
@@ -625,6 +626,7 @@ RSpec.describe 'graphomaton CLI' do
       expect(content).to include('<html lang="en">')
       expect(content).to include('window.__inlineMermaid = true;')
       expect(content).to include('class="mermaid-source"')
+      expect(content).to include('data-pan-zoom-viewer')
       expect(content).to include('note right of q0: Entry state')
       expect(content).to include('classDef initial')
     end

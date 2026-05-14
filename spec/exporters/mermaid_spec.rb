@@ -247,5 +247,14 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
       expect(html_output).to include('<title>Automaton Viewer</title>')
       expect(html_output).to include('<html lang="en">')
     end
+
+    it 'can include pan and zoom controls' do
+      html_output = mermaid_exporter.export_html(pan_zoom: true)
+
+      expect(html_output).to include('data-pan-zoom-viewer')
+      expect(html_output).to include('data-zoom-in')
+      expect(html_output).to include('data-zoom-reset')
+      expect(html_output).to include('pointerdown')
+    end
   end
 end

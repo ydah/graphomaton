@@ -1220,6 +1220,7 @@ class Graphomaton
   def to_html(direction: Exporters::Mermaid::DEFAULT_DIRECTION, theme: Exporters::Mermaid::DEFAULT_THEME,
               cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil,
               lang: Exporters::Mermaid::DEFAULT_LANG, show_source: Exporters::Mermaid::DEFAULT_SHOW_SOURCE,
+              pan_zoom: Exporters::Mermaid::DEFAULT_PAN_ZOOM,
               notes: Exporters::Mermaid::DEFAULT_NOTES,
               class_defs: Exporters::Mermaid::DEFAULT_CLASS_DEFS)
     Exporters::Mermaid.new(self, direction: direction, notes: notes, class_defs: class_defs).export_html(
@@ -1229,13 +1230,15 @@ class Graphomaton
       offline: offline,
       title: title,
       lang: lang,
-      show_source: show_source
+      show_source: show_source,
+      pan_zoom: pan_zoom
     )
   end
 
   def save_html(filename, direction: Exporters::Mermaid::DEFAULT_DIRECTION, theme: Exporters::Mermaid::DEFAULT_THEME,
                 cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil,
                 lang: Exporters::Mermaid::DEFAULT_LANG, show_source: Exporters::Mermaid::DEFAULT_SHOW_SOURCE,
+                pan_zoom: Exporters::Mermaid::DEFAULT_PAN_ZOOM,
                 notes: Exporters::Mermaid::DEFAULT_NOTES,
                 class_defs: Exporters::Mermaid::DEFAULT_CLASS_DEFS)
     File.write(
@@ -1249,6 +1252,7 @@ class Graphomaton
         title: title,
         lang: lang,
         show_source: show_source,
+        pan_zoom: pan_zoom,
         notes: notes,
         class_defs: class_defs
       )

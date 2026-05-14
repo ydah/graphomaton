@@ -1406,6 +1406,13 @@ RSpec.describe Graphomaton do
       expect(html_output).to include('stateDiagram-v2')
     end
 
+    it 'can include pan and zoom controls in HTML output' do
+      html_output = automaton.to_html(pan_zoom: true)
+
+      expect(html_output).to include('data-pan-zoom-viewer')
+      expect(html_output).to include('data-zoom-reset')
+    end
+
     it 'saves HTML to file' do
       automaton.save_html(temp_file, theme: :forest, title: 'Saved')
       content = File.read(temp_file)

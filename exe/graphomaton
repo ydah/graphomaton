@@ -95,6 +95,7 @@ parser = OptionParser.new do |opts|
   opts.on('--title TITLE', 'HTML page title') { |value| options[:title] = value }
   opts.on('--lang LANG', 'HTML language code') { |value| options[:lang] = value }
   opts.on('--show-source', 'Include Mermaid source in HTML output') { options[:show_source] = true }
+  opts.on('--pan-zoom', 'Add pan and zoom controls to HTML output') { options[:pan_zoom] = true }
   opts.on('--notes', 'Include state metadata notes in Mermaid output') { options[:notes] = true }
   opts.on('--class-defs', 'Include Mermaid class definitions in Mermaid output') { options[:class_defs] = true }
   opts.on('--rank-constraints', 'Emit DOT rank constraints for initial and final states') { options[:rank_constraints] = true }
@@ -246,6 +247,7 @@ if resolved_output_format == :html
   save_options[:title] = options[:title] if options[:title]
   save_options[:lang] = options[:lang] if options[:lang]
   save_options[:show_source] = options[:show_source] if options.key?(:show_source)
+  save_options[:pan_zoom] = options[:pan_zoom] if options.key?(:pan_zoom)
 end
 if %i[html mermaid plantuml].include?(resolved_output_format)
   save_options[:notes] = options[:notes] if options.key?(:notes)
