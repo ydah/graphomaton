@@ -127,9 +127,10 @@ class Graphomaton
       def state_alias_lines
         @automaton.states.filter_map do |name, state|
           label = state[:label]
-          next if label.nil? || label.to_s == name.to_s
+          state_identifier = state_name(name)
+          next if (label.nil? || label.to_s == name.to_s) && state_identifier == sanitize_state_name(name)
 
-          "state \"#{escape_state_label(label)}\" as #{state_name(name)}"
+          "state \"#{escape_state_label(label || name)}\" as #{state_identifier}"
         end
       end
 

@@ -134,6 +134,7 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
 
         plantuml_output = described_class.new(local).export
 
+        expect(plantuml_output).to include('state "State-1" as State_1_2')
         expect(plantuml_output).to include('State_1 --> State_1_2 : a')
         expect(plantuml_output).to include('State_1_2 --> State_1 : b')
       end

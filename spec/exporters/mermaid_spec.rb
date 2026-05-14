@@ -136,6 +136,7 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
 
         mermaid_output = described_class.new(local).export
 
+        expect(mermaid_output).to include('state "State-1" as State_1_2')
         expect(mermaid_output).to include('State_1 --> State_1_2 : a')
         expect(mermaid_output).to include('State_1_2 --> State_1 : b')
       end
