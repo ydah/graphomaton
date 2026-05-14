@@ -79,6 +79,7 @@ automaton.trap_states
 `label` is used as the display name in SVG, DOT, Mermaid, and PlantUML while the state ID remains stable for transitions.
 State and transition metadata `tooltip`/`description` is used as SVG tooltip text. Metadata `url`/`href` creates clickable SVG links.
 Mermaid choice/fork/join pseudostates can be requested with state metadata such as `{ mermaid: { shape: 'choice' } }`, `mermaid_shape`, or `mermaid_type`.
+Mermaid composite states can be requested with state metadata `parent`.
 State metadata `group` or `cluster` renders SVG background groups around related states.
 State metadata `icon` renders a compact SVG icon label inside the state.
 

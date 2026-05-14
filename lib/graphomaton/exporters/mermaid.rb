@@ -27,6 +27,7 @@ class Graphomaton
         lines << "    direction #{direction_keyword}"
         lines.concat(state_alias_lines)
         lines.concat(pseudostate_lines)
+        lines.concat(composite_state_lines)
 
         lines << "    [*] --> #{state_name(@automaton.initial_state)}" if @automaton.initial_state
 
@@ -349,12 +350,49 @@ class Graphomaton
 
       def state_alias_lines
         @automaton.states.filter_map do |name, state|
+          next if state_parent(state)
+
           label = state[:label]
           state_identifier = state_name(name)
           next if (label.nil? || label.to_s == name.to_s) && state_identifier == sanitize_state_name(name)
 
           "    state \"#{escape_mermaid_string(label || name)}\" as #{state_identifier}"
         end
+      end
+
+      def composite_state_lines
+        children_by_parent = @automaton.states.each_with_object({}) do |(name, state), groups|
+          parent = state_parent(state)
+          next unless parent
+          next unless @automaton.states.key?(parent)
+
+          groups[parent] ||= []
+          groups[parent] << [name, state]
+        end
+        return [] if children_by_parent.empty?
+
+        children_by_parent.flat_map do |parent, children|
+          lines = ["    state #{state_name(parent)} {"]
+          children.each do |name, state|
+            lines << state_declaration_line(name, state, indentation: '        ')
+          end
+          lines << '    }'
+        end
+      end
+
+      def state_declaration_line(name, state, indentation:)
+        label = state[:label]
+        state_identifier = state_name(name)
+        return "#{indentation}state #{state_identifier}" if label.nil? || label.to_s == name.to_s
+
+        "#{indentation}state \"#{escape_mermaid_string(label)}\" as #{state_identifier}"
+      end
+
+      def state_parent(state)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:parent] || metadata['parent']
       end
 
       def pseudostate_lines

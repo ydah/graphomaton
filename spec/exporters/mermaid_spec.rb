@@ -56,6 +56,19 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
         expect(mermaid_output).to include('state merge <<join>>')
       end
 
+      it 'can render Mermaid composite states from parent metadata' do
+        automaton.add_state('workflow', label: 'Workflow')
+        automaton.add_state('draft', metadata: { parent: 'workflow' })
+        automaton.add_state('review', label: 'Review State', metadata: { parent: 'workflow' })
+
+        mermaid_output = mermaid_exporter.export
+
+        expect(mermaid_output).to include('state "Workflow" as workflow')
+        expect(mermaid_output).to include('state workflow {')
+        expect(mermaid_output).to include('state draft')
+        expect(mermaid_output).to include('state "Review State" as review')
+      end
+
       it 'can emit Mermaid class definitions for state roles' do
         automaton.set_initial('A')
         automaton.add_final('C')
