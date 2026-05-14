@@ -102,6 +102,7 @@ Graphomaton.from_yaml(File.read('automaton.yml'))
 graphomaton --input automaton.yml --output diagram.svg
 graphomaton --input automaton.json --output diagram.png --format png --theme dark --scale 2 --converter magick
 graphomaton --input automaton.yml --output diagram.svg --layout layered --direction lr
+graphomaton --input automaton.yml --output diagram.svg --layout force --padding 80 --node-spacing 140 --force-iterations 80 --layout-seed 42
 graphomaton --input automaton.yml --output diagram.svg --responsive --state-radius 32 --fit cover --auto-size
 graphomaton --input automaton.yml --output diagram.svg --state-shape ellipse --edge-style orthogonal --arrow-shape vee
 graphomaton --input automaton.yml --output diagram.svg --xml-declaration --pretty
