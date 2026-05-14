@@ -53,6 +53,17 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
         expect(plantuml_output).to include('note right of q_note : Entry state')
       end
 
+      it 'can render state metadata groups as PlantUML composite blocks' do
+        automaton.add_state('grouped_a', metadata: { group: 'alpha' })
+        automaton.add_state('grouped_b', label: 'Grouped B', metadata: { group: 'alpha' })
+
+        plantuml_output = plantuml_exporter.export
+
+        expect(plantuml_output).to include('state "alpha" as group_alpha {')
+        expect(plantuml_output).to include('state grouped_a')
+        expect(plantuml_output).to include('state "Grouped B" as grouped_b')
+      end
+
       it 'marks final states' do
         automaton.add_final('C')
         plantuml_output = plantuml_exporter.export

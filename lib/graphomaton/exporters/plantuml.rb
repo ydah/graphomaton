@@ -22,6 +22,7 @@ class Graphomaton
         lines << direction_keyword
         lines.concat(theme_lines) if @theme
         lines.concat(state_alias_lines)
+        lines.concat(state_group_lines)
         lines << ''
 
         if @automaton.initial_state
@@ -126,12 +127,48 @@ class Graphomaton
 
       def state_alias_lines
         @automaton.states.filter_map do |name, state|
+          next if state_group_name(state)
+
           label = state[:label]
           state_identifier = state_name(name)
           next if (label.nil? || label.to_s == name.to_s) && state_identifier == sanitize_state_name(name)
 
           "state \"#{escape_state_label(label || name)}\" as #{state_identifier}"
         end
+      end
+
+      def state_group_lines
+        groups = @automaton.states.each_with_object({}) do |(name, state), grouped_states|
+          group = state_group_name(state)
+          next unless group
+
+          grouped_states[group] ||= []
+          grouped_states[group] << [name, state]
+        end
+        return [] if groups.empty?
+
+        groups.flat_map do |group, states|
+          lines = ["state \"#{escape_state_label(group)}\" as #{state_name("group_#{group}")} {"]
+          states.each do |name, state|
+            lines << "  #{state_declaration_line(name, state)}"
+          end
+          lines << '}'
+        end
+      end
+
+      def state_declaration_line(name, state)
+        label = state[:label]
+        state_identifier = state_name(name)
+        return "state #{state_identifier}" if label.nil? || label.to_s == name.to_s
+
+        "state \"#{escape_state_label(label)}\" as #{state_identifier}"
+      end
+
+      def state_group_name(state)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:group] || metadata['group'] || metadata[:cluster] || metadata['cluster']
       end
 
       def state_note_lines
