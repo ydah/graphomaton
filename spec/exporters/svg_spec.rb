@@ -240,6 +240,19 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(circles.first.attributes['r'].to_f).to eq(22.0)
       end
 
+      it 'supports cubic spline edge style' do
+        spline = Graphomaton.new
+        spline.add_state('A', 100, 100)
+        spline.add_state('B', 260, 180)
+        spline.add_transition('A', 'B', 'spline')
+
+        svg_output = described_class.new(spline).export(layout: :manual, edge_style: :spline)
+        doc = REXML::Document.new(svg_output)
+        path = REXML::XPath.first(doc, '//path[@class="transition-line"]')
+
+        expect(path.attributes['d']).to include(' C ')
+      end
+
       it 'can grow state radius from label width when enabled' do
         long_label = Graphomaton.new
         long_label.add_state('q_long', label: 'VeryLongStateNameForRadius')

@@ -62,7 +62,7 @@ class Graphomaton
       LAYOUT_OPTIONS = %i[linear circle grid layered bfs force manual].freeze
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
       LOOP_POSITION_OPTIONS = %i[auto top right bottom left].freeze
-      EDGE_STYLE_OPTIONS = %i[auto straight curved orthogonal].freeze
+      EDGE_STYLE_OPTIONS = %i[auto straight curved orthogonal spline].freeze
       STATE_SHAPE_OPTIONS = %i[circle ellipse rounded_rect].freeze
       STATE_EFFECT_OPTIONS = %i[none shadow glow pulse].freeze
       ARROW_SHAPE_OPTIONS = %i[triangle vee stealth].freeze
@@ -1079,6 +1079,8 @@ class Graphomaton
             states_between,
             from_state_index
           )
+        elsif @edge_style == :spline
+          add_spline_line(transition_content, start_x, start_y, end_x, end_y, x1, y1, x2, y2, trans, pair_index)
         elsif @edge_style == :orthogonal
           add_orthogonal_line(transition_content, start_x, start_y, end_x, end_y, trans)
         elsif is_adjacent && forward_direction?(x1, y1, x2, y2)
@@ -1168,6 +1170,38 @@ class Graphomaton
         label_y = ((1 - t) * (1 - t) * start_y) + (2 * (1 - t) * t * control_y) + (t * t * end_y)
 
         add_label(svg, label_x, label_y, trans[:label], angle: label_rotation_angle(start_x, start_y, end_x, end_y))
+      end
+
+      def add_spline_line(svg, start_x, start_y, end_x, end_y, x1, y1, x2, y2, trans, pair_index)
+        dx = end_x - start_x
+        dy = end_y - start_y
+        distance = Math.sqrt((dx**2) + (dy**2))
+        return add_straight_line(svg, start_x, start_y, end_x, end_y, trans) if distance <= 0
+
+        normal_x = -dy / distance
+        normal_y = dx / distance
+        bend = @state_radius + (pair_index * 24)
+        bend *= forward_direction?(x1, y1, x2, y2) ? -1 : 1
+        control1_x = start_x + (dx * 0.35) + (normal_x * bend)
+        control1_y = start_y + (dy * 0.35) + (normal_y * bend)
+        control2_x = start_x + (dx * 0.65) + (normal_x * bend)
+        control2_y = start_y + (dy * 0.65) + (normal_y * bend)
+        path_d = "M #{start_x} #{start_y} C #{control1_x} #{control1_y}, #{control2_x} #{control2_y}, #{end_x} #{end_y}"
+
+        svg.add_element('path', transition_line_attributes(trans, 'd' => path_d))
+
+        t = 0.5
+        label_x = cubic_bezier_point(start_x, control1_x, control2_x, end_x, t)
+        label_y = cubic_bezier_point(start_y, control1_y, control2_y, end_y, t)
+        add_label(svg, label_x, label_y, trans[:label], angle: label_rotation_angle(control1_x, control1_y, control2_x, control2_y))
+      end
+
+      def cubic_bezier_point(start_value, control1_value, control2_value, end_value, t)
+        inverse = 1 - t
+        (inverse**3 * start_value) +
+          (3 * inverse * inverse * t * control1_value) +
+          (3 * inverse * t * t * control2_value) +
+          (t**3 * end_value)
       end
 
       def add_orthogonal_line(svg, start_x, start_y, end_x, end_y, trans)
