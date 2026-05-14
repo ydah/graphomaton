@@ -194,6 +194,9 @@ automaton.save_svg(
 `fit: :cover` stretches resolved positions to use the full requested canvas.
 `svg_id:` sets a stable SVG root ID and marker ID prefix, useful when embedding multiple diagrams.
 `auto_size` expands SVG viewport automatically to the rendered positions when set to `true`.
+`auto_density_spacing` increases node and rank spacing for dense graphs when set to `true`.
+`edge_style` accepts `:auto`, `:straight`, `:curved`, `:orthogonal`, and `:spline`.
+`:auto` curves SVG edges that would otherwise pass too close to another state.
 `arrow_size` controls SVG arrowhead size.
 `arrow_shape` accepts `:triangle`, `:vee`, and `:stealth`.
 `initial_arrow_length` and `initial_arrow_label` control the native SVG initial arrow.
