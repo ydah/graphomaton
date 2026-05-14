@@ -1006,6 +1006,21 @@ RSpec.describe Graphomaton do
       expect(group_label.text).to eq('alpha')
     end
 
+    it 'renders SVG SCC groups when requested' do
+      local = described_class.new
+      local.add_state('q0', 100, 100)
+      local.add_state('q1', 220, 100)
+      local.add_state('q2', 340, 100)
+      local.add_transition('q0', 'q1', 'a')
+      local.add_transition('q1', 'q0', 'b')
+
+      svg_output = local.to_svg(layout: :manual, scc_groups: true)
+      doc = REXML::Document.new(svg_output)
+      group_label = REXML::XPath.first(doc, '//text[@class="state-group-label"]')
+
+      expect(group_label.text).to eq('SCC 1')
+    end
+
     it 'renders SVG state icons from metadata' do
       local = described_class.new
       local.add_state('q0', metadata: { icon: 'S' })

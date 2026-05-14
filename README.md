@@ -123,6 +123,7 @@ graphomaton --input automaton.yml --output diagram.svg --wrap-labels --state-wra
 graphomaton --input automaton.yml --output diagram.svg --sort-labels --highlight-transition "q0:q1:a, b" --loop-position right
 graphomaton --input automaton.yml --output diagram.svg --label-padding 20 --label-radius 8 --label-border --initial-arrow-label begin --final-arrow-label done
 graphomaton --input automaton.yml --output diagram.svg --highlight-unreachable --unreachable-zone right --highlight-dead-states
+graphomaton --input automaton.yml --output diagram.svg --scc-groups
 graphomaton --input automaton.yml --output diagram.svg --no-preserve-manual-positions
 graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml
 graphomaton --input automaton.yml --output diagram.html --title "Automaton" --lang en --show-source --pan-zoom --notes --class-defs
@@ -208,6 +209,7 @@ automaton.save_svg('diagram.svg', 800, 600, label_background: false)
 automaton.save_svg('diagram.svg', 800, 600, label_padding: 16, label_radius: 8, label_border: true)
 automaton.save_svg('diagram.svg', 800, 600, highlight_unreachable: true)
 automaton.save_svg('diagram.svg', 800, 600, unreachable_zone: :right)
+automaton.save_svg('diagram.svg', 800, 600, scc_groups: true)
 automaton.save_svg('diagram.svg', 800, 600, highlight_dead_states: true)
 automaton.save_svg('diagram.svg', 800, 600, highlight_initial_state: true, highlight_final_states: true)
 automaton.save_svg('diagram.svg', 800, 600, highlight_transitions: [{ from: 'q0', to: 'q1', label: 'a' }])

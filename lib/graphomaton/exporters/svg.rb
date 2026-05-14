@@ -61,6 +61,7 @@ class Graphomaton
       DEFAULT_MAX_LABEL_WIDTH = 120
       DEFAULT_STATE_WRAP = false
       DEFAULT_MAX_STATE_LABEL_WIDTH = 120
+      DEFAULT_SCC_GROUPS = false
       LAYOUT_OPTIONS = %i[linear circle grid layered bfs force manual].freeze
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
       LOOP_POSITION_OPTIONS = %i[auto top right bottom left].freeze
@@ -233,6 +234,7 @@ class Graphomaton
                  loop_position: DEFAULT_LOOP_POSITION,
                  edge_style: DEFAULT_EDGE_STYLE,
                  show_final_arrows: DEFAULT_SHOW_FINAL_ARROWS,
+                 scc_groups: DEFAULT_SCC_GROUPS,
                  preserve_manual_positions: Graphomaton::DEFAULT_PRESERVE_MANUAL_POSITIONS,
                  fit: Graphomaton::DEFAULT_FIT,
                  title: nil, description: nil, svg_id: nil)
@@ -277,6 +279,7 @@ class Graphomaton
         @wrap_labels = wrap
         @state_wrap = state_wrap
         @max_state_label_width = max_state_label_width
+        @scc_groups = scc_groups
         @max_transition_label_width = max_transition_label_width
         @sort_labels = sort_labels
         @label_tooltips = label_tooltips
@@ -1520,15 +1523,83 @@ class Graphomaton
       end
 
       def grouped_state_positions
-        @automaton.states.each_with_object({}) do |(name, state), groups|
+        groups = @automaton.states.each_with_object({}) do |(name, state), grouped|
           group_name = state_group_name(state)
           next unless group_name
 
           position = state_position(name)
           next unless position && position[:x] && position[:y]
 
+          grouped[group_name] ||= []
+          grouped[group_name] << position
+        end
+        add_scc_state_groups(groups) if @scc_groups
+        groups
+      end
+
+      def add_scc_state_groups(groups)
+        strongly_connected_components.each_with_index do |component, index|
+          next if component.size < 2
+
+          group_name = "SCC #{index + 1}"
           groups[group_name] ||= []
-          groups[group_name] << position
+          component.each do |state|
+            position = state_position(state)
+            groups[group_name] << position if position && position[:x] && position[:y]
+          end
+          groups.delete(group_name) if groups[group_name].empty?
+        end
+      end
+
+      def strongly_connected_components
+        index = 0
+        stack = []
+        indexes = {}
+        lowlinks = {}
+        on_stack = {}
+        components = []
+
+        @automaton.states.each_key do |state|
+          next if indexes.key?(state)
+
+          strong_connect(state, index, stack, indexes, lowlinks, on_stack, components)
+          index = indexes.size
+        end
+
+        components
+      end
+
+      def strong_connect(state, index, stack, indexes, lowlinks, on_stack, components)
+        indexes[state] = index
+        lowlinks[state] = index
+        stack << state
+        on_stack[state] = true
+
+        adjacent_states(state).each do |target|
+          next unless @automaton.states.key?(target)
+
+          unless indexes.key?(target)
+            strong_connect(target, indexes.size, stack, indexes, lowlinks, on_stack, components)
+            lowlinks[state] = [lowlinks[state], lowlinks[target]].min
+          end
+          lowlinks[state] = [lowlinks[state], indexes[target]].min if on_stack[target]
+        end
+
+        return unless lowlinks[state] == indexes[state]
+
+        component = []
+        loop do
+          member = stack.pop
+          on_stack[member] = false
+          component << member
+          break if member == state
+        end
+        components << component
+      end
+
+      def adjacent_states(state)
+        @automaton.transitions.filter_map do |transition|
+          transition[:to] if transition[:from] == state
         end
       end
 

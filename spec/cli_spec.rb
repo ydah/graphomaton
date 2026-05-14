@@ -476,6 +476,9 @@ RSpec.describe 'graphomaton CLI' do
             - from: q0
               to: q1
               label: a
+            - from: q1
+              to: q0
+              label: back
             - from: dead
               to: trap
               label: b
@@ -512,6 +515,7 @@ RSpec.describe 'graphomaton CLI' do
         '700',
         '--transition-font-weight',
         '600',
+        '--scc-groups',
         '--highlight-unreachable',
         '--unreachable-zone',
         'right',
@@ -529,6 +533,7 @@ RSpec.describe 'graphomaton CLI' do
       expect(content).to include('font-weight: 700')
       expect(content).to include('font-weight: 600')
       expect(content).to include('drop-shadow')
+      expect(content).to include("class='state-group-box'")
       expect(content).to include("cx='720.0'")
       expect(content).to include("class='state initial-state'")
       expect(content).to include('unreachable-state')
