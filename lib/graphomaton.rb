@@ -1312,6 +1312,8 @@ class Graphomaton
               cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil,
               lang: Exporters::Mermaid::DEFAULT_LANG, show_source: Exporters::Mermaid::DEFAULT_SHOW_SOURCE,
               pan_zoom: Exporters::Mermaid::DEFAULT_PAN_ZOOM,
+              mathjax: Exporters::Mermaid::DEFAULT_MATHJAX,
+              mathjax_cdn: Exporters::Mermaid::DEFAULT_MATHJAX_CDN,
               notes: Exporters::Mermaid::DEFAULT_NOTES,
               class_defs: Exporters::Mermaid::DEFAULT_CLASS_DEFS)
     Exporters::Mermaid.new(self, direction: direction, notes: notes, class_defs: class_defs).export_html(
@@ -1322,7 +1324,9 @@ class Graphomaton
       title: title,
       lang: lang,
       show_source: show_source,
-      pan_zoom: pan_zoom
+      pan_zoom: pan_zoom,
+      mathjax: mathjax,
+      mathjax_cdn: mathjax_cdn
     )
   end
 
@@ -1330,6 +1334,8 @@ class Graphomaton
                 cdn: Exporters::Mermaid::DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil,
                 lang: Exporters::Mermaid::DEFAULT_LANG, show_source: Exporters::Mermaid::DEFAULT_SHOW_SOURCE,
                 pan_zoom: Exporters::Mermaid::DEFAULT_PAN_ZOOM,
+                mathjax: Exporters::Mermaid::DEFAULT_MATHJAX,
+                mathjax_cdn: Exporters::Mermaid::DEFAULT_MATHJAX_CDN,
                 notes: Exporters::Mermaid::DEFAULT_NOTES,
                 class_defs: Exporters::Mermaid::DEFAULT_CLASS_DEFS)
     File.write(
@@ -1344,6 +1350,8 @@ class Graphomaton
         lang: lang,
         show_source: show_source,
         pan_zoom: pan_zoom,
+        mathjax: mathjax,
+        mathjax_cdn: mathjax_cdn,
         notes: notes,
         class_defs: class_defs
       )

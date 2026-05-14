@@ -101,6 +101,8 @@ parser = OptionParser.new do |opts|
   opts.on('--lang LANG', 'HTML language code') { |value| options[:lang] = value }
   opts.on('--show-source', 'Include Mermaid source in HTML output') { options[:show_source] = true }
   opts.on('--pan-zoom', 'Add pan and zoom controls to HTML output') { options[:pan_zoom] = true }
+  opts.on('--mathjax', 'Include MathJax support in HTML output') { options[:mathjax] = true }
+  opts.on('--mathjax-cdn URL_OR_PATH', 'MathJax script URL or local path for HTML output') { |value| options[:mathjax_cdn] = value }
   opts.on('--notes', 'Include state metadata notes in Mermaid output') { options[:notes] = true }
   opts.on('--class-defs', 'Include Mermaid class definitions in Mermaid output') { options[:class_defs] = true }
   opts.on('--rank-constraints', 'Emit DOT rank constraints for initial and final states') { options[:rank_constraints] = true }
@@ -258,6 +260,8 @@ if resolved_output_format == :html
   save_options[:lang] = options[:lang] if options[:lang]
   save_options[:show_source] = options[:show_source] if options.key?(:show_source)
   save_options[:pan_zoom] = options[:pan_zoom] if options.key?(:pan_zoom)
+  save_options[:mathjax] = options[:mathjax] if options.key?(:mathjax)
+  save_options[:mathjax_cdn] = options[:mathjax_cdn] if options[:mathjax_cdn]
 end
 if %i[html mermaid plantuml].include?(resolved_output_format)
   save_options[:notes] = options[:notes] if options.key?(:notes)

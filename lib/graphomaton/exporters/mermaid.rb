@@ -6,6 +6,8 @@ class Graphomaton
       DEFAULT_DIRECTION = :lr
       DEFAULT_THEME = :default
       DEFAULT_CDN = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+      DEFAULT_MATHJAX = false
+      DEFAULT_MATHJAX_CDN = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js'
       DEFAULT_LANG = 'ja'
       DEFAULT_SHOW_SOURCE = false
       DEFAULT_PAN_ZOOM = false
@@ -50,7 +52,8 @@ class Graphomaton
       end
 
       def export_html(theme: DEFAULT_THEME, cdn: DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil, lang: DEFAULT_LANG,
-                      show_source: DEFAULT_SHOW_SOURCE, pan_zoom: DEFAULT_PAN_ZOOM)
+                      show_source: DEFAULT_SHOW_SOURCE, pan_zoom: DEFAULT_PAN_ZOOM,
+                      mathjax: DEFAULT_MATHJAX, mathjax_cdn: DEFAULT_MATHJAX_CDN)
         mermaid_code = export
         title_text = title || '状態図 - Graphomaton'
         language = lang || DEFAULT_LANG
@@ -63,6 +66,7 @@ class Graphomaton
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <title>#{escape_text(title_text)}</title>
               #{script_block(cdn: cdn, theme: theme, inline_mermaid: inline_mermaid, offline: offline)}
+              #{mathjax_block(enabled: mathjax, cdn: mathjax_cdn)}
               <style>
                   body {
                       font-family: Arial, sans-serif;
@@ -164,6 +168,28 @@ class Graphomaton
         return "'#{theme}'" unless theme == 'auto'
 
         "(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default')"
+      end
+
+      def mathjax_block(enabled:, cdn:)
+        return '' unless enabled
+
+        escaped_cdn = escape_attribute(cdn)
+        <<~SCRIPT
+          <script>
+            window.MathJax = {
+              tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']] },
+              svg: { fontCache: 'global' }
+            };
+            window.addEventListener('load', () => {
+              window.setTimeout(() => {
+                if (window.MathJax && window.MathJax.typesetPromise) {
+                  window.MathJax.typesetPromise();
+                }
+              }, 0);
+            });
+          </script>
+          <script async src="#{escaped_cdn}"></script>
+        SCRIPT
       end
 
       def auto_theme_css(theme)

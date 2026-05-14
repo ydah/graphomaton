@@ -280,5 +280,13 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
       expect(html_output).to include('data-zoom-reset')
       expect(html_output).to include('pointerdown')
     end
+
+    it 'can include MathJax support' do
+      html_output = mermaid_exporter.export_html(mathjax: true, mathjax_cdn: '/assets/mathjax.js')
+
+      expect(html_output).to include('window.MathJax')
+      expect(html_output).to include('<script async src="/assets/mathjax.js"></script>')
+      expect(html_output).to include('typesetPromise')
+    end
   end
 end
