@@ -69,6 +69,17 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
         expect(mermaid_output).to include('state "Review State" as review')
       end
 
+      it 'can render state metadata groups as Mermaid composite blocks' do
+        automaton.add_state('grouped_a', metadata: { group: 'alpha' })
+        automaton.add_state('grouped_b', label: 'Grouped B', metadata: { group: 'alpha' })
+
+        mermaid_output = mermaid_exporter.export
+
+        expect(mermaid_output).to include('state group_alpha {')
+        expect(mermaid_output).to include('state grouped_a')
+        expect(mermaid_output).to include('state "Grouped B" as grouped_b')
+      end
+
       it 'can emit Mermaid class definitions for state roles' do
         automaton.set_initial('A')
         automaton.add_final('C')

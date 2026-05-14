@@ -28,6 +28,7 @@ class Graphomaton
         lines.concat(state_alias_lines)
         lines.concat(pseudostate_lines)
         lines.concat(composite_state_lines)
+        lines.concat(state_group_lines)
 
         lines << "    [*] --> #{state_name(@automaton.initial_state)}" if @automaton.initial_state
 
@@ -351,6 +352,7 @@ class Graphomaton
       def state_alias_lines
         @automaton.states.filter_map do |name, state|
           next if state_parent(state)
+          next if state_group_name(state)
 
           label = state[:label]
           state_identifier = state_name(name)
@@ -393,6 +395,32 @@ class Graphomaton
         return nil unless metadata.is_a?(Hash)
 
         metadata[:parent] || metadata['parent']
+      end
+
+      def state_group_lines
+        groups = @automaton.states.each_with_object({}) do |(name, state), grouped_states|
+          group = state_group_name(state)
+          next unless group
+
+          grouped_states[group] ||= []
+          grouped_states[group] << [name, state]
+        end
+        return [] if groups.empty?
+
+        groups.flat_map do |group, states|
+          lines = ["    state #{state_name("group_#{group}")} {"]
+          states.each do |name, state|
+            lines << state_declaration_line(name, state, indentation: '        ')
+          end
+          lines << '    }'
+        end
+      end
+
+      def state_group_name(state)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:group] || metadata['group'] || metadata[:cluster] || metadata['cluster']
       end
 
       def pseudostate_lines
