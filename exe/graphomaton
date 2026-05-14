@@ -19,6 +19,7 @@ parser = OptionParser.new do |opts|
   opts.on('-i', '--input PATH', 'Input JSON or YAML file') { |value| options[:input] = value }
   opts.on('-o', '--output PATH', 'Output file path') { |value| options[:output] = value }
   opts.on('-f', '--format FORMAT', 'Output format override') { |value| options[:format] = value.to_sym }
+  opts.on('--validate', 'Validate automaton references before rendering') { options[:validate] = true }
   opts.on('--width WIDTH', Integer, 'Output width for size-aware formats') { |value| options[:width] = value }
   opts.on('--height HEIGHT', Integer, 'Output height for size-aware formats') { |value| options[:height] = value }
   opts.on('--scale SCALE', Float, 'PNG output scale') { |value| options[:scale] = value }
@@ -108,6 +109,15 @@ automaton = case File.extname(input_path).downcase
               warn 'Input file must use .json, .yml, or .yaml extension'
               exit 1
             end
+
+if options[:validate]
+  begin
+    automaton.validate!
+  rescue Graphomaton::ValidationError => e
+    warn e.message
+    exit 1
+  end
+end
 
 if options[:theme_file]
   theme_input = File.read(options[:theme_file])

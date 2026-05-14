@@ -59,6 +59,38 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'can validate automaton references before rendering' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+          transitions:
+            - from: q0
+              to: missing
+              label: a
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--validate'
+      )
+
+      expect(status).not_to be_success
+      expect(stderr).to include('Transition 0 target "missing" is not defined')
+      expect(File.exist?(output)).to be false
+    end
+  end
+
   it 'renders with a YAML theme file' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
