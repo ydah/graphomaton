@@ -265,6 +265,7 @@ RSpec.describe 'graphomaton CLI' do
         '--max-state-label-width',
         '50',
         '--label-tooltips',
+        '--html-tooltips',
         '--no-label-background',
         '--show-final-arrows'
       )
@@ -273,6 +274,7 @@ RSpec.describe 'graphomaton CLI' do
       expect(status).to be_success, stderr
       expect(content).to include('<tspan')
       expect(content).to include('<title>this transition label should wrap</title>')
+      expect(content).to include("data-tooltip='VeryLongStateName'")
       expect(content).not_to include("class='label-bg'")
       expect(content).to include("class='final-transition'")
     end

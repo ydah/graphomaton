@@ -65,6 +65,7 @@ parser = OptionParser.new do |opts|
   opts.on('--state-wrap', 'Wrap long SVG state labels') { options[:state_wrap] = true }
   opts.on('--max-state-label-width WIDTH', Float, 'Maximum SVG state label width before wrapping') { |value| options[:max_state_label_width] = value }
   opts.on('--label-tooltips', 'Add SVG title tooltips for labels') { options[:label_tooltips] = true }
+  opts.on('--html-tooltips', 'Add SVG data-tooltip attributes for HTML wrappers') { options[:html_tooltips] = true }
   opts.on('--sort-labels', 'Sort merged SVG transition labels') { options[:sort_labels] = true }
   opts.on('--label-padding PADDING', Float, 'SVG transition label padding') { |value| options[:label_padding] = value }
   opts.on('--label-radius RADIUS', Float, 'SVG transition label corner radius') { |value| options[:label_radius] = value }
@@ -219,6 +220,7 @@ if svg_backed_format
   save_options[:state_wrap] = options[:state_wrap] if options.key?(:state_wrap)
   save_options[:max_state_label_width] = options[:max_state_label_width] if options[:max_state_label_width]
   save_options[:label_tooltips] = options[:label_tooltips] if options.key?(:label_tooltips)
+  save_options[:html_tooltips] = options[:html_tooltips] if options.key?(:html_tooltips)
   save_options[:sort_labels] = options[:sort_labels] if options.key?(:sort_labels)
   save_options[:label_padding] = options[:label_padding] if options[:label_padding]
   save_options[:label_radius] = options[:label_radius] if options[:label_radius]

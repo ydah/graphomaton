@@ -20,6 +20,7 @@ class Graphomaton
       DEFAULT_WRAP = false
       DEFAULT_SORT_LABELS = false
       DEFAULT_LABEL_TOOLTIPS = false
+      DEFAULT_HTML_TOOLTIPS = false
       DEFAULT_LABEL_BACKGROUND = true
       DEFAULT_LABEL_BORDER = false
       DEFAULT_LABEL_PADDING = 10
@@ -193,6 +194,7 @@ class Graphomaton
                  state_wrap: DEFAULT_STATE_WRAP, max_state_label_width: DEFAULT_MAX_STATE_LABEL_WIDTH,
                  sort_labels: DEFAULT_SORT_LABELS,
                  label_tooltips: DEFAULT_LABEL_TOOLTIPS,
+                 html_tooltips: DEFAULT_HTML_TOOLTIPS,
                  font_family: DEFAULT_FONT_FAMILY,
                  state_font_weight: DEFAULT_STATE_FONT_WEIGHT,
                  transition_font_weight: DEFAULT_TRANSITION_FONT_WEIGHT,
@@ -270,6 +272,7 @@ class Graphomaton
         @max_transition_label_width = max_transition_label_width
         @sort_labels = sort_labels
         @label_tooltips = label_tooltips
+        @html_tooltips = html_tooltips
         @font_family = font_family
         @state_font_weight = state_font_weight
         @transition_font_weight = transition_font_weight
@@ -1402,6 +1405,7 @@ class Graphomaton
 
         title = state_node.add_element('title')
         title.text = tooltip
+        add_html_tooltip_attributes(state_node, tooltip)
       end
 
       def state_link_container(state_node, state)
@@ -1557,6 +1561,15 @@ class Graphomaton
 
         title = transition_node.add_element('title')
         title.text = tooltip
+        add_html_tooltip_attributes(transition_node, tooltip)
+      end
+
+      def add_html_tooltip_attributes(node, tooltip)
+        return unless @html_tooltips
+
+        node.add_attribute('data-tooltip', tooltip.to_s)
+        node.add_attribute('aria-label', tooltip.to_s)
+        node.add_attribute('tabindex', '0')
       end
 
       def transition_link_container(transition_node, transition)

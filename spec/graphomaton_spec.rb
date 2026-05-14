@@ -1018,6 +1018,23 @@ RSpec.describe Graphomaton do
       expect(transition_title.text).to eq('a very long transition label')
     end
 
+    it 'can emit tooltip metadata as HTML-friendly SVG attributes' do
+      local = described_class.new
+      local.add_state('q0', metadata: { tooltip: 'Entry point' })
+      local.add_state('q1')
+      local.add_transition('q0', 'q1', 'a', metadata: { tooltip: 'Hot path' })
+
+      svg_output = local.to_svg(html_tooltips: true)
+      doc = REXML::Document.new(svg_output)
+      state = REXML::XPath.first(doc, '//g[@id="state-q0"]')
+      transition = REXML::XPath.first(doc, '//g[@id="transition-q0-q1-a"]')
+
+      expect(state.attributes['data-tooltip']).to eq('Entry point')
+      expect(state.attributes['aria-label']).to eq('Entry point')
+      expect(state.attributes['tabindex']).to eq('0')
+      expect(transition.attributes['data-tooltip']).to eq('Hot path')
+    end
+
     it 'escapes XML special characters in SVG labels and metadata' do
       local = described_class.new
       local.add_state('q<0>', label: 'A&B "state"', metadata: { tooltip: 'Use <entry> & "quoted" text' })

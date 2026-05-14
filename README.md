@@ -113,7 +113,7 @@ graphomaton --input automaton.yml --output diagram.svg --state-stroke-width 4 --
 graphomaton --input automaton.yml --output diagram.svg --state-effect pulse
 graphomaton --input automaton.yml --output diagram.svg --xml-declaration --pretty
 graphomaton --input automaton.yml --output diagram.svg --css-variables --no-embed-styles
-graphomaton --input automaton.yml --output diagram.svg --wrap-labels --state-wrap --label-tooltips --show-final-arrows
+graphomaton --input automaton.yml --output diagram.svg --wrap-labels --state-wrap --label-tooltips --html-tooltips --show-final-arrows
 graphomaton --input automaton.yml --output diagram.svg --sort-labels --highlight-transition "q0:q1:a, b" --loop-position right
 graphomaton --input automaton.yml --output diagram.svg --label-padding 20 --label-radius 8 --label-border --initial-arrow-label begin --final-arrow-label done
 graphomaton --input automaton.yml --output diagram.svg --highlight-unreachable --highlight-dead-states
@@ -196,6 +196,7 @@ You can also control label display behavior:
 automaton.save_svg('diagram.svg', 800, 600, wrap: true, max_transition_label_width: 120)
 automaton.save_svg('diagram.svg', 800, 600, sort_labels: true)
 automaton.save_svg('diagram.svg', 800, 600, label_tooltips: true)
+automaton.save_svg('diagram.svg', 800, 600, html_tooltips: true)
 automaton.save_svg('diagram.svg', 800, 600, label_background: false)
 automaton.save_svg('diagram.svg', 800, 600, label_padding: 16, label_radius: 8, label_border: true)
 automaton.save_svg('diagram.svg', 800, 600, highlight_unreachable: true)
