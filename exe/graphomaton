@@ -8,6 +8,19 @@ $LOAD_PATH.unshift(lib_path) if File.directory?(lib_path)
 
 require 'graphomaton'
 
+def load_theme_file(path)
+  theme_input = File.read(path)
+  case File.extname(path).downcase
+  when '.json'
+    Graphomaton.theme_from_json(theme_input)
+  when '.yml', '.yaml'
+    Graphomaton.theme_from_yaml(theme_input)
+  else
+    warn 'Theme file must use .json, .yml, or .yaml extension'
+    exit 1
+  end
+end
+
 options = {
   width: 800,
   height: 600
@@ -125,7 +138,13 @@ if options[:theme_gallery]
     exit 1
   end
 
-  Graphomaton::Theme.save_gallery_html(output_path, title: options[:title] || 'Graphomaton Theme Gallery')
+  themes = Graphomaton::Exporters::Svg::THEMES.dup
+  themes = themes.merge(custom: load_theme_file(options[:theme_file])) if options[:theme_file]
+  Graphomaton::Theme.save_gallery_html(
+    output_path,
+    title: options[:title] || 'Graphomaton Theme Gallery',
+    themes: themes
+  )
   exit 0
 end
 
@@ -155,16 +174,7 @@ if options[:validate]
 end
 
 if options[:theme_file]
-  theme_input = File.read(options[:theme_file])
-  options[:theme] = case File.extname(options[:theme_file]).downcase
-                    when '.json'
-                      Graphomaton.theme_from_json(theme_input)
-                    when '.yml', '.yaml'
-                      Graphomaton.theme_from_yaml(theme_input)
-                    else
-                      warn 'Theme file must use .json, .yml, or .yaml extension'
-                      exit 1
-                    end
+  options[:theme] = load_theme_file(options[:theme_file])
 end
 
 format_name = options[:format] || File.extname(output_path).delete_prefix('.')

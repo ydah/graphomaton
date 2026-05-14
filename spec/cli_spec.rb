@@ -42,6 +42,14 @@ RSpec.describe 'graphomaton CLI' do
   it 'writes a theme gallery without an input automaton' do
     Dir.mktmpdir do |dir|
       output = File.join(dir, 'themes.html')
+      theme_file = File.join(dir, 'theme.yml')
+      File.write(
+        theme_file,
+        <<~YAML
+          stroke: '#ff0000'
+          state_fill: '#ffffff'
+        YAML
+      )
 
       _stdout, stderr, status = Open3.capture3(
         RbConfig.ruby,
@@ -49,6 +57,8 @@ RSpec.describe 'graphomaton CLI' do
         '--theme-gallery',
         '--output',
         output,
+        '--theme-file',
+        theme_file,
         '--title',
         'Themes'
       )
@@ -57,6 +67,8 @@ RSpec.describe 'graphomaton CLI' do
       expect(status).to be_success, stderr
       expect(content).to include('<title>Themes</title>')
       expect(content).to include('class="theme-gallery"')
+      expect(content).to include('custom')
+      expect(content).to include('#ff0000')
       expect(content).to include('<svg')
     end
   end
