@@ -43,6 +43,7 @@ parser = OptionParser.new do |opts|
   opts.on('--show-source', 'Include Mermaid source in HTML output') { options[:show_source] = true }
   opts.on('--notes', 'Include state metadata notes in Mermaid output') { options[:notes] = true }
   opts.on('--class-defs', 'Include Mermaid class definitions in Mermaid output') { options[:class_defs] = true }
+  opts.on('--rank-constraints', 'Emit DOT rank constraints for initial and final states') { options[:rank_constraints] = true }
   opts.on('-h', '--help', 'Print help') do
     puts opts
     exit 0
@@ -124,6 +125,7 @@ end
 if %i[html mermaid].include?(resolved_output_format)
   save_options[:class_defs] = options[:class_defs] if options.key?(:class_defs)
 end
+save_options[:rank_constraints] = options[:rank_constraints] if options.key?(:rank_constraints) && resolved_output_format == :dot
 
 automaton.save(
   output_path,

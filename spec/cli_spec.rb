@@ -188,11 +188,14 @@ RSpec.describe 'graphomaton CLI' do
         '--scale',
         '2',
         '--converter',
-        'magick'
+        'magick',
+        '--rank-constraints'
       )
 
       expect(status).to be_success, stderr
-      expect(File.read(output)).to include('digraph finite_state_machine')
+      content = File.read(output)
+      expect(content).to include('digraph finite_state_machine')
+      expect(content).to include('{ rank=source; "q0"; }')
     end
   end
 

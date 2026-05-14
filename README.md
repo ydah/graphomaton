@@ -107,6 +107,7 @@ graphomaton --input automaton.yml --output diagram.svg --xml-declaration --prett
 graphomaton --input automaton.yml --output diagram.svg --no-preserve-manual-positions
 graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml
 graphomaton --input automaton.yml --output diagram.html --title "Automaton" --lang en --show-source --notes --class-defs
+graphomaton --input automaton.yml --output diagram.dot --rank-constraints
 ```
 
 ### Themes
