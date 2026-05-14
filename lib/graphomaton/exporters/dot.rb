@@ -7,6 +7,11 @@ class Graphomaton
       DEFAULT_RANK_CONSTRAINTS = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
       LINE_STYLE_OPTIONS = %i[solid dashed dotted].freeze
+      PSEUDOSTATE_SHAPES = {
+        choice: 'diamond',
+        fork: 'point',
+        join: 'point'
+      }.freeze
 
       def initialize(automaton, direction: DEFAULT_DIRECTION, theme: nil, rank_constraints: DEFAULT_RANK_CONSTRAINTS)
         @automaton = automaton
@@ -105,9 +110,50 @@ class Graphomaton
       def state_attributes(name, state)
         attributes = []
         label = state[:label]
+        pseudostate_shape = pseudostate_shape(state)
+        attributes << "shape=\"#{pseudostate_shape}\"" if pseudostate_shape
         attributes << "label=\"#{escape_label(label)}\"" unless label.nil? || label.to_s == name.to_s
         add_metadata_attributes(attributes, state[:metadata])
         attributes
+      end
+
+      def pseudostate_shape(state)
+        type = pseudostate_type(state)
+        return nil unless type
+
+        PSEUDOSTATE_SHAPES.fetch(type)
+      end
+
+      def pseudostate_type(state)
+        type = dot_metadata_value(state, :shape) ||
+               dot_metadata_value(state, :type) ||
+               dot_metadata_value(state, :kind) ||
+               state_metadata_value(state, :dot_shape) ||
+               state_metadata_value(state, :dot_type) ||
+               state_metadata_value(state, :plantuml_shape) ||
+               state_metadata_value(state, :plantuml_type) ||
+               state_metadata_value(state, :mermaid_shape) ||
+               state_metadata_value(state, :mermaid_type)
+        normalized = type.to_s.tr('-', '_').to_sym
+
+        PSEUDOSTATE_SHAPES.key?(normalized) ? normalized : nil
+      end
+
+      def dot_metadata_value(state, key)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        dot = metadata[:dot] || metadata['dot']
+        return nil unless dot.is_a?(Hash)
+
+        dot[key] || dot[key.to_s]
+      end
+
+      def state_metadata_value(state, key)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[key] || metadata[key.to_s]
       end
 
       def state_cluster_lines

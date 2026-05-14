@@ -77,6 +77,18 @@ RSpec.describe Graphomaton::Exporters::Dot do
         expect(dot_output).to include('"grouped_b";')
       end
 
+      it 'exports pseudostate metadata as DOT shapes' do
+        automaton.add_state('decision', metadata: { dot: { shape: 'choice' } })
+        automaton.add_state('split', metadata: { plantuml_shape: 'fork' })
+        automaton.add_state('merge', metadata: { mermaid_type: 'join' })
+
+        dot_output = dot_exporter.export
+
+        expect(dot_output).to include('"decision" [shape="diamond"];')
+        expect(dot_output).to include('"split" [shape="point"];')
+        expect(dot_output).to include('"merge" [shape="point"];')
+      end
+
       it 'marks final states with double circle' do
         automaton.add_final('C')
         dot_output = dot_exporter.export
