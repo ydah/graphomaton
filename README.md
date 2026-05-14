@@ -108,6 +108,7 @@ graphomaton --input automaton.yml --output diagram.svg --state-shape ellipse --e
 graphomaton --input automaton.yml --output diagram.svg --state-stroke-width 4 --transition-stroke-width 3 --font-family "Noto Sans" --state-effect shadow
 graphomaton --input automaton.yml --output diagram.svg --xml-declaration --pretty
 graphomaton --input automaton.yml --output diagram.svg --wrap-labels --state-wrap --label-tooltips --show-final-arrows
+graphomaton --input automaton.yml --output diagram.svg --label-padding 20 --label-radius 8 --label-border --initial-arrow-label begin --final-arrow-label done
 graphomaton --input automaton.yml --output diagram.svg --highlight-unreachable --highlight-dead-states
 graphomaton --input automaton.yml --output diagram.svg --no-preserve-manual-positions
 graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml

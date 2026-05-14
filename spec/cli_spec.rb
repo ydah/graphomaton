@@ -215,6 +215,57 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'passes SVG label background and arrow options through the CLI' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+              initial: true
+            - id: q1
+              final: true
+          transitions:
+            - from: q0
+              to: q1
+              label: a
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--label-padding',
+        '20',
+        '--label-radius',
+        '9',
+        '--label-border',
+        '--initial-arrow-length',
+        '70',
+        '--initial-arrow-label',
+        'begin',
+        '--final-arrow-length',
+        '80',
+        '--final-arrow-label',
+        'done',
+        '--show-final-arrows'
+      )
+
+      content = File.read(output)
+      expect(status).to be_success, stderr
+      expect(content).to include("class='label-bg'")
+      expect(content).to include("rx='9.0'")
+      expect(content).to include('begin')
+      expect(content).to include('done')
+    end
+  end
+
   it 'passes SVG styling and analysis options through the CLI' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
