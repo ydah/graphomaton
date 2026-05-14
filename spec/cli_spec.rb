@@ -255,6 +255,20 @@ RSpec.describe 'graphomaton CLI' do
         'orthogonal',
         '--arrow-shape',
         'vee',
+        '--arrow-size',
+        '16',
+        '--state-stroke-width',
+        '4',
+        '--transition-stroke-width',
+        '3',
+        '--state-effect',
+        'shadow',
+        '--font-family',
+        'Noto Sans',
+        '--state-font-weight',
+        '700',
+        '--transition-font-weight',
+        '600',
         '--highlight-unreachable',
         '--highlight-dead-states',
         '--highlight-initial-state',
@@ -264,6 +278,12 @@ RSpec.describe 'graphomaton CLI' do
       content = File.read(output)
       expect(status).to be_success, stderr
       expect(content).to include('<ellipse')
+      expect(content).to include('stroke-width: 4.0')
+      expect(content).to include('stroke-width: 3.0')
+      expect(content).to include('font-family: Noto Sans')
+      expect(content).to include('font-weight: 700')
+      expect(content).to include('font-weight: 600')
+      expect(content).to include('drop-shadow')
       expect(content).to include("class='state initial-state'")
       expect(content).to include('unreachable-state')
       expect(content).to include('dead-state')
