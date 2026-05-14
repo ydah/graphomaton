@@ -20,6 +20,7 @@ parser = OptionParser.new do |opts|
   opts.on('-o', '--output PATH', 'Output file path') { |value| options[:output] = value }
   opts.on('-f', '--format FORMAT', 'Output format override') { |value| options[:format] = value.to_sym }
   opts.on('--validate', 'Validate automaton references before rendering') { options[:validate] = true }
+  opts.on('--layout-warnings', 'Print SVG layout clipping warnings before rendering') { options[:layout_warnings] = true }
   opts.on('--width WIDTH', Integer, 'Output width for size-aware formats') { |value| options[:width] = value }
   opts.on('--height HEIGHT', Integer, 'Output height for size-aware formats') { |value| options[:height] = value }
   opts.on('--scale SCALE', Float, 'PNG output scale') { |value| options[:scale] = value }
@@ -136,6 +137,27 @@ format_name = options[:format] || File.extname(output_path).delete_prefix('.')
 resolved_output_format = format_name.to_s.delete_prefix('.').to_sym
 resolved_output_format = { mmd: :mermaid, puml: :plantuml }.fetch(resolved_output_format, resolved_output_format)
 svg_backed_format = %i[svg png pdf webp].include?(resolved_output_format)
+
+if options[:layout_warnings] && svg_backed_format
+  preserve_manual_positions = options.key?(:preserve_manual_positions) ? options[:preserve_manual_positions] : Graphomaton::DEFAULT_PRESERVE_MANUAL_POSITIONS
+  warnings = automaton.layout_warnings(
+    options[:width],
+    options[:height],
+    layout: options[:layout] || :linear,
+    direction: options[:direction] || :lr,
+    state_radius: options[:state_radius] || Graphomaton::DEFAULT_STATE_RADIUS,
+    padding: options[:padding] || Graphomaton::DEFAULT_PADDING,
+    node_spacing: options[:node_spacing] || Graphomaton::DEFAULT_NODE_SPACING,
+    rank_spacing: options[:rank_spacing] || Graphomaton::DEFAULT_RANK_SPACING,
+    force_iterations: options[:force_iterations] || Graphomaton::DEFAULT_FORCE_ITERATIONS,
+    layout_seed: options[:layout_seed],
+    initial_position: options[:initial_position] || Graphomaton::DEFAULT_INITIAL_POSITION,
+    final_position: options[:final_position] || Graphomaton::DEFAULT_FINAL_POSITION,
+    preserve_manual_positions: preserve_manual_positions,
+    fit: options[:fit] || Graphomaton::DEFAULT_FIT
+  )
+  warnings.each { |warning| warn warning }
+end
 
 save_options = {}
 if options[:theme]

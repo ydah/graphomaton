@@ -91,6 +91,37 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'can print SVG layout warnings before rendering' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+              x: 10
+              y: 10
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--layout-warnings'
+      )
+
+      expect(status).to be_success, stderr
+      expect(stderr).to include('State "q0" may be clipped horizontally')
+      expect(stderr).to include('State "q0" may be clipped vertically')
+      expect(File.read(output)).to include('<svg')
+    end
+  end
+
   it 'renders with a YAML theme file' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
