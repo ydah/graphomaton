@@ -532,6 +532,20 @@ RSpec.describe Graphomaton do
         expect(x_values.uniq.size).to be > 2
       end
 
+      it 'orders layered states to reduce edge crossings' do
+        local = described_class.new
+        %w[q0 q1 q2 q3 q4].each { |name| local.add_state(name) }
+        local.set_initial('q0')
+        local.add_transition('q0', 'q1', 'a')
+        local.add_transition('q0', 'q2', 'b')
+        local.add_transition('q1', 'q4', 'c')
+        local.add_transition('q2', 'q3', 'd')
+
+        positions = local.layout_positions(800, 600, layout: :layered, direction: :lr)
+
+        expect(positions['q4'][:y]).to be < positions['q3'][:y]
+      end
+
       it 'moves final states to the end on linear layout' do
         local = described_class.new
         local.add_state('q0')

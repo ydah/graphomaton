@@ -194,6 +194,7 @@ automaton.save_svg(
 `initial_position` accepts `:auto` and `:start`. `:start` places the initial state near the start side of the layout.
 `final_position` accepts `:auto` and `:end`. `:end` moves final states toward the end side of the layout.
 `layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`, `:bfs`, `:force`, `:graphviz`, `:dot`, `:manual`.
+`layered` and `bfs` layouts use deterministic barycenter ordering to reduce crossings between adjacent layers.
 `preserve_manual_positions: false` lets automatic layouts reposition states that were added with explicit coordinates.
 `fit: :contain` scales and shifts resolved positions so the graph fits inside the requested canvas.
 `fit: :cover` stretches resolved positions to use the full requested canvas.

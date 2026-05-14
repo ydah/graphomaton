@@ -689,6 +689,7 @@ class Graphomaton
     layers = layers.sort_by do |depth|
       depth.to_i
     end
+    layer_groups = crossing_reduced_layer_groups(layer_groups, layers)
 
     layers.each_with_index do |layer, layer_index|
       states = layer_groups[layer] || []
@@ -737,6 +738,56 @@ class Graphomaton
     end
 
     positions
+  end
+
+  def crossing_reduced_layer_groups(layer_groups, layers)
+    ordered = {}
+    previous_order = nil
+
+    layers.each do |layer|
+      states = layer_groups[layer] || []
+      ordered[layer] = if previous_order
+                         order_layer_by_neighbor_barycenter(states, previous_order, incoming: true)
+                       else
+                         states
+                       end
+      previous_order = ordered[layer]
+    end
+
+    next_order = nil
+    layers.reverse_each do |layer|
+      states = ordered[layer] || []
+      ordered[layer] = order_layer_by_neighbor_barycenter(states, next_order, incoming: false) if next_order
+      next_order = ordered[layer]
+    end
+
+    ordered
+  end
+
+  def order_layer_by_neighbor_barycenter(states, adjacent_order, incoming:)
+    adjacent_index = adjacent_order.each_with_index.to_h
+    original_index = states.each_with_index.to_h
+
+    states.sort_by do |name|
+      neighbor_positions = layer_neighbor_positions(name, adjacent_index, incoming: incoming)
+      if neighbor_positions.empty?
+        [1, original_index[name], 0.0]
+      else
+        average = neighbor_positions.sum.to_f / neighbor_positions.size
+        [0, average, original_index[name]]
+      end
+    end
+  end
+
+  def layer_neighbor_positions(name, adjacent_index, incoming:)
+    @transitions.filter_map do |transition|
+      neighbor = if incoming
+                   transition[:from] if transition[:to] == name
+                 else
+                   transition[:to] if transition[:from] == name
+                 end
+      adjacent_index[neighbor] if neighbor && adjacent_index.key?(neighbor)
+    end
   end
 
   def layout_layered_groups(auto_states, final_position: DEFAULT_FINAL_POSITION)
