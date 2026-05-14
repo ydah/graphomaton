@@ -159,6 +159,14 @@ RSpec.describe Graphomaton::Exporters::Dot do
         expect(dot_output).to include('"A" -> "B" [label="docs", URL="https://example.com/edge", tooltip="Edge docs"];')
       end
 
+      it 'exports transition bundle metadata as DOT class attributes' do
+        automaton.add_transition('A', 'B', 'bundle', metadata: { bundle: 'main path' })
+
+        dot_output = dot_exporter.export
+
+        expect(dot_output).to include('"A" -> "B" [label="bundle", class="bundle-main-path"];')
+      end
+
       it 'exports transition line styles as DOT edge styles' do
         automaton.add_transition('A', 'B', 'dashed', line_style: :dashed)
         automaton.add_transition('B', 'C', 'dotted', line_style: 'dotted')

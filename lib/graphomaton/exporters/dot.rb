@@ -90,6 +90,7 @@ class Graphomaton
       def edge_attributes(transition)
         attributes = ["label=\"#{escape_label(transition[:label])}\""]
         add_metadata_attributes(attributes, transition[:metadata])
+        add_bundle_attribute(attributes, transition[:metadata])
         add_line_style_attributes(attributes, transition[:line_style])
         if @theme
           attributes << "color=\"#{escape_label(@theme[:stroke])}\""
@@ -193,6 +194,15 @@ class Graphomaton
         attributes << "tooltip=\"#{escape_label(tooltip)}\"" if tooltip
       end
 
+      def add_bundle_attribute(attributes, metadata)
+        return unless metadata.is_a?(Hash)
+
+        bundle = metadata_value(metadata, :bundle)
+        return unless bundle
+
+        attributes << "class=\"#{dot_class_name("bundle-#{bundle}")}\""
+      end
+
       def add_line_style_attributes(attributes, line_style)
         return unless line_style
 
@@ -247,6 +257,10 @@ class Graphomaton
              .gsub('\\') { '\\\\' }
              .gsub('"') { '\\"' }
              .gsub("\n") { '\\n' }
+      end
+
+      def dot_class_name(value)
+        value.to_s.gsub(/[^A-Za-z0-9_-]+/, '-').gsub(/\A-+|-+\z/, '')
       end
     end
   end

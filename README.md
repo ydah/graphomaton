@@ -276,6 +276,7 @@ Generates a DOT file that can be converted to images using GraphViz:
 State and transition metadata keys `url`/`href` and `tooltip`/`description` are emitted as DOT `URL` and `tooltip` attributes.
 DOT renders `choice`/`fork`/`join` pseudostates from `dot` or compatible metadata as GraphViz shapes.
 State metadata `group` or `cluster` is emitted as DOT clusters.
+Transition metadata `bundle` is emitted as a DOT `class` attribute for GraphViz SVG post-processing.
 PlantUML also renders state metadata `group` or `cluster` as composite blocks, and `choice`/`fork`/`join` pseudostates from `plantuml` or compatible metadata.
 Transition `line_style: :dashed` and `line_style: :dotted` are emitted as DOT edge `style` attributes.
 
