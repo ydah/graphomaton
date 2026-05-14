@@ -266,6 +266,52 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'passes SVG style embedding options through the CLI' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+            - id: q1
+          transitions:
+            - from: q0
+              to: q1
+              label: a
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--css-variables'
+      )
+
+      content = File.read(output)
+      expect(status).to be_success, stderr
+      expect(content).to include('--graphomaton-stroke')
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--no-embed-styles'
+      )
+
+      expect(status).to be_success, stderr
+      expect(File.read(output)).not_to include('<style>')
+    end
+  end
+
   it 'passes SVG styling and analysis options through the CLI' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')

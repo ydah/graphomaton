@@ -52,6 +52,8 @@ parser = OptionParser.new do |opts|
   opts.on('--xml-declaration', 'Include an XML declaration in SVG output') { options[:xml_declaration] = true }
   opts.on('--pretty', 'Pretty-print SVG output') { options[:pretty] = true }
   opts.on('--minify', 'Minify SVG output') { options[:minify] = true }
+  opts.on('--css-variables', 'Emit SVG theme values as CSS variables') { options[:css_variables] = true }
+  opts.on('--no-embed-styles', 'Skip embedded SVG style block') { options[:embed_styles] = false }
   opts.on('--svg-id ID', 'Stable SVG root ID prefix') { |value| options[:svg_id] = value }
   opts.on('--wrap-labels', 'Wrap long SVG transition labels') { options[:wrap] = true }
   opts.on('--max-transition-label-width WIDTH', Float, 'Maximum SVG transition label width before wrapping') { |value| options[:max_transition_label_width] = value }
@@ -159,6 +161,8 @@ if svg_backed_format
   save_options[:xml_declaration] = options[:xml_declaration] if options.key?(:xml_declaration)
   save_options[:pretty] = options[:pretty] if options.key?(:pretty)
   save_options[:minify] = options[:minify] if options.key?(:minify)
+  save_options[:css_variables] = options[:css_variables] if options.key?(:css_variables)
+  save_options[:embed_styles] = options[:embed_styles] if options.key?(:embed_styles)
   save_options[:svg_id] = options[:svg_id] if options[:svg_id]
   save_options[:wrap] = options[:wrap] if options.key?(:wrap)
   save_options[:max_transition_label_width] = options[:max_transition_label_width] if options[:max_transition_label_width]
