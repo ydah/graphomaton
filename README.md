@@ -80,6 +80,7 @@ automaton.trap_states
 State and transition metadata `tooltip`/`description` is used as SVG tooltip text. Metadata `url`/`href` creates clickable SVG links.
 Mermaid choice/fork/join pseudostates can be requested with state metadata such as `{ mermaid: { shape: 'choice' } }`, `mermaid_shape`, or `mermaid_type`.
 State metadata `group` or `cluster` renders SVG background groups around related states.
+State metadata `icon` renders a compact SVG icon label inside the state.
 
 You can also build an automaton from Hash, JSON, or YAML input:
 

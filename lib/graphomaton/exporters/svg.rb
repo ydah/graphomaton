@@ -633,6 +633,7 @@ class Graphomaton
       .state-circle { fill: #{theme_css_value(:state_fill)}; stroke: #{theme_css_value(:stroke)}; stroke-width: #{@state_stroke_width}; vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; #{state_effect_css} }
       .final-state { stroke-width: #{final_state_stroke_width}; }
       .state-text { font-family: #{@font_family}; text-anchor: middle; fill: #{theme_css_value(:state_text)}; text-rendering: geometricPrecision; #{font_weight_css(@state_font_weight)} }
+      .state-icon { font-family: #{@font_family}; text-anchor: middle; fill: #{theme_css_value(:state_text)}; font-size: 14px; text-rendering: geometricPrecision; }
       .transition-line { stroke: #{theme_css_value(:stroke)}; stroke-width: #{@transition_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .transition-label { font-family: #{@font_family}; font-size: 14px; fill: #{theme_css_value(:transition_label)}; text-rendering: geometricPrecision; #{font_weight_css(@transition_font_weight)} }
       .initial-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
@@ -1526,6 +1527,7 @@ class Graphomaton
             inner_radius = [@state_radius - 8, 8].max
             state_content.add_element(state_shape_element(shape), state_shape_attributes(shape, 'state-circle', position, state, radius: inner_radius))
           end
+          add_state_icon(state_content, state, position)
 
           font_size = calculate_state_font_size(label.to_s)
           if lines.size == 1
@@ -1556,6 +1558,25 @@ class Graphomaton
 
       def state_label(name, state)
         state.fetch(:label, name)
+      end
+
+      def add_state_icon(state_content, state, position)
+        icon = state_icon(state)
+        return unless icon
+
+        icon_text = state_content.add_element('text', {
+                                               'class' => 'state-icon',
+                                               'x' => position[:x].to_s,
+                                               'y' => (position[:y].to_f - (@state_radius * 0.35)).to_s
+                                             })
+        icon_text.text = icon.to_s
+      end
+
+      def state_icon(state)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:icon] || metadata['icon']
       end
 
       def state_shape(state)

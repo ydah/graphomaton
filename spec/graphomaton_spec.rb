@@ -1006,6 +1006,17 @@ RSpec.describe Graphomaton do
       expect(group_label.text).to eq('alpha')
     end
 
+    it 'renders SVG state icons from metadata' do
+      local = described_class.new
+      local.add_state('q0', metadata: { icon: 'S' })
+
+      svg_output = local.to_svg
+      doc = REXML::Document.new(svg_output)
+      icon = REXML::XPath.first(doc, '//text[@class="state-icon"]')
+
+      expect(icon.text).to eq('S')
+    end
+
     it 'uses state metadata as SVG tooltip' do
       local = described_class.new
       local.add_state('q0', metadata: { tooltip: 'Entry point' })
