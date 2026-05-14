@@ -147,6 +147,28 @@ RSpec.describe Graphomaton do
     it 'can resolve the automatic SVG theme to the default concrete theme' do
       expect(described_class.resolve(:auto, allow_auto: true)).to eq(Graphomaton::Exporters::Svg::THEMES.fetch(:light))
     end
+
+    it 'can generate a theme preview gallery' do
+      html = described_class.gallery_html
+
+      expect(html).to include('Graphomaton Theme Gallery')
+      expect(html).to include('class="theme-gallery"')
+      expect(html).to include('<svg')
+      expect(html).to include('light')
+      expect(html).to include('dark')
+    end
+
+    it 'can save a theme preview gallery' do
+      filename = 'theme_gallery_output.html'
+
+      described_class.save_gallery_html(filename, title: 'Themes')
+      content = File.read(filename)
+
+      expect(content).to include('<title>Themes</title>')
+      expect(content).to include('class="theme-gallery"')
+    ensure
+      FileUtils.rm_f(filename)
+    end
   end
 
   describe '#add_state' do

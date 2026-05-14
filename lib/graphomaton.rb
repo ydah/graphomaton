@@ -40,6 +40,77 @@ class Graphomaton
       available = available + [:auto] if allow_auto
       raise ArgumentError, "Unknown #{context}: #{theme.inspect}. Available themes: #{available.join(', ')}"
     end
+
+    def self.gallery_html(title: 'Graphomaton Theme Gallery', themes: Exporters::Svg::THEMES)
+      cards = themes.map do |name, theme|
+        normalized = normalize(theme)
+        theme_card(name, normalized)
+      end.join("\n")
+
+      <<~HTML
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>#{escape_html(title)}</title>
+          <style>
+            body { background: #f8fafc; color: #0f172a; font-family: Georgia, serif; margin: 0; padding: 32px; }
+            h1 { font-size: clamp(2rem, 4vw, 4rem); margin: 0 0 24px; }
+            .theme-gallery { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+            .theme-card { background: white; border: 1px solid #e2e8f0; border-radius: 18px; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08); overflow: hidden; }
+            .theme-card h2 { font-size: 1rem; letter-spacing: 0.08em; margin: 0; padding: 16px 18px; text-transform: uppercase; }
+            .theme-card svg { display: block; width: 100%; }
+          </style>
+        </head>
+        <body>
+          <h1>#{escape_html(title)}</h1>
+          <div class="theme-gallery">
+        #{cards}
+          </div>
+        </body>
+        </html>
+      HTML
+    end
+
+    def self.save_gallery_html(filename, **options)
+      File.write(filename, gallery_html(**options))
+    end
+
+    def self.theme_card(name, theme)
+      background = theme[:background] || '#ffffff'
+
+      <<~HTML
+            <article class="theme-card">
+              <h2>#{escape_html(name)}</h2>
+              <svg viewBox="0 0 260 150" role="img" aria-label="#{escape_html(name)} theme preview" style="background: #{escape_html(background)}">
+                <path d="M76 76 C112 32, 148 32, 184 76" fill="none" stroke="#{escape_html(theme[:stroke])}" stroke-width="3" marker-end="url(#arrow-#{escape_html(name)})"/>
+                <defs>
+                  <marker id="arrow-#{escape_html(name)}" markerWidth="10" markerHeight="6" refX="9" refY="3" orient="auto">
+                    <path d="M0 0 L10 3 L0 6 Z" fill="#{escape_html(theme[:stroke])}"/>
+                  </marker>
+                </defs>
+                <circle cx="70" cy="82" r="28" fill="#{escape_html(theme[:state_fill])}" stroke="#{escape_html(theme[:stroke])}" stroke-width="3"/>
+                <circle cx="190" cy="82" r="28" fill="#{escape_html(theme[:state_fill])}" stroke="#{escape_html(theme[:stroke])}" stroke-width="3"/>
+                <text x="70" y="88" text-anchor="middle" fill="#{escape_html(theme[:state_text])}" font-size="18">A</text>
+                <text x="190" y="88" text-anchor="middle" fill="#{escape_html(theme[:state_text])}" font-size="18">B</text>
+                <rect x="113" y="42" width="34" height="22" rx="4" fill="#{escape_html(theme[:label_background])}" opacity="#{escape_html(theme[:label_opacity])}"/>
+                <text x="130" y="58" text-anchor="middle" fill="#{escape_html(theme[:transition_label])}" font-size="14">a</text>
+              </svg>
+            </article>
+      HTML
+    end
+    private_class_method :theme_card
+
+    def self.escape_html(value)
+      value.to_s
+           .gsub('&', '&amp;')
+           .gsub('<', '&lt;')
+           .gsub('>', '&gt;')
+           .gsub('"', '&quot;')
+           .gsub("'", '&#39;')
+    end
+    private_class_method :escape_html
   end
 
   STATE_RADIUS = 40

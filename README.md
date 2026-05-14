@@ -134,6 +134,7 @@ automaton.save_png('output_forest.png', theme: :forest)
 automaton.save_svg('output_auto.svg', theme: :auto) # follows prefers-color-scheme
 custom_theme = Graphomaton.theme_from_yaml(File.read('theme.yml'))
 automaton.save_svg('output_custom.svg', theme: custom_theme)
+Graphomaton::Theme.save_gallery_html('theme_gallery.html')
 ```
 
 Available themes: `:light`, `:dark`, `:forest`, `:ocean`, `:high_contrast`, `:color_blind`, `:print`, `:minimal`, `:academic`, `:presentation`, `:auto`.
