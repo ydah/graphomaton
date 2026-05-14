@@ -38,6 +38,7 @@ parser = OptionParser.new do |opts|
   opts.on('--svg-id ID', 'Stable SVG root ID prefix') { |value| options[:svg_id] = value }
   opts.on('--cdn URL_OR_PATH', 'Mermaid CDN URL or local script path for HTML output') { |value| options[:cdn] = value }
   opts.on('--offline', 'Use a non-module Mermaid script tag for HTML output') { options[:offline] = true }
+  opts.on('--inline-mermaid', 'Inline Mermaid script from --cdn path in HTML output') { options[:inline_mermaid] = true }
   opts.on('--title TITLE', 'HTML page title') { |value| options[:title] = value }
   opts.on('--lang LANG', 'HTML language code') { |value| options[:lang] = value }
   opts.on('--show-source', 'Include Mermaid source in HTML output') { options[:show_source] = true }
@@ -115,6 +116,7 @@ save_options[:scale] = options[:scale] if options[:scale] && resolved_output_for
 if resolved_output_format == :html
   save_options[:cdn] = options[:cdn] if options[:cdn]
   save_options[:offline] = options[:offline] if options.key?(:offline)
+  save_options[:inline_mermaid] = options[:inline_mermaid] if options.key?(:inline_mermaid)
   save_options[:title] = options[:title] if options[:title]
   save_options[:lang] = options[:lang] if options[:lang]
   save_options[:show_source] = options[:show_source] if options.key?(:show_source)

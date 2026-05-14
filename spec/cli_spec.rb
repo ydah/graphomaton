@@ -203,6 +203,7 @@ RSpec.describe 'graphomaton CLI' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
       output = File.join(dir, 'diagram.html')
+      mermaid_script = File.join(dir, 'mermaid.min.js')
       File.write(
         input,
         <<~YAML
@@ -219,6 +220,7 @@ RSpec.describe 'graphomaton CLI' do
               label: a
         YAML
       )
+      File.write(mermaid_script, 'window.__inlineMermaid = true;')
 
       _stdout, stderr, status = Open3.capture3(
         RbConfig.ruby,
@@ -233,7 +235,8 @@ RSpec.describe 'graphomaton CLI' do
         'en',
         '--offline',
         '--cdn',
-        '/assets/mermaid.min.js',
+        mermaid_script,
+        '--inline-mermaid',
         '--show-source',
         '--notes',
         '--class-defs'
@@ -243,7 +246,7 @@ RSpec.describe 'graphomaton CLI' do
       expect(status).to be_success, stderr
       expect(content).to include('<title>Automaton</title>')
       expect(content).to include('<html lang="en">')
-      expect(content).to include('<script src="/assets/mermaid.min.js"></script>')
+      expect(content).to include('window.__inlineMermaid = true;')
       expect(content).to include('class="mermaid-source"')
       expect(content).to include('note right of q0: Entry state')
       expect(content).to include('classDef initial')
