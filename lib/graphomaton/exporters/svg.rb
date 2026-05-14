@@ -66,7 +66,7 @@ class Graphomaton
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
       LOOP_POSITION_OPTIONS = %i[auto top right bottom left].freeze
       EDGE_STYLE_OPTIONS = %i[auto straight curved orthogonal spline].freeze
-      UNREACHABLE_ZONE_OPTIONS = %i[none right bottom].freeze
+      UNREACHABLE_ZONE_OPTIONS = %i[none right bottom left top].freeze
       STATE_SHAPE_OPTIONS = %i[circle ellipse rounded_rect diamond bar].freeze
       STATE_EFFECT_OPTIONS = %i[none shadow glow pulse].freeze
       ARROW_SHAPE_OPTIONS = %i[triangle vee stealth].freeze
@@ -436,8 +436,9 @@ class Graphomaton
 
         margin = [@padding.to_f, @state_radius + 20].max
         spacing = [@node_spacing.to_f, @state_radius * 2.5].max
-        if @unreachable_zone == :bottom
+        if %i[bottom top].include?(@unreachable_zone)
           y = height.to_f - margin
+          y = margin if @unreachable_zone == :top
           start_x = centered_zone_start(width.to_f, states.size, spacing, margin)
           states.each_with_index do |state, index|
             moved_positions[state][:x] = start_x + (index * spacing)
@@ -445,6 +446,7 @@ class Graphomaton
           end
         else
           x = width.to_f - margin
+          x = margin if @unreachable_zone == :left
           start_y = centered_zone_start(height.to_f, states.size, spacing, margin)
           states.each_with_index do |state, index|
             moved_positions[state][:x] = x

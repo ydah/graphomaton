@@ -362,6 +362,24 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(isolated.attributes['cx'].to_f).to be > 700
       end
 
+      it 'can move unreachable states to left and top zones' do
+        local = Graphomaton.new
+        local.add_state('q0', 120, 120)
+        local.add_state('q1', 240, 120)
+        local.add_state('isolated', 300, 300)
+        local.set_initial('q0')
+        local.add_transition('q0', 'q1', 'a')
+
+        left_doc = REXML::Document.new(described_class.new(local).export(800, 600, layout: :manual, unreachable_zone: :left))
+        top_doc = REXML::Document.new(described_class.new(local).export(800, 600, layout: :manual, unreachable_zone: :top))
+
+        left_isolated = REXML::XPath.first(left_doc, '//g[@id="state-isolated"]/circle')
+        top_isolated = REXML::XPath.first(top_doc, '//g[@id="state-isolated"]/circle')
+
+        expect(left_isolated.attributes['cx'].to_f).to eq(80.0)
+        expect(top_isolated.attributes['cy'].to_f).to eq(80.0)
+      end
+
       it 'accepts a stable SVG id prefix for root and marker definitions' do
         svg_output = svg_exporter.export(svg_id: 'diagram-main')
         doc = REXML::Document.new(svg_output)
