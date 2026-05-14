@@ -84,6 +84,7 @@ Mermaid choice/fork/join pseudostates can be requested with state metadata such 
 Mermaid composite states can be requested with state metadata `parent`.
 Mermaid also renders state metadata `group` or `cluster` as composite group blocks.
 State metadata `group` or `cluster` renders SVG background groups around related states.
+SVG state groups include stable `state-group-*` IDs and `data-group` attributes for viewer-side folding or highlighting.
 State metadata `icon` renders a compact SVG icon label inside the state.
 
 You can also build an automaton from Hash, JSON, or YAML input:

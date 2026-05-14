@@ -26,7 +26,7 @@ RSpec.describe 'SVG structural regression coverage' do
       )
     )
 
-    expect(REXML::XPath.match(doc, '//g[@class="states"]/g').size).to eq(3)
+    expect(REXML::XPath.match(doc, '//g[@class="states"]/g[@data-state]').size).to eq(3)
     expect(REXML::XPath.match(doc, '//g[contains(@class, "transition")]').size).to be >= 3
     expect(REXML::XPath.match(doc, '//rect[@class="state-group-box"]').size).to be >= 1
     expect(REXML::XPath.match(doc, '//text[@class="state-icon"]').map(&:text)).to include('S')

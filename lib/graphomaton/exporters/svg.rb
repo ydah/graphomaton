@@ -1508,19 +1508,24 @@ class Graphomaton
 
         groups.each do |name, positions|
           bounds = state_group_bounds(positions)
-          svg.add_element('rect', {
-                            'class' => 'state-group-box',
-                            'x' => bounds[:x].to_s,
-                            'y' => bounds[:y].to_s,
-                            'width' => bounds[:width].to_s,
-                            'height' => bounds[:height].to_s,
-                            'rx' => '12'
-                          })
-          label = svg.add_element('text', {
-                                    'class' => 'state-group-label',
-                                    'x' => (bounds[:x] + 12).to_s,
-                                    'y' => (bounds[:y] + 22).to_s
-                                  })
+          group_node = svg.add_element('g', {
+                                         'class' => 'state-group',
+                                         'id' => unique_svg_id("state-group-#{svg_id_component(name)}"),
+                                         'data-group' => name.to_s
+                                       })
+          group_node.add_element('rect', {
+                                   'class' => 'state-group-box',
+                                   'x' => bounds[:x].to_s,
+                                   'y' => bounds[:y].to_s,
+                                   'width' => bounds[:width].to_s,
+                                   'height' => bounds[:height].to_s,
+                                   'rx' => '12'
+                                 })
+          label = group_node.add_element('text', {
+                                           'class' => 'state-group-label',
+                                           'x' => (bounds[:x] + 12).to_s,
+                                           'y' => (bounds[:y] + 22).to_s
+                                         })
           label.text = name.to_s
         end
       end

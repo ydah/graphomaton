@@ -1015,9 +1015,12 @@ RSpec.describe Graphomaton do
 
       svg_output = local.to_svg(layout: :manual)
       doc = REXML::Document.new(svg_output)
+      group = REXML::XPath.first(doc, '//g[@class="state-group"]')
       group_box = REXML::XPath.first(doc, '//rect[@class="state-group-box"]')
       group_label = REXML::XPath.first(doc, '//text[@class="state-group-label"]')
 
+      expect(group.attributes['id']).to eq('state-group-alpha')
+      expect(group.attributes['data-group']).to eq('alpha')
       expect(group_box).not_to be_nil
       expect(group_label.text).to eq('alpha')
     end
