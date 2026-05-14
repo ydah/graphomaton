@@ -131,7 +131,7 @@ graphomaton --input automaton.yml --output diagram.svg --no-preserve-manual-posi
 graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml
 graphomaton --list-themes
 graphomaton --theme-gallery --output theme_gallery.html
-graphomaton --theme-gallery --theme-file theme.yml --output theme_gallery.html
+graphomaton --theme-gallery --theme-gallery-animated --theme-file theme.yml --output theme_gallery.html
 graphomaton --input automaton.yml --output diagram.html --title "Automaton" --lang en --show-source --pan-zoom --mathjax --notes --class-defs
 graphomaton --input automaton.yml --output diagram.html --cdn ./mermaid.min.js --inline-mermaid
 graphomaton --input automaton.yml --output diagram.dot --rank-constraints

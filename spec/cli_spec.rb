@@ -59,6 +59,7 @@ RSpec.describe 'graphomaton CLI' do
         output,
         '--theme-file',
         theme_file,
+        '--theme-gallery-animated',
         '--title',
         'Themes'
       )
@@ -69,6 +70,7 @@ RSpec.describe 'graphomaton CLI' do
       expect(content).to include('class="theme-gallery"')
       expect(content).to include('custom')
       expect(content).to include('#ff0000')
+      expect(content).to include('graphomaton-gallery-dash')
       expect(content).to include('<svg')
     end
   end

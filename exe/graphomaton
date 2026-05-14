@@ -42,6 +42,7 @@ parser = OptionParser.new do |opts|
   opts.on('--theme THEME', 'Theme name') { |value| options[:theme] = value.to_sym }
   opts.on('--theme-file PATH', 'Theme JSON or YAML file') { |value| options[:theme_file] = value }
   opts.on('--theme-gallery', 'Write a standalone HTML gallery of built-in themes') { options[:theme_gallery] = true }
+  opts.on('--theme-gallery-animated', 'Animate the standalone theme gallery preview') { options[:theme_gallery_animated] = true }
   opts.on('--list-themes', 'Print built-in theme names') { options[:list_themes] = true }
   opts.on('--layout LAYOUT', 'SVG layout') { |value| options[:layout] = value.to_sym }
   opts.on('--direction DIRECTION', 'Layout direction') { |value| options[:direction] = value.to_sym }
@@ -149,7 +150,8 @@ if options[:theme_gallery]
   Graphomaton::Theme.save_gallery_html(
     output_path,
     title: options[:title] || 'Graphomaton Theme Gallery',
-    themes: themes
+    themes: themes,
+    animated: options[:theme_gallery_animated]
   )
   exit 0
 end

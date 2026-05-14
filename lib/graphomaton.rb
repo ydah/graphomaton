@@ -41,7 +41,7 @@ class Graphomaton
       raise ArgumentError, "Unknown #{context}: #{theme.inspect}. Available themes: #{available.join(', ')}"
     end
 
-    def self.gallery_html(title: 'Graphomaton Theme Gallery', themes: Exporters::Svg::THEMES)
+    def self.gallery_html(title: 'Graphomaton Theme Gallery', themes: Exporters::Svg::THEMES, animated: false)
       cards = themes.map do |name, theme|
         normalized = normalize(theme)
         theme_card(name, normalized)
@@ -61,6 +61,7 @@ class Graphomaton
             .theme-card { background: white; border: 1px solid #e2e8f0; border-radius: 18px; box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08); overflow: hidden; }
             .theme-card h2 { font-size: 1rem; letter-spacing: 0.08em; margin: 0; padding: 16px 18px; text-transform: uppercase; }
             .theme-card svg { display: block; width: 100%; }
+            #{theme_gallery_animation_css(animated)}
           </style>
         </head>
         <body>
@@ -101,6 +102,27 @@ class Graphomaton
       HTML
     end
     private_class_method :theme_card
+
+    def self.theme_gallery_animation_css(animated)
+      return '' unless animated
+
+      <<~CSS
+            .theme-card path { animation: graphomaton-gallery-dash 2.4s linear infinite; stroke-dasharray: 12 8; }
+            .theme-card circle { animation: graphomaton-gallery-pulse 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+            @keyframes graphomaton-gallery-dash {
+              to { stroke-dashoffset: -40; }
+            }
+            @keyframes graphomaton-gallery-pulse {
+              0%, 100% { transform: scale(1); }
+              50% { transform: scale(1.05); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .theme-card path,
+              .theme-card circle { animation: none; }
+            }
+      CSS
+    end
+    private_class_method :theme_gallery_animation_css
 
     def self.escape_html(value)
       value.to_s

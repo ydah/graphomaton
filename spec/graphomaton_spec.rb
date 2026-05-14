@@ -158,6 +158,13 @@ RSpec.describe Graphomaton do
       expect(html).to include('dark')
     end
 
+    it 'can generate an animated theme preview gallery' do
+      html = described_class.gallery_html(animated: true)
+
+      expect(html).to include('graphomaton-gallery-dash')
+      expect(html).to include('prefers-reduced-motion')
+    end
+
     it 'can save a theme preview gallery' do
       filename = 'theme_gallery_output.html'
 
