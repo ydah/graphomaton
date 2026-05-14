@@ -27,6 +27,7 @@ parser = OptionParser.new do |opts|
   opts.on('--converter CONVERTER', 'SVG conversion backend for PNG, PDF, or WebP') { |value| options[:converter] = value.to_sym }
   opts.on('--theme THEME', 'Theme name') { |value| options[:theme] = value.to_sym }
   opts.on('--theme-file PATH', 'Theme JSON or YAML file') { |value| options[:theme_file] = value }
+  opts.on('--theme-gallery', 'Write a standalone HTML gallery of built-in themes') { options[:theme_gallery] = true }
   opts.on('--layout LAYOUT', 'SVG layout') { |value| options[:layout] = value.to_sym }
   opts.on('--direction DIRECTION', 'Layout direction') { |value| options[:direction] = value.to_sym }
   opts.on('--fit FIT', 'Fit mode for resolved SVG positions') { |value| options[:fit] = value.to_sym }
@@ -116,6 +117,16 @@ parser.parse!
 
 input_path = options[:input] || ARGV.shift
 output_path = options[:output] || ARGV.shift
+
+if options[:theme_gallery]
+  if output_path.nil?
+    warn parser
+    exit 1
+  end
+
+  Graphomaton::Theme.save_gallery_html(output_path, title: options[:title] || 'Graphomaton Theme Gallery')
+  exit 0
+end
 
 if input_path.nil? || output_path.nil?
   warn parser

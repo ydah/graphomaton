@@ -39,6 +39,28 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'writes a theme gallery without an input automaton' do
+    Dir.mktmpdir do |dir|
+      output = File.join(dir, 'themes.html')
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--theme-gallery',
+        '--output',
+        output,
+        '--title',
+        'Themes'
+      )
+
+      content = File.read(output)
+      expect(status).to be_success, stderr
+      expect(content).to include('<title>Themes</title>')
+      expect(content).to include('class="theme-gallery"')
+      expect(content).to include('<svg')
+    end
+  end
+
   it 'fails for unsupported input extensions' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.txt')
