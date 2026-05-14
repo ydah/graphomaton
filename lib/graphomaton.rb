@@ -1001,7 +1001,7 @@ class Graphomaton
              show_final_arrows: Exporters::Svg::DEFAULT_SHOW_FINAL_ARROWS,
              preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
              fit: DEFAULT_FIT,
-             title: nil, description: nil)
+             title: nil, description: nil, svg_id: nil)
     Exporters::Svg.new(self).export(
       width,
       height,
@@ -1058,7 +1058,8 @@ class Graphomaton
       state_font_weight: state_font_weight,
       transition_font_weight: transition_font_weight,
       title: title,
-      description: description
+      description: description,
+      svg_id: svg_id
     )
   end
 
@@ -1104,7 +1105,7 @@ class Graphomaton
                show_final_arrows: Exporters::Svg::DEFAULT_SHOW_FINAL_ARROWS,
                preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
                fit: DEFAULT_FIT,
-               title: nil, description: nil)
+               title: nil, description: nil, svg_id: nil)
     File.write(
       filename,
       to_svg(
@@ -1163,7 +1164,8 @@ class Graphomaton
         state_font_weight: state_font_weight,
         transition_font_weight: transition_font_weight,
         title: title,
-        description: description
+        description: description,
+        svg_id: svg_id
       )
     )
   end

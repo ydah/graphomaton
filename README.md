@@ -143,6 +143,7 @@ automaton.save_svg('diagram.svg', 800, 600, layout: :layered, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :bfs, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :force, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :manual)
+automaton.save_svg('diagram.svg', 800, 600, svg_id: 'diagram-main')
 automaton.save_svg('diagram.svg', 800, 600, state_stroke_width: 3, transition_stroke_width: 2)
 automaton.save_svg('diagram.svg', 800, 600, font_family: '"Noto Sans JP", sans-serif', state_font_weight: 700)
 automaton.save_svg(
@@ -165,6 +166,7 @@ automaton.save_svg(
 `preserve_manual_positions: false` lets automatic layouts reposition states that were added with explicit coordinates.
 `fit: :contain` scales and shifts resolved positions so the graph fits inside the requested canvas.
 `fit: :cover` stretches resolved positions to use the full requested canvas.
+`svg_id:` sets a stable SVG root ID and marker ID prefix, useful when embedding multiple diagrams.
 `auto_size` expands SVG viewport automatically to the rendered positions when set to `true`.
 `arrow_size` controls SVG arrowhead size.
 `arrow_shape` accepts `:triangle`, `:vee`, and `:stealth`.

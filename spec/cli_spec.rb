@@ -137,6 +137,8 @@ RSpec.describe 'graphomaton CLI' do
         'cover',
         '--auto-size',
         '--xml-declaration',
+        '--svg-id',
+        'diagram-main',
         '--no-preserve-manual-positions'
       )
 
@@ -145,6 +147,8 @@ RSpec.describe 'graphomaton CLI' do
       expect(content).to start_with('<?xml version="1.0" encoding="UTF-8"?>')
       expect(content).to include("width='100%'")
       expect(content).to include("height='auto'")
+      expect(content).to include("id='diagram-main'")
+      expect(content).to include("id='diagram-main-arrowhead'")
       expect(content).to include("r='22.0'")
       expect(content).not_to include("cx='10'")
     end

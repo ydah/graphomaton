@@ -203,7 +203,7 @@ class Graphomaton
                  show_final_arrows: DEFAULT_SHOW_FINAL_ARROWS,
                  preserve_manual_positions: Graphomaton::DEFAULT_PRESERVE_MANUAL_POSITIONS,
                  fit: Graphomaton::DEFAULT_FIT,
-                 title: nil, description: nil)
+                 title: nil, description: nil, svg_id: nil)
         @state_radius = state_radius.to_f
         @state_shape = resolve_state_shape(state_shape)
         @state_stroke_width = [state_stroke_width.to_f, 0.1].max
@@ -272,7 +272,7 @@ class Graphomaton
         @label_boxes = []
         @title_text = title
         @description_text = description
-        @svg_id = "graphomaton-#{object_id}"
+        @svg_id = svg_id ? svg_id_component(svg_id) : "graphomaton-#{object_id}"
         @arrowhead_id = "#{@svg_id}-arrowhead"
         @element_id_counts = Hash.new(0)
 

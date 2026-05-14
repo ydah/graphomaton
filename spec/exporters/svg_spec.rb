@@ -283,6 +283,18 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(y_values.min).to eq(80.0)
         expect(y_values.max).to eq(520.0)
       end
+
+      it 'accepts a stable SVG id prefix for root and marker definitions' do
+        svg_output = svg_exporter.export(svg_id: 'diagram-main')
+        doc = REXML::Document.new(svg_output)
+        svg = doc.root
+        marker = REXML::XPath.first(doc, '//marker')
+        style = REXML::XPath.first(doc, '//style')
+
+        expect(svg.attributes['id']).to eq('diagram-main')
+        expect(marker.attributes['id']).to eq('diagram-main-arrowhead')
+        expect(style.text).to include('marker-end: url(#diagram-main-arrowhead)')
+      end
     end
 
     context 'with skip states transitions' do
