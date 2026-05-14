@@ -67,7 +67,7 @@ class Graphomaton
       LOOP_POSITION_OPTIONS = %i[auto top right bottom left].freeze
       EDGE_STYLE_OPTIONS = %i[auto straight curved orthogonal spline].freeze
       UNREACHABLE_ZONE_OPTIONS = %i[none right bottom].freeze
-      STATE_SHAPE_OPTIONS = %i[circle ellipse rounded_rect].freeze
+      STATE_SHAPE_OPTIONS = %i[circle ellipse rounded_rect diamond bar].freeze
       STATE_EFFECT_OPTIONS = %i[none shadow glow pulse].freeze
       ARROW_SHAPE_OPTIONS = %i[triangle vee stealth].freeze
       TRANSITION_LINE_STYLE_OPTIONS = %i[solid dashed dotted].freeze
@@ -1696,9 +1696,49 @@ class Graphomaton
       end
 
       def state_shape(state)
-        return @state_shape unless state[:shape]
+        return resolve_state_shape(state[:shape]) if state[:shape]
 
-        resolve_state_shape(state[:shape])
+        pseudostate_shape(state) || @state_shape
+      end
+
+      def pseudostate_shape(state)
+        type = nested_state_metadata_value(state, :svg, :shape) ||
+               nested_state_metadata_value(state, :svg, :type) ||
+               nested_state_metadata_value(state, :plantuml, :shape) ||
+               nested_state_metadata_value(state, :plantuml, :type) ||
+               nested_state_metadata_value(state, :mermaid, :shape) ||
+               nested_state_metadata_value(state, :mermaid, :type) ||
+               state_metadata_value(state, :svg_shape) ||
+               state_metadata_value(state, :svg_type) ||
+               state_metadata_value(state, :plantuml_shape) ||
+               state_metadata_value(state, :plantuml_type) ||
+               state_metadata_value(state, :mermaid_shape) ||
+               state_metadata_value(state, :mermaid_type)
+        normalized = type.to_s.tr('-', '_').to_sym
+
+        case normalized
+        when :choice
+          :diamond
+        when :fork, :join
+          :bar
+        end
+      end
+
+      def state_metadata_value(state, key)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[key] || metadata[key.to_s]
+      end
+
+      def nested_state_metadata_value(state, namespace, key)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        nested = metadata[namespace] || metadata[namespace.to_s]
+        return nil unless nested.is_a?(Hash)
+
+        nested[key] || nested[key.to_s]
       end
 
       def add_state_tooltip(state_node, state, label)
@@ -1741,6 +1781,8 @@ class Graphomaton
       end
 
       def state_shape_element(shape)
+        return 'polygon' if shape == :diamond
+        return 'rect' if shape == :bar
         return 'ellipse' if shape == :ellipse
         return 'rect' if shape == :rounded_rect
 
@@ -1749,6 +1791,27 @@ class Graphomaton
 
       def state_shape_attributes(shape, shape_class, position, state, radius: @state_radius)
         attributes = case shape
+                     when :diamond
+                       {
+                         'class' => shape_class,
+                         'points' => [
+                           "#{position[:x]} #{position[:y].to_f - radius}",
+                           "#{position[:x].to_f + radius} #{position[:y]}",
+                           "#{position[:x]} #{position[:y].to_f + radius}",
+                           "#{position[:x].to_f - radius} #{position[:y]}"
+                         ].join(', ')
+                       }
+                     when :bar
+                       bar_width = radius * 1.4
+                       bar_height = [radius * 0.2, 8].max
+                       {
+                         'class' => shape_class,
+                         'x' => (position[:x].to_f - (bar_width / 2.0)).to_s,
+                         'y' => (position[:y].to_f - (bar_height / 2.0)).to_s,
+                         'width' => bar_width.to_s,
+                         'height' => bar_height.to_s,
+                         'rx' => (bar_height / 2.0).to_s
+                       }
                      when :ellipse
                        {
                          'class' => shape_class,

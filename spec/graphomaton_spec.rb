@@ -1046,6 +1046,21 @@ RSpec.describe Graphomaton do
       expect(icon.text).to eq('S')
     end
 
+    it 'renders SVG pseudostate shapes from compatible metadata' do
+      local = described_class.new
+      local.add_state('decision', metadata: { mermaid: { shape: 'choice' } })
+      local.add_state('split', metadata: { svg_shape: 'fork' })
+
+      svg_output = local.to_svg
+      doc = REXML::Document.new(svg_output)
+      diamond = REXML::XPath.first(doc, '//g[@id="state-decision"]/polygon')
+      bar = REXML::XPath.first(doc, '//g[@id="state-split"]/rect[@class="state-circle"]')
+
+      expect(diamond).not_to be_nil
+      expect(diamond.attributes['points']).to include(',')
+      expect(bar.attributes['height'].to_f).to be < bar.attributes['width'].to_f
+    end
+
     it 'uses state metadata as SVG tooltip' do
       local = described_class.new
       local.add_state('q0', metadata: { tooltip: 'Entry point' })
