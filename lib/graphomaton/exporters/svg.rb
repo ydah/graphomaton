@@ -34,6 +34,7 @@ class Graphomaton
       DEFAULT_HIGHLIGHT_INITIAL_STATE = false
       DEFAULT_HIGHLIGHT_FINAL_STATES = false
       DEFAULT_HIGHLIGHT_TRANSITIONS = [].freeze
+      DEFAULT_UNREACHABLE_ZONE = :none
       DEFAULT_XML_DECLARATION = false
       DEFAULT_CSS_VARIABLES = false
       DEFAULT_EMBED_STYLES = true
@@ -63,6 +64,7 @@ class Graphomaton
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
       LOOP_POSITION_OPTIONS = %i[auto top right bottom left].freeze
       EDGE_STYLE_OPTIONS = %i[auto straight curved orthogonal spline].freeze
+      UNREACHABLE_ZONE_OPTIONS = %i[none right bottom].freeze
       STATE_SHAPE_OPTIONS = %i[circle ellipse rounded_rect].freeze
       STATE_EFFECT_OPTIONS = %i[none shadow glow pulse].freeze
       ARROW_SHAPE_OPTIONS = %i[triangle vee stealth].freeze
@@ -219,6 +221,7 @@ class Graphomaton
                  highlight_initial_state: DEFAULT_HIGHLIGHT_INITIAL_STATE,
                  highlight_final_states: DEFAULT_HIGHLIGHT_FINAL_STATES,
                  highlight_transitions: DEFAULT_HIGHLIGHT_TRANSITIONS,
+                 unreachable_zone: DEFAULT_UNREACHABLE_ZONE,
                  xml_declaration: DEFAULT_XML_DECLARATION,
                  css_variables: DEFAULT_CSS_VARIABLES,
                  embed_styles: DEFAULT_EMBED_STYLES,
@@ -260,8 +263,9 @@ class Graphomaton
         @highlight_initial_state = highlight_initial_state
         @highlight_final_states = highlight_final_states
         @highlight_transitions = Array(highlight_transitions)
+        @unreachable_zone = resolve_unreachable_zone(unreachable_zone)
         @css_variables = css_variables || @auto_dark_theme
-        @unreachable_states = @highlight_unreachable ? @automaton.unreachable_states : []
+        @unreachable_states = (@highlight_unreachable || @unreachable_zone != :none) ? @automaton.unreachable_states : []
         @dead_states = @highlight_dead_states ? @automaton.dead_states : []
         @trap_states = @highlight_dead_states ? @automaton.trap_states : []
         @padding = padding
@@ -295,6 +299,7 @@ class Graphomaton
           preserve_manual_positions: preserve_manual_positions,
           fit: fit
         )
+        @positions = apply_unreachable_zone(@positions, width, height)
         if auto_size
           width, height = auto_size_canvas(width, height)
         end
@@ -403,11 +408,51 @@ class Graphomaton
         raise ArgumentError, "Unknown state_effect: #{state_effect.inspect}. Available values: #{STATE_EFFECT_OPTIONS.join(', ')}"
       end
 
+      def resolve_unreachable_zone(unreachable_zone)
+        resolved = unreachable_zone.to_sym
+        return resolved if UNREACHABLE_ZONE_OPTIONS.include?(resolved)
+
+        raise ArgumentError, "Unknown unreachable_zone: #{unreachable_zone.inspect}. Available values: #{UNREACHABLE_ZONE_OPTIONS.join(', ')}"
+      end
+
       def resolve_arrow_shape(arrow_shape)
         resolved = arrow_shape.to_sym
         return resolved if ARROW_SHAPE_OPTIONS.include?(resolved)
 
         raise ArgumentError, "Unknown arrow_shape: #{arrow_shape.inspect}. Available values: #{ARROW_SHAPE_OPTIONS.join(', ')}"
+      end
+
+      def apply_unreachable_zone(positions, width, height)
+        return positions if @unreachable_zone == :none || @unreachable_states.empty?
+
+        moved_positions = positions.transform_values(&:dup)
+        states = @unreachable_states.select { |state| moved_positions.key?(state) }
+        return positions if states.empty?
+
+        margin = [@padding.to_f, @state_radius + 20].max
+        spacing = [@node_spacing.to_f, @state_radius * 2.5].max
+        if @unreachable_zone == :bottom
+          y = height.to_f - margin
+          start_x = centered_zone_start(width.to_f, states.size, spacing, margin)
+          states.each_with_index do |state, index|
+            moved_positions[state][:x] = start_x + (index * spacing)
+            moved_positions[state][:y] = y
+          end
+        else
+          x = width.to_f - margin
+          start_y = centered_zone_start(height.to_f, states.size, spacing, margin)
+          states.each_with_index do |state, index|
+            moved_positions[state][:x] = x
+            moved_positions[state][:y] = start_y + (index * spacing)
+          end
+        end
+
+        moved_positions
+      end
+
+      def centered_zone_start(size, count, spacing, margin)
+        span = [count - 1, 0].max * spacing
+        [[(size - span) / 2.0, margin].max, size - margin - span].min
       end
 
       def auto_size_canvas(width, height)

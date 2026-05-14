@@ -513,6 +513,8 @@ RSpec.describe 'graphomaton CLI' do
         '--transition-font-weight',
         '600',
         '--highlight-unreachable',
+        '--unreachable-zone',
+        'right',
         '--highlight-dead-states',
         '--highlight-initial-state',
         '--highlight-final-states'
@@ -527,6 +529,7 @@ RSpec.describe 'graphomaton CLI' do
       expect(content).to include('font-weight: 700')
       expect(content).to include('font-weight: 600')
       expect(content).to include('drop-shadow')
+      expect(content).to include("cx='720.0'")
       expect(content).to include("class='state initial-state'")
       expect(content).to include('unreachable-state')
       expect(content).to include('dead-state')

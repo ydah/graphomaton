@@ -333,6 +333,21 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(y_values.max).to eq(520.0)
       end
 
+      it 'can move unreachable states into a dedicated zone' do
+        local = Graphomaton.new
+        local.add_state('q0', 80, 100)
+        local.add_state('q1', 180, 100)
+        local.add_state('isolated', 120, 120)
+        local.set_initial('q0')
+        local.add_transition('q0', 'q1', 'a')
+
+        svg_output = described_class.new(local).export(800, 600, layout: :manual, unreachable_zone: :right)
+        doc = REXML::Document.new(svg_output)
+        isolated = REXML::XPath.first(doc, '//g[@id="state-isolated"]/circle')
+
+        expect(isolated.attributes['cx'].to_f).to be > 700
+      end
+
       it 'accepts a stable SVG id prefix for root and marker definitions' do
         svg_output = svg_exporter.export(svg_id: 'diagram-main')
         doc = REXML::Document.new(svg_output)
