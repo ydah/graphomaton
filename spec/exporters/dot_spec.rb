@@ -65,6 +65,18 @@ RSpec.describe Graphomaton::Exporters::Dot do
         expect(dot_output).to include('"docs" [URL="https://example.com/state", tooltip="State docs"];')
       end
 
+      it 'exports state metadata groups as DOT clusters' do
+        automaton.add_state('grouped_a', metadata: { group: 'alpha' })
+        automaton.add_state('grouped_b', metadata: { group: 'alpha' })
+
+        dot_output = dot_exporter.export
+
+        expect(dot_output).to include('subgraph "cluster_alpha"')
+        expect(dot_output).to include('label="alpha";')
+        expect(dot_output).to include('"grouped_a";')
+        expect(dot_output).to include('"grouped_b";')
+      end
+
       it 'marks final states with double circle' do
         automaton.add_final('C')
         dot_output = dot_exporter.export

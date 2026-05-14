@@ -24,6 +24,9 @@ class Graphomaton
         state_attributes = state_attribute_lines
         lines.concat(state_attributes)
         lines << '' if state_attributes.any?
+        state_clusters = state_cluster_lines
+        lines.concat(state_clusters)
+        lines << '' if state_clusters.any?
 
         if @automaton.initial_state
           lines << '    __start__ [shape=point];'
@@ -105,6 +108,33 @@ class Graphomaton
         attributes << "label=\"#{escape_label(label)}\"" unless label.nil? || label.to_s == name.to_s
         add_metadata_attributes(attributes, state[:metadata])
         attributes
+      end
+
+      def state_cluster_lines
+        clusters = @automaton.states.each_with_object({}) do |(name, state), groups|
+          group = state_group_name(state)
+          next unless group
+
+          groups[group] ||= []
+          groups[group] << name
+        end
+        return [] if clusters.empty?
+
+        clusters.flat_map do |group, states|
+          [
+            "    subgraph \"cluster_#{escape_label(group)}\" {",
+            "        label=\"#{escape_label(group)}\";",
+            *states.map { |state| "        \"#{escape_label(state)}\";" },
+            '    }'
+          ]
+        end
+      end
+
+      def state_group_name(state)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata_value(metadata, :group, :cluster)
       end
 
       def add_metadata_attributes(attributes, metadata)
