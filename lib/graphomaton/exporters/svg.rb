@@ -62,7 +62,7 @@ class Graphomaton
       LOOP_POSITION_OPTIONS = %i[auto top right bottom left].freeze
       EDGE_STYLE_OPTIONS = %i[auto straight curved orthogonal].freeze
       STATE_SHAPE_OPTIONS = %i[circle ellipse rounded_rect].freeze
-      STATE_EFFECT_OPTIONS = %i[none shadow glow].freeze
+      STATE_EFFECT_OPTIONS = %i[none shadow glow pulse].freeze
       ARROW_SHAPE_OPTIONS = %i[triangle vee stealth].freeze
       TRANSITION_LINE_STYLE_OPTIONS = %i[solid dashed dotted].freeze
       TEXT_UNIT_WIDTH = 14.0
@@ -594,6 +594,7 @@ class Graphomaton
       .trap-state .state-circle { stroke-dasharray: 2 4; }
       .highlighted-transition .transition-line { stroke: #ef4444; stroke-width: #{highlighted_transition_stroke_width}; }
       .inactive-transition { opacity: 0.25; }
+#{state_effect_animation_css}
         CSS
       end
 
@@ -650,9 +651,25 @@ class Graphomaton
           'filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.25));'
         when :glow
           "filter: drop-shadow(0 0 8px #{theme_css_value(:stroke)});"
+        when :pulse
+          "filter: drop-shadow(0 0 6px #{theme_css_value(:stroke)}); animation: graphomaton-pulse 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center;"
         else
           ''
         end
+      end
+
+      def state_effect_animation_css
+        return '' unless @state_effect == :pulse
+
+        <<-CSS
+      @keyframes graphomaton-pulse {
+        0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px #{theme_css_value(:stroke)}); }
+        50% { opacity: 0.72; filter: drop-shadow(0 0 14px #{theme_css_value(:stroke)}); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .state-circle { animation: none; }
+      }
+        CSS
       end
 
       def final_state_stroke_width

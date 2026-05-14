@@ -266,6 +266,16 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(circle.attributes['r'].to_f).to eq(48.0)
       end
 
+      it 'supports animated pulse state effect with reduced motion fallback' do
+        svg_output = svg_exporter.export(state_effect: :pulse)
+        doc = REXML::Document.new(svg_output)
+        style = REXML::XPath.first(doc, '//style')
+
+        expect(style.text).to include('graphomaton-pulse')
+        expect(style.text).to include('prefers-reduced-motion')
+        expect(style.text).to include('animation: graphomaton-pulse')
+      end
+
       it 'can render without preserving manual state positions' do
         manual = Graphomaton.new
         manual.add_state('A', 10, 10)

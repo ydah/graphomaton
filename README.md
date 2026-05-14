@@ -110,6 +110,7 @@ graphomaton --input automaton.yml --output diagram.svg --responsive --state-radi
 graphomaton --input automaton.yml --output diagram.svg --auto-state-radius --min-state-radius 32 --max-state-radius 72
 graphomaton --input automaton.yml --output diagram.svg --state-shape ellipse --edge-style orthogonal --arrow-shape vee
 graphomaton --input automaton.yml --output diagram.svg --state-stroke-width 4 --transition-stroke-width 3 --font-family "Noto Sans" --state-effect shadow
+graphomaton --input automaton.yml --output diagram.svg --state-effect pulse
 graphomaton --input automaton.yml --output diagram.svg --xml-declaration --pretty
 graphomaton --input automaton.yml --output diagram.svg --css-variables --no-embed-styles
 graphomaton --input automaton.yml --output diagram.svg --wrap-labels --state-wrap --label-tooltips --show-final-arrows
