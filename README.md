@@ -78,7 +78,7 @@ automaton.trap_states
 
 `label` is used as the display name in SVG, DOT, Mermaid, and PlantUML while the state ID remains stable for transitions.
 State and transition metadata `tooltip`/`description` is used as SVG tooltip text. Metadata `url`/`href` creates clickable SVG links.
-Transition metadata `bundle` is emitted as SVG `data-bundle` with a `bundled-transition` class for viewer-side edge bundling.
+Transition metadata `bundle` routes native SVG edges through a shared control point and emits `data-bundle` with a `bundled-transition` class.
 SVG renders `choice`/`fork`/`join` pseudostates from `svg` or compatible metadata as diamond/bar shapes.
 Mermaid choice/fork/join pseudostates can be requested with state metadata such as `{ mermaid: { shape: 'choice' } }`, `mermaid_shape`, or `mermaid_type`.
 Mermaid composite states can be requested with state metadata `parent`.

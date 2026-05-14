@@ -782,6 +782,7 @@ class Graphomaton
         processed_pairs = {}
         from_state_indices = {}
         self_loop_indices = Hash.new(0)
+        @bundle_points = transition_bundle_points
 
         transition_groups.each do |group|
           first = group.first
@@ -1136,7 +1137,10 @@ class Graphomaton
         is_adjacent = (to_index - from_index).abs == 1
         states_between = (to_index - from_index).abs - 1
 
-        if @edge_style == :straight
+        bundle = transition_bundle(trans)
+        if bundle && @bundle_points[bundle]
+          add_bundled_line(transition_content, start_x, start_y, end_x, end_y, trans, @bundle_points[bundle])
+        elsif @edge_style == :straight
           add_straight_line(transition_content, start_x, start_y, end_x, end_y, trans)
         elsif @edge_style == :curved
           add_curved_line(
@@ -1181,6 +1185,32 @@ class Graphomaton
         end
       end
 
+      def transition_bundle_points
+        bundles = Hash.new { |hash, key| hash[key] = [] }
+
+        @automaton.transitions.each do |transition|
+          bundle = transition_bundle(transition)
+          next unless bundle
+
+          from_state = state_position(transition[:from])
+          to_state = state_position(transition[:to])
+          next unless from_state && to_state
+          next if from_state == to_state
+
+          bundles[bundle] << {
+            x: (from_state[:x].to_f + to_state[:x].to_f) / 2.0,
+            y: (from_state[:y].to_f + to_state[:y].to_f) / 2.0
+          }
+        end
+
+        bundles.transform_values do |points|
+          {
+            x: points.sum { |point| point[:x] } / points.size,
+            y: points.sum { |point| point[:y] } / points.size
+          }
+        end
+      end
+
       def add_straight_line(svg, start_x, start_y, end_x, end_y, trans)
         svg.add_element(
           'line',
@@ -1195,6 +1225,20 @@ class Graphomaton
 
         label_x = (start_x + end_x) / 2
         label_y = ((start_y + end_y) / 2) - 10
+
+        add_label(svg, label_x, label_y, trans[:label], angle: label_rotation_angle(start_x, start_y, end_x, end_y))
+      end
+
+      def add_bundled_line(svg, start_x, start_y, end_x, end_y, trans, bundle_point)
+        control_x = bundle_point[:x]
+        control_y = bundle_point[:y]
+        path_d = "M #{start_x} #{start_y} Q #{control_x} #{control_y}, #{end_x} #{end_y}"
+
+        svg.add_element('path', transition_line_attributes(trans, 'd' => path_d))
+
+        t = 0.5
+        label_x = ((1 - t) * (1 - t) * start_x) + (2 * (1 - t) * t * control_x) + (t * t * end_x)
+        label_y = ((1 - t) * (1 - t) * start_y) + (2 * (1 - t) * t * control_y) + (t * t * end_y)
 
         add_label(svg, label_x, label_y, trans[:label], angle: label_rotation_angle(start_x, start_y, end_x, end_y))
       end

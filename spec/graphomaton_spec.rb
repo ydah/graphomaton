@@ -974,6 +974,24 @@ RSpec.describe Graphomaton do
       expect(style.text).to include('.bundled-transition .transition-line')
     end
 
+    it 'routes bundled SVG transitions through a shared control point' do
+      local = described_class.new
+      local.add_state('q0', 100, 100)
+      local.add_state('q1', 100, 260)
+      local.add_state('q2', 360, 140)
+      local.add_state('q3', 360, 300)
+      local.add_transition('q0', 'q2', 'a', metadata: { bundle: 'main' })
+      local.add_transition('q1', 'q3', 'b', metadata: { bundle: 'main' })
+
+      svg_output = local.to_svg(layout: :manual)
+      doc = REXML::Document.new(svg_output)
+      paths = REXML::XPath.match(doc, '//g[@data-bundle="main"]/path[@class="transition-line"]')
+      control_points = paths.map { |path| path.attributes['d'][/ Q ([^,]+),/, 1] }
+
+      expect(paths.size).to eq(2)
+      expect(control_points.uniq.size).to eq(1)
+    end
+
     it 'uses transition metadata URL as an SVG link' do
       local = described_class.new
       local.add_state('q0')
