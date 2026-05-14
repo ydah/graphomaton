@@ -64,6 +64,18 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
         expect(plantuml_output).to include('state "Grouped B" as grouped_b')
       end
 
+      it 'can render PlantUML choice, fork, and join pseudostates from metadata' do
+        automaton.add_state('decision', metadata: { plantuml: { shape: 'choice' } })
+        automaton.add_state('split', metadata: { plantuml_shape: 'fork' })
+        automaton.add_state('merge', metadata: { mermaid_type: 'join' })
+
+        plantuml_output = plantuml_exporter.export
+
+        expect(plantuml_output).to include('state decision <<choice>>')
+        expect(plantuml_output).to include('state split <<fork>>')
+        expect(plantuml_output).to include('state merge <<join>>')
+      end
+
       it 'marks final states' do
         automaton.add_final('C')
         plantuml_output = plantuml_exporter.export

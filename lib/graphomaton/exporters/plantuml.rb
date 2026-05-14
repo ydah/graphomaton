@@ -6,6 +6,7 @@ class Graphomaton
       DEFAULT_DIRECTION = :lr
       DEFAULT_NOTES = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
+      PSEUDOSTATE_TYPES = %i[choice fork join].freeze
 
       def initialize(automaton, direction: DEFAULT_DIRECTION, theme: nil, notes: DEFAULT_NOTES)
         @automaton = automaton
@@ -22,6 +23,7 @@ class Graphomaton
         lines << direction_keyword
         lines.concat(theme_lines) if @theme
         lines.concat(state_alias_lines)
+        lines.concat(pseudostate_lines)
         lines.concat(state_group_lines)
         lines << ''
 
@@ -128,6 +130,7 @@ class Graphomaton
       def state_alias_lines
         @automaton.states.filter_map do |name, state|
           next if state_group_name(state)
+          next if pseudostate_type(state)
 
           label = state[:label]
           state_identifier = state_name(name)
@@ -135,6 +138,46 @@ class Graphomaton
 
           "state \"#{escape_state_label(label || name)}\" as #{state_identifier}"
         end
+      end
+
+      def pseudostate_lines
+        @automaton.states.filter_map do |name, state|
+          type = pseudostate_type(state)
+          next unless type
+          next if state_group_name(state)
+
+          "state #{state_name(name)} <<#{type}>>"
+        end
+      end
+
+      def pseudostate_type(state)
+        type = plantuml_metadata_value(state, :shape) ||
+               plantuml_metadata_value(state, :type) ||
+               plantuml_metadata_value(state, :kind) ||
+               state_metadata_value(state, :plantuml_shape) ||
+               state_metadata_value(state, :plantuml_type) ||
+               state_metadata_value(state, :mermaid_shape) ||
+               state_metadata_value(state, :mermaid_type)
+        normalized = type.to_s.tr('-', '_').to_sym
+
+        PSEUDOSTATE_TYPES.include?(normalized) ? normalized : nil
+      end
+
+      def plantuml_metadata_value(state, key)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        plantuml = metadata[:plantuml] || metadata['plantuml']
+        return nil unless plantuml.is_a?(Hash)
+
+        plantuml[key] || plantuml[key.to_s]
+      end
+
+      def state_metadata_value(state, key)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[key] || metadata[key.to_s]
       end
 
       def state_group_lines
