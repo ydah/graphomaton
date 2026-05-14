@@ -1806,14 +1806,16 @@ class Graphomaton
         from = transition[:from]
         to = transition[:to]
         label = transition[:label]
+        bundle = transition_bundle(transition)
         classes = ['transition']
+        classes << 'bundled-transition' if bundle
         if highlighted_transition?(transition)
           classes << 'highlighted-transition'
         elsif @highlight_transitions.any?
           classes << 'inactive-transition'
         end
 
-        {
+        attributes = {
           'class' => classes.join(' '),
           'id' => unique_svg_id(
             "transition-#{svg_id_component(from)}-#{svg_id_component(to)}-#{svg_id_component(label)}"
@@ -1822,6 +1824,15 @@ class Graphomaton
           'data-to' => to.to_s,
           'data-label' => label.to_s
         }
+        attributes['data-bundle'] = bundle.to_s if bundle
+        attributes
+      end
+
+      def transition_bundle(transition)
+        metadata = transition[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:bundle] || metadata['bundle']
       end
 
       def transition_line_attributes(transition, attributes)

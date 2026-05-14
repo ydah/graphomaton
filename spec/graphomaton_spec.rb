@@ -895,6 +895,20 @@ RSpec.describe Graphomaton do
       expect(line.attributes['style']).to include('stroke-dasharray: 8 5')
     end
 
+    it 'renders transition bundle metadata in SVG output' do
+      local = described_class.new
+      local.add_state('q0')
+      local.add_state('q1')
+      local.add_transition('q0', 'q1', 'a', metadata: { bundle: 'main' })
+
+      svg_output = local.to_svg
+      doc = REXML::Document.new(svg_output)
+      transition = REXML::XPath.first(doc, '//g[@id="transition-q0-q1-a"]')
+
+      expect(transition.attributes['class']).to include('bundled-transition')
+      expect(transition.attributes['data-bundle']).to eq('main')
+    end
+
     it 'uses transition metadata URL as an SVG link' do
       local = described_class.new
       local.add_state('q0')
