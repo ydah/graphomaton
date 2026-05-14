@@ -102,7 +102,8 @@ Graphomaton.from_yaml(File.read('automaton.yml'))
 graphomaton --input automaton.yml --output diagram.svg
 graphomaton --input automaton.json --output diagram.png --format png --theme dark
 graphomaton --input automaton.yml --output diagram.svg --layout layered --direction lr
-graphomaton --input automaton.yml --output diagram.svg --responsive --state-radius 32 --fit contain
+graphomaton --input automaton.yml --output diagram.svg --responsive --state-radius 32 --fit cover --auto-size
+graphomaton --input automaton.yml --output diagram.svg --xml-declaration --pretty
 graphomaton --input automaton.yml --output diagram.svg --no-preserve-manual-positions
 graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml
 graphomaton --input automaton.yml --output diagram.html --title "Automaton" --lang en --show-source --notes --class-defs
@@ -163,6 +164,7 @@ automaton.save_svg(
 `layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`, `:bfs`, `:force`, `:manual`.
 `preserve_manual_positions: false` lets automatic layouts reposition states that were added with explicit coordinates.
 `fit: :contain` scales and shifts resolved positions so the graph fits inside the requested canvas.
+`fit: :cover` stretches resolved positions to use the full requested canvas.
 `auto_size` expands SVG viewport automatically to the rendered positions when set to `true`.
 `arrow_size` controls SVG arrowhead size.
 `arrow_shape` accepts `:triangle`, `:vee`, and `:stealth`.

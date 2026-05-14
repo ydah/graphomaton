@@ -266,6 +266,23 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(x_values.min).to be >= 80
         expect(x_values.max).to be <= 720
       end
+
+      it 'can cover the SVG viewBox with rendered manual positions' do
+        manual = Graphomaton.new
+        manual.add_state('A', 0, 0)
+        manual.add_state('B', 1000, 100)
+
+        svg_output = described_class.new(manual).export(800, 600, layout: :manual, fit: :cover)
+        doc = REXML::Document.new(svg_output)
+        circles = REXML::XPath.match(doc, '//circle[@class="state-circle"]')
+        x_values = circles.map { |circle| circle.attributes['cx'].to_f }
+        y_values = circles.map { |circle| circle.attributes['cy'].to_f }
+
+        expect(x_values.min).to eq(80.0)
+        expect(x_values.max).to eq(720.0)
+        expect(y_values.min).to eq(80.0)
+        expect(y_values.max).to eq(520.0)
+      end
     end
 
     context 'with skip states transitions' do

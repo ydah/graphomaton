@@ -608,6 +608,17 @@ RSpec.describe Graphomaton do
         expect(positions['right'][:y]).to eq(100.0)
       end
 
+      it 'can cover the requested canvas by stretching resolved positions' do
+        automaton = described_class.new
+        automaton.add_state('top_left', 0, 0)
+        automaton.add_state('bottom_right', 1000, 100)
+
+        positions = automaton.layout_positions(200, 200, layout: :manual, fit: :cover)
+
+        expect(positions['top_left']).to eq(x: 80.0, y: 80.0)
+        expect(positions['bottom_right']).to eq(x: 120.0, y: 120.0)
+      end
+
       it 'keeps auto layout non-destructive for render-only operations' do
         automaton = described_class.new
         automaton.add_state('q0')

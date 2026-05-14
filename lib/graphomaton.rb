@@ -52,7 +52,7 @@ class Graphomaton
   DEFAULT_FIT = :none
   LAYOUT_OPTIONS = %i[linear circle grid layered bfs force manual].freeze
   DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
-  FIT_OPTIONS = %i[none contain].freeze
+  FIT_OPTIONS = %i[none contain cover].freeze
   INITIAL_POSITION_OPTIONS = %i[auto start].freeze
   FINAL_POSITION_OPTIONS = %i[auto end].freeze
   FORMAT_OPTIONS = %i[svg png pdf webp html mermaid mmd dot plantuml puml].freeze
@@ -407,7 +407,7 @@ class Graphomaton
                     end
 
     positions = manual_positions.merge(auto_positions)
-    positions = fit_positions_contain(positions, width, height, state_radius, resolved_padding) if resolved_fit == :contain
+    positions = fit_positions(positions, width, height, state_radius, resolved_padding, resolved_fit) unless resolved_fit == :none
     @state_positions = positions
     positions
   end
@@ -1336,7 +1336,7 @@ class Graphomaton
     end
   end
 
-  def fit_positions_contain(positions, width, height, state_radius, padding)
+  def fit_positions(positions, width, height, state_radius, padding, fit)
     return positions if positions.empty?
 
     margin = [padding.to_f, state_radius.to_f].max
@@ -1360,9 +1360,11 @@ class Graphomaton
       return positions.transform_values { { x: center_x, y: center_y } }
     end
 
-    scale_x = span_x.zero? ? Float::INFINITY : target_width / span_x
-    scale_y = span_y.zero? ? Float::INFINITY : target_height / span_y
-    scale = [scale_x, scale_y].min
+    scale_x = span_x.zero? ? nil : target_width / span_x
+    scale_y = span_y.zero? ? nil : target_height / span_y
+    return cover_positions(positions, min_x, min_y, span_x, span_y, margin, center_x, center_y, scale_x, scale_y) if fit == :cover
+
+    scale = [scale_x || Float::INFINITY, scale_y || Float::INFINITY].min
     scaled_width = span_x * scale
     scaled_height = span_y * scale
     offset_x = margin + ((target_width - scaled_width) / 2.0)
@@ -1372,6 +1374,15 @@ class Graphomaton
       {
         x: span_x.zero? ? center_x : offset_x + ((position[:x].to_f - min_x) * scale),
         y: span_y.zero? ? center_y : offset_y + ((position[:y].to_f - min_y) * scale)
+      }
+    end
+  end
+
+  def cover_positions(positions, min_x, min_y, span_x, span_y, margin, center_x, center_y, scale_x, scale_y)
+    positions.transform_values do |position|
+      {
+        x: span_x.zero? ? center_x : margin + ((position[:x].to_f - min_x) * scale_x),
+        y: span_y.zero? ? center_y : margin + ((position[:y].to_f - min_y) * scale_y)
       }
     end
   end

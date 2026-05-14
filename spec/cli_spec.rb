@@ -134,12 +134,15 @@ RSpec.describe 'graphomaton CLI' do
         '--state-radius',
         '22',
         '--fit',
-        'contain',
+        'cover',
+        '--auto-size',
+        '--xml-declaration',
         '--no-preserve-manual-positions'
       )
 
       content = File.read(output)
       expect(status).to be_success, stderr
+      expect(content).to start_with('<?xml version="1.0" encoding="UTF-8"?>')
       expect(content).to include("width='100%'")
       expect(content).to include("height='auto'")
       expect(content).to include("r='22.0'")
