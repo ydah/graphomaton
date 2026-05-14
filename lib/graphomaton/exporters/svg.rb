@@ -47,6 +47,7 @@ class Graphomaton
       DEFAULT_PADDING = 80
       DEFAULT_NODE_SPACING = 120
       DEFAULT_RANK_SPACING = 120
+      DEFAULT_AUTO_DENSITY_SPACING = false
       DEFAULT_FORCE_ITERATIONS = 120
       DEFAULT_ARROW_SIZE = 10
       DEFAULT_ARROW_SHAPE = :triangle
@@ -203,6 +204,7 @@ class Graphomaton
                  transition_font_weight: DEFAULT_TRANSITION_FONT_WEIGHT,
                  padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                  force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil, auto_size: DEFAULT_AUTO_SIZE,
+                 auto_density_spacing: DEFAULT_AUTO_DENSITY_SPACING,
                  arrow_size: DEFAULT_ARROW_SIZE,
                  arrow_shape: DEFAULT_ARROW_SHAPE,
                  initial_arrow_length: DEFAULT_INITIAL_ARROW_LENGTH,
@@ -269,8 +271,7 @@ class Graphomaton
         @dead_states = @highlight_dead_states ? @automaton.dead_states : []
         @trap_states = @highlight_dead_states ? @automaton.trap_states : []
         @padding = padding
-        @node_spacing = node_spacing
-        @rank_spacing = rank_spacing
+        @node_spacing, @rank_spacing = density_adjusted_spacings(node_spacing, rank_spacing, auto_density_spacing)
         @force_iterations = force_iterations
         @layout_seed = layout_seed
         @wrap_labels = wrap
@@ -454,6 +455,21 @@ class Graphomaton
       def centered_zone_start(size, count, spacing, margin)
         span = [count - 1, 0].max * spacing
         [[(size - span) / 2.0, margin].max, size - margin - span].min
+      end
+
+      def density_adjusted_spacings(node_spacing, rank_spacing, auto_density_spacing)
+        resolved_node_spacing = node_spacing.to_f
+        resolved_rank_spacing = rank_spacing.to_f
+        return [resolved_node_spacing, resolved_rank_spacing] unless auto_density_spacing
+
+        state_count = @automaton.states.size
+        return [resolved_node_spacing, resolved_rank_spacing] if state_count <= 4
+
+        multiplier = 1.0 + ([[state_count - 4, 16].min, 0].max * 0.06)
+        [
+          (resolved_node_spacing * multiplier).round(2),
+          (resolved_rank_spacing * multiplier).round(2)
+        ]
       end
 
       def auto_size_canvas(width, height)

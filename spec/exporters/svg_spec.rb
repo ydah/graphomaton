@@ -726,4 +726,22 @@ RSpec.describe Graphomaton::Exporters::Svg do
       expect(moved).to be true
     end
   end
+
+  describe '#density_adjusted_spacings' do
+    it 'keeps spacing unchanged unless enabled' do
+      8.times { |index| automaton.add_state("q#{index}") }
+
+      spacing = svg_exporter.send(:density_adjusted_spacings, 100, 120, false)
+
+      expect(spacing).to eq([100.0, 120.0])
+    end
+
+    it 'increases spacing for dense graphs when enabled' do
+      8.times { |index| automaton.add_state("q#{index}") }
+
+      spacing = svg_exporter.send(:density_adjusted_spacings, 100, 120, true)
+
+      expect(spacing).to eq([124.0, 148.8])
+    end
+  end
 end
