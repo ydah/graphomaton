@@ -52,6 +52,7 @@ parser = OptionParser.new do |opts|
   opts.on('--rank-spacing SPACING', Float, 'SVG rank spacing for layered layouts') { |value| options[:rank_spacing] = value }
   opts.on('--force-iterations COUNT', Integer, 'SVG force layout iteration count') { |value| options[:force_iterations] = value }
   opts.on('--layout-seed SEED', Integer, 'SVG force layout random seed') { |value| options[:layout_seed] = value }
+  opts.on('--graphviz-command COMMAND', 'Graphviz dot command for graphviz SVG layout') { |value| options[:graphviz_command] = value }
   opts.on('--auto-density-spacing', 'Increase SVG spacing for dense graphs') { options[:auto_density_spacing] = true }
   opts.on('--initial-position POSITION', 'Initial state placement mode') { |value| options[:initial_position] = value.to_sym }
   opts.on('--final-position POSITION', 'Final state placement mode') { |value| options[:final_position] = value.to_sym }
@@ -203,6 +204,7 @@ if options[:layout_warnings] && svg_backed_format
     rank_spacing: options[:rank_spacing] || Graphomaton::DEFAULT_RANK_SPACING,
     force_iterations: options[:force_iterations] || Graphomaton::DEFAULT_FORCE_ITERATIONS,
     layout_seed: options[:layout_seed],
+    graphviz_command: options[:graphviz_command] || Graphomaton::DEFAULT_GRAPHVIZ_COMMAND,
     initial_position: options[:initial_position] || Graphomaton::DEFAULT_INITIAL_POSITION,
     final_position: options[:final_position] || Graphomaton::DEFAULT_FINAL_POSITION,
     preserve_manual_positions: preserve_manual_positions,
@@ -226,6 +228,7 @@ if svg_backed_format
   save_options[:rank_spacing] = options[:rank_spacing] if options[:rank_spacing]
   save_options[:force_iterations] = options[:force_iterations] if options[:force_iterations]
   save_options[:layout_seed] = options[:layout_seed] if options[:layout_seed]
+  save_options[:graphviz_command] = options[:graphviz_command] if options[:graphviz_command]
   save_options[:auto_density_spacing] = options[:auto_density_spacing] if options.key?(:auto_density_spacing)
   save_options[:initial_position] = options[:initial_position] if options[:initial_position]
   save_options[:final_position] = options[:final_position] if options[:final_position]

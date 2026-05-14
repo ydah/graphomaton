@@ -279,6 +279,59 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'passes graphviz layout command through the CLI' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      graphviz = File.join(dir, 'fake_dot')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+              initial: true
+            - id: q1
+          transitions:
+            - from: q0
+              to: q1
+              label: a
+        YAML
+      )
+      File.write(
+        graphviz,
+        <<~'RUBY'
+          #!/usr/bin/env ruby
+          abort 'expected -Tplain' unless ARGV == ['-Tplain']
+
+          STDIN.read
+          puts <<~PLAIN
+            graph 1 2 1
+            node q0 0 0 0.75 0.5 q0 solid circle black lightgrey
+            node q1 2 0 0.75 0.5 q1 solid circle black lightgrey
+            stop
+          PLAIN
+        RUBY
+      )
+      File.chmod(0o755, graphviz)
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--layout',
+        'graphviz',
+        '--graphviz-command',
+        graphviz
+      )
+
+      expect(status).to be_success, stderr
+      expect(File.read(output)).to include('<svg')
+    end
+  end
+
   it 'passes SVG label options through the CLI' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'open3'
+require 'shellwords'
 require 'yaml'
 
 require_relative 'graphomaton/exporters'
@@ -141,9 +143,10 @@ class Graphomaton
   DEFAULT_NODE_SPACING = 120
   DEFAULT_RANK_SPACING = 120
   DEFAULT_FORCE_ITERATIONS = 120
+  DEFAULT_GRAPHVIZ_COMMAND = 'dot'
   DEFAULT_PRESERVE_MANUAL_POSITIONS = true
   DEFAULT_FIT = :none
-  LAYOUT_OPTIONS = %i[linear circle grid layered bfs force manual].freeze
+  LAYOUT_OPTIONS = %i[linear circle grid layered bfs force graphviz dot manual].freeze
   DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
   FIT_OPTIONS = %i[none contain cover].freeze
   INITIAL_POSITION_OPTIONS = %i[auto start].freeze
@@ -403,6 +406,7 @@ class Graphomaton
                       state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
                       node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                       force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
+                      graphviz_command: DEFAULT_GRAPHVIZ_COMMAND,
                       initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                       preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
                       fit: DEFAULT_FIT)
@@ -417,6 +421,7 @@ class Graphomaton
       rank_spacing: rank_spacing,
       force_iterations: force_iterations,
       layout_seed: layout_seed,
+      graphviz_command: graphviz_command,
       initial_position: initial_position,
       final_position: final_position,
       preserve_manual_positions: preserve_manual_positions,
@@ -430,6 +435,7 @@ class Graphomaton
                       state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
                       node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                       force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
+                      graphviz_command: DEFAULT_GRAPHVIZ_COMMAND,
                       initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                       preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
                       fit: DEFAULT_FIT)
@@ -495,6 +501,16 @@ class Graphomaton
                         force_iterations,
                         layout_seed
                       )
+                    when :graphviz, :dot
+                      layout_graphviz_positions(
+                        auto_states,
+                        width,
+                        height,
+                        resolved_direction,
+                        state_radius,
+                        resolved_padding,
+                        command: graphviz_command
+                      )
                     else
                       raise ArgumentError, "Unknown SVG layout: #{layout.inspect}. Available layouts: #{LAYOUT_OPTIONS.join(', ')}"
                     end
@@ -520,6 +536,7 @@ class Graphomaton
                  state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
                  node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                  force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil,
+                 graphviz_command: DEFAULT_GRAPHVIZ_COMMAND,
                  initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                  preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
                  fit: DEFAULT_FIT)
@@ -539,6 +556,7 @@ class Graphomaton
       rank_spacing: rank_spacing,
       force_iterations: force_iterations,
       layout_seed: layout_seed,
+      graphviz_command: graphviz_command,
       initial_position: initial_position,
       final_position: final_position,
       preserve_manual_positions: effective_preserve_manual_positions,
@@ -985,6 +1003,146 @@ class Graphomaton
     positions
   end
 
+  def layout_graphviz_positions(auto_states, width, height, direction, state_radius = DEFAULT_STATE_RADIUS,
+                               padding = DEFAULT_PADDING, command: DEFAULT_GRAPHVIZ_COMMAND)
+    return {} if auto_states.empty?
+
+    stdout, stderr, status = Open3.capture3(
+      *graphviz_command_args(command),
+      '-Tplain',
+      stdin_data: graphviz_layout_dot(auto_states, direction)
+    )
+
+    unless status.success?
+      message = stderr.to_s.strip
+      message = 'dot exited without a diagnostic' if message.empty?
+      raise ArgumentError, "Graphviz layout failed: #{message}"
+    end
+
+    normalize_graphviz_positions(
+      parse_graphviz_plain_positions(stdout, auto_states),
+      width,
+      height,
+      state_radius,
+      padding
+    )
+  rescue Errno::ENOENT
+    raise ArgumentError, "Graphviz layout requires the `#{Array(command).join(' ')}` command"
+  end
+
+  def graphviz_layout_dot(auto_states, direction)
+    included = auto_states.to_h { |name| [name, true] }
+    lines = [
+      'digraph graphomaton_layout {',
+      "    rankdir=#{graphviz_rankdir(direction)};",
+      '    node [shape=circle];'
+    ]
+
+    auto_states.each do |name|
+      lines << "    \"#{graphviz_escape(name)}\";"
+    end
+
+    @transitions.each do |transition|
+      from = transition[:from]
+      to = transition[:to]
+      next unless included[from] && included[to]
+
+      lines << "    \"#{graphviz_escape(from)}\" -> \"#{graphviz_escape(to)}\";"
+    end
+
+    lines << '}'
+    lines.join("\n")
+  end
+
+  def graphviz_command_args(command)
+    args = command.is_a?(Array) ? command.map(&:to_s) : Shellwords.split(command.to_s)
+    raise ArgumentError, 'Graphviz command cannot be empty' if args.empty?
+
+    args
+  end
+
+  def graphviz_rankdir(direction)
+    {
+      lr: 'LR',
+      rl: 'RL',
+      tb: 'TB',
+      bt: 'BT'
+    }.fetch(direction)
+  end
+
+  def graphviz_escape(value)
+    value.to_s.gsub('\\', '\\\\').gsub('"', '\"')
+  end
+
+  def parse_graphviz_plain_positions(output, expected_states)
+    positions = {}
+
+    output.each_line do |line|
+      tokens = Shellwords.split(line)
+      next unless tokens.first == 'node' && tokens.size >= 4
+
+      positions[tokens[1]] = {
+        x: Float(tokens[2]),
+        y: Float(tokens[3])
+      }
+    rescue ArgumentError
+      next
+    end
+
+    missing = expected_states.reject { |name| positions.key?(name) }
+    unless missing.empty?
+      raise ArgumentError, "Graphviz layout did not return positions for: #{missing.join(', ')}"
+    end
+
+    expected_states.to_h { |name| [name, positions[name]] }
+  end
+
+  def normalize_graphviz_positions(raw_positions, width, height, state_radius, padding)
+    return {} if raw_positions.empty?
+
+    canvas_width = width.to_f
+    canvas_height = height.to_f
+    margin = [padding.to_f, state_radius.to_f + 20].max
+    available_x = [canvas_width - (2 * margin), 0].max
+    available_y = [canvas_height - (2 * margin), 0].max
+    xs = raw_positions.values.map { |position| position[:x].to_f }
+    ys = raw_positions.values.map { |position| position[:y].to_f }
+    min_x, max_x = xs.minmax
+    min_y, max_y = ys.minmax
+    span_x = max_x - min_x
+    span_y = max_y - min_y
+
+    if span_x <= 0.0 && span_y <= 0.0
+      return raw_positions.to_h do |name, _position|
+        [name, { x: canvas_width / 2.0, y: canvas_height / 2.0 }]
+      end
+    end
+
+    scale_candidates = []
+    scale_candidates << (available_x / span_x) if span_x.positive?
+    scale_candidates << (available_y / span_y) if span_y.positive?
+    scale = scale_candidates.min || 1.0
+    graph_width = span_x * scale
+    graph_height = span_y * scale
+    offset_x = margin + ((available_x - graph_width) / 2.0)
+    offset_y = margin + ((available_y - graph_height) / 2.0)
+
+    raw_positions.to_h do |name, position|
+      x = if span_x.positive?
+            offset_x + ((position[:x].to_f - min_x) * scale)
+          else
+            canvas_width / 2.0
+          end
+      y = if span_y.positive?
+            offset_y + ((max_y - position[:y].to_f) * scale)
+          else
+            canvas_height / 2.0
+          end
+
+      [name, { x: x, y: y }]
+    end
+  end
+
   def count_parallel_transitions(from, to)
     count = 0
     @transitions.each do |trans|
@@ -1062,6 +1220,7 @@ class Graphomaton
              transition_stroke_width: Exporters::Svg::DEFAULT_TRANSITION_STROKE_WIDTH,
              padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
              force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil, auto_size: false,
+             graphviz_command: DEFAULT_GRAPHVIZ_COMMAND,
              auto_density_spacing: Exporters::Svg::DEFAULT_AUTO_DENSITY_SPACING,
              arrow_size: Exporters::Svg::DEFAULT_ARROW_SIZE,
              arrow_shape: Exporters::Svg::DEFAULT_ARROW_SHAPE,
@@ -1122,6 +1281,7 @@ class Graphomaton
       rank_spacing: rank_spacing,
       force_iterations: force_iterations,
       layout_seed: layout_seed,
+      graphviz_command: graphviz_command,
       auto_size: auto_size,
       auto_density_spacing: auto_density_spacing,
       arrow_size: arrow_size,
@@ -1182,6 +1342,7 @@ class Graphomaton
                transition_stroke_width: Exporters::Svg::DEFAULT_TRANSITION_STROKE_WIDTH,
                padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil, auto_size: false,
+               graphviz_command: DEFAULT_GRAPHVIZ_COMMAND,
                auto_density_spacing: Exporters::Svg::DEFAULT_AUTO_DENSITY_SPACING,
                arrow_size: Exporters::Svg::DEFAULT_ARROW_SIZE,
                arrow_shape: Exporters::Svg::DEFAULT_ARROW_SHAPE,
@@ -1244,6 +1405,7 @@ class Graphomaton
         rank_spacing: rank_spacing,
         force_iterations: force_iterations,
         layout_seed: layout_seed,
+        graphviz_command: graphviz_command,
         auto_size: auto_size,
         auto_density_spacing: auto_density_spacing,
         arrow_size: arrow_size,

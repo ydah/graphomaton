@@ -570,6 +570,48 @@ RSpec.describe Graphomaton do
         expect(values.map { |state| state[:x] }.uniq.size).to be > 1
       end
 
+      it 'supports graphviz layout from dot plain coordinates' do
+        automaton.add_transition('q0', 'q1', 'a')
+        status = instance_double(Process::Status, success?: true)
+        allow(Open3).to receive(:capture3).and_return(
+          [
+            <<~PLAIN,
+              graph 1 2 1
+              node q0 0 0 0.75 0.5 q0 solid circle black lightgrey
+              node q1 2 0 0.75 0.5 q1 solid circle black lightgrey
+              node q2 2 1 0.75 0.5 q2 solid circle black lightgrey
+              stop
+            PLAIN
+            '',
+            status
+          ]
+        )
+
+        positions = automaton.layout_positions(
+          800,
+          600,
+          layout: :graphviz,
+          graphviz_command: 'dot',
+          fit: :none
+        )
+
+        expect(Open3).to have_received(:capture3).with(
+          'dot',
+          '-Tplain',
+          stdin_data: a_string_including('rankdir=LR;', '"q0" -> "q1";')
+        )
+        expect(positions['q0'][:x]).to be < positions['q1'][:x]
+        expect(positions['q2'][:y]).to be < positions['q1'][:y]
+      end
+
+      it 'reports graphviz command failures clearly' do
+        allow(Open3).to receive(:capture3).and_raise(Errno::ENOENT)
+
+        expect do
+          automaton.layout_positions(layout: :graphviz, graphviz_command: 'missing-dot')
+        end.to raise_error(ArgumentError, /Graphviz layout requires the `missing-dot` command/)
+      end
+
       it 'supports layout tuning options for force layout' do
         svg_output = automaton.to_svg(
           900,

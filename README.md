@@ -113,6 +113,7 @@ graphomaton --input automaton.yml --output diagram.svg --layout-warnings
 graphomaton --input automaton.json --output diagram.png --format png --theme dark --scale 2 --converter magick
 graphomaton --input automaton.yml --output diagram.svg --layout layered --direction lr
 graphomaton --input automaton.yml --output diagram.svg --layout force --padding 80 --node-spacing 140 --force-iterations 80 --layout-seed 42
+graphomaton --input automaton.yml --output diagram.svg --layout graphviz --graphviz-command dot
 graphomaton --input automaton.yml --output diagram.svg --auto-density-spacing
 graphomaton --input automaton.yml --output diagram.svg --responsive --state-radius 32 --fit cover --auto-size
 graphomaton --input automaton.yml --output diagram.svg --auto-state-radius --min-state-radius 32 --max-state-radius 72
@@ -171,6 +172,7 @@ automaton.save_svg('diagram.svg', 800, 600, layout: :grid, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :layered, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :bfs, direction: :lr)
 automaton.save_svg('diagram.svg', 800, 600, layout: :force, direction: :lr)
+automaton.save_svg('diagram.svg', 800, 600, layout: :graphviz, graphviz_command: 'dot')
 automaton.save_svg('diagram.svg', 800, 600, layout: :manual)
 automaton.save_svg('diagram.svg', 800, 600, svg_id: 'diagram-main')
 automaton.save_svg('diagram.svg', 800, 600, state_stroke_width: 3, transition_stroke_width: 2)
@@ -191,7 +193,7 @@ automaton.save_svg(
 `direction` accepts `:lr`, `:tb`, `:rl`, `:bt` for left-right, top-bottom, right-left, and bottom-top layouts.
 `initial_position` accepts `:auto` and `:start`. `:start` places the initial state near the start side of the layout.
 `final_position` accepts `:auto` and `:end`. `:end` moves final states toward the end side of the layout.
-`layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`, `:bfs`, `:force`, `:manual`.
+`layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`, `:bfs`, `:force`, `:graphviz`, `:dot`, `:manual`.
 `preserve_manual_positions: false` lets automatic layouts reposition states that were added with explicit coordinates.
 `fit: :contain` scales and shifts resolved positions so the graph fits inside the requested canvas.
 `fit: :cover` stretches resolved positions to use the full requested canvas.
@@ -206,6 +208,7 @@ automaton.save_svg(
 `initial_arrow_length` and `initial_arrow_label` control the native SVG initial arrow.
 `final_arrow_length` and `final_arrow_label` control optional native SVG final arrows.
 `force` accepts optional tuning keys `padding`, `node_spacing`, `rank_spacing`, `force_iterations`, and `layout_seed`.
+`graphviz` and `dot` layouts call `dot -Tplain` through `graphviz_command:` and normalize the returned node coordinates into the SVG canvas. Graphviz is optional and only required when those layouts are selected.
 
 You can also control label display behavior:
 

@@ -62,7 +62,7 @@ class Graphomaton
       DEFAULT_STATE_WRAP = false
       DEFAULT_MAX_STATE_LABEL_WIDTH = 120
       DEFAULT_SCC_GROUPS = false
-      LAYOUT_OPTIONS = %i[linear circle grid layered bfs force manual].freeze
+      LAYOUT_OPTIONS = %i[linear circle grid layered bfs force graphviz dot manual].freeze
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
       LOOP_POSITION_OPTIONS = %i[auto top right bottom left].freeze
       EDGE_STYLE_OPTIONS = %i[auto straight curved orthogonal spline].freeze
@@ -205,6 +205,7 @@ class Graphomaton
                  transition_font_weight: DEFAULT_TRANSITION_FONT_WEIGHT,
                  padding: DEFAULT_PADDING, node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,
                  force_iterations: DEFAULT_FORCE_ITERATIONS, layout_seed: nil, auto_size: DEFAULT_AUTO_SIZE,
+                 graphviz_command: Graphomaton::DEFAULT_GRAPHVIZ_COMMAND,
                  auto_density_spacing: DEFAULT_AUTO_DENSITY_SPACING,
                  arrow_size: DEFAULT_ARROW_SIZE,
                  arrow_shape: DEFAULT_ARROW_SHAPE,
@@ -298,6 +299,7 @@ class Graphomaton
           rank_spacing: @rank_spacing,
           force_iterations: @force_iterations,
           layout_seed: @layout_seed,
+          graphviz_command: graphviz_command,
           initial_position: initial_position,
           final_position: final_position,
           preserve_manual_positions: preserve_manual_positions,
