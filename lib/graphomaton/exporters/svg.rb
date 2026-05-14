@@ -1148,7 +1148,7 @@ class Graphomaton
           add_spline_line(transition_content, start_x, start_y, end_x, end_y, x1, y1, x2, y2, trans, pair_index)
         elsif @edge_style == :orthogonal
           add_orthogonal_line(transition_content, start_x, start_y, end_x, end_y, trans)
-        elsif is_adjacent && forward_direction?(x1, y1, x2, y2)
+        elsif is_adjacent && forward_direction?(x1, y1, x2, y2) && !edge_crosses_other_state?(trans, start_x, start_y, end_x, end_y)
           add_straight_line(transition_content, start_x, start_y, end_x, end_y, trans)
         else
           add_curved_line(
@@ -1259,6 +1259,35 @@ class Graphomaton
         label_x = cubic_bezier_point(start_x, control1_x, control2_x, end_x, t)
         label_y = cubic_bezier_point(start_y, control1_y, control2_y, end_y, t)
         add_label(svg, label_x, label_y, trans[:label], angle: label_rotation_angle(control1_x, control1_y, control2_x, control2_y))
+      end
+
+      def edge_crosses_other_state?(transition, start_x, start_y, end_x, end_y)
+        @positions.any? do |name, position|
+          next false if name == transition[:from] || name == transition[:to]
+          next false unless position[:x] && position[:y]
+
+          distance_to_segment(
+            position[:x].to_f,
+            position[:y].to_f,
+            start_x,
+            start_y,
+            end_x,
+            end_y
+          ) < (@state_radius + 8)
+        end
+      end
+
+      def distance_to_segment(point_x, point_y, start_x, start_y, end_x, end_y)
+        dx = end_x - start_x
+        dy = end_y - start_y
+        length_squared = (dx**2) + (dy**2)
+        return Math.sqrt(((point_x - start_x)**2) + ((point_y - start_y)**2)) if length_squared <= 0
+
+        t = (((point_x - start_x) * dx) + ((point_y - start_y) * dy)) / length_squared
+        t = [[t, 0.0].max, 1.0].min
+        projection_x = start_x + (t * dx)
+        projection_y = start_y + (t * dy)
+        Math.sqrt(((point_x - projection_x)**2) + ((point_y - projection_y)**2))
       end
 
       def cubic_bezier_point(start_value, control1_value, control2_value, end_value, t)

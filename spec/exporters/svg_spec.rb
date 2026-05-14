@@ -253,6 +253,20 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(path.attributes['d']).to include(' C ')
       end
 
+      it 'curves automatic edges that would cross another state' do
+        local = Graphomaton.new
+        local.add_state('A', 100, 100)
+        local.add_state('B', 300, 100)
+        local.add_state('C', 200, 100)
+        local.add_transition('A', 'B', 'blocked')
+
+        svg_output = described_class.new(local).export(layout: :manual)
+        doc = REXML::Document.new(svg_output)
+        path = REXML::XPath.first(doc, '//path[@class="transition-line"]')
+
+        expect(path.attributes['d']).to include(' Q ')
+      end
+
       it 'can grow state radius from label width when enabled' do
         long_label = Graphomaton.new
         long_label.add_state('q_long', label: 'VeryLongStateNameForRadius')
