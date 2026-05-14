@@ -154,6 +154,48 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'ignores options that do not apply to the selected output format' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.dot')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+              initial: true
+            - id: q1
+          transitions:
+            - from: q0
+              to: q1
+              label: a
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--responsive',
+        '--fit',
+        'cover',
+        '--cdn',
+        '/assets/mermaid.min.js',
+        '--show-source',
+        '--scale',
+        '2',
+        '--converter',
+        'magick'
+      )
+
+      expect(status).to be_success, stderr
+      expect(File.read(output)).to include('digraph finite_state_machine')
+    end
+  end
+
   it 'passes Mermaid HTML options through the CLI' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')

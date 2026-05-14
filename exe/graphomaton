@@ -21,6 +21,8 @@ parser = OptionParser.new do |opts|
   opts.on('-f', '--format FORMAT', 'Output format override') { |value| options[:format] = value.to_sym }
   opts.on('--width WIDTH', Integer, 'Output width for size-aware formats') { |value| options[:width] = value }
   opts.on('--height HEIGHT', Integer, 'Output height for size-aware formats') { |value| options[:height] = value }
+  opts.on('--scale SCALE', Float, 'PNG output scale') { |value| options[:scale] = value }
+  opts.on('--converter CONVERTER', 'SVG conversion backend for PNG, PDF, or WebP') { |value| options[:converter] = value.to_sym }
   opts.on('--theme THEME', 'Theme name') { |value| options[:theme] = value.to_sym }
   opts.on('--theme-file PATH', 'Theme JSON or YAML file') { |value| options[:theme_file] = value }
   opts.on('--layout LAYOUT', 'SVG layout') { |value| options[:layout] = value.to_sym }
@@ -81,26 +83,47 @@ if options[:theme_file]
                     end
 end
 
+format_name = options[:format] || File.extname(output_path).delete_prefix('.')
+resolved_output_format = format_name.to_s.delete_prefix('.').to_sym
+resolved_output_format = { mmd: :mermaid, puml: :plantuml }.fetch(resolved_output_format, resolved_output_format)
+svg_backed_format = %i[svg png pdf webp].include?(resolved_output_format)
+
 save_options = {}
-save_options[:theme] = options[:theme] if options[:theme]
-save_options[:layout] = options[:layout] if options[:layout]
-save_options[:direction] = options[:direction] if options[:direction]
-save_options[:fit] = options[:fit] if options[:fit]
-save_options[:responsive] = options[:responsive] if options.key?(:responsive)
-save_options[:state_radius] = options[:state_radius] if options[:state_radius]
-save_options[:preserve_manual_positions] = options[:preserve_manual_positions] if options.key?(:preserve_manual_positions)
-save_options[:auto_size] = options[:auto_size] if options.key?(:auto_size)
-save_options[:xml_declaration] = options[:xml_declaration] if options.key?(:xml_declaration)
-save_options[:pretty] = options[:pretty] if options.key?(:pretty)
-save_options[:minify] = options[:minify] if options.key?(:minify)
-save_options[:svg_id] = options[:svg_id] if options[:svg_id]
-save_options[:cdn] = options[:cdn] if options[:cdn]
-save_options[:offline] = options[:offline] if options.key?(:offline)
-save_options[:title] = options[:title] if options[:title]
-save_options[:lang] = options[:lang] if options[:lang]
-save_options[:show_source] = options[:show_source] if options.key?(:show_source)
-save_options[:notes] = options[:notes] if options.key?(:notes)
-save_options[:class_defs] = options[:class_defs] if options.key?(:class_defs)
+if options[:theme]
+  save_options[:theme] = options[:theme] if svg_backed_format ||
+                                          %i[dot plantuml].include?(resolved_output_format) ||
+                                          (resolved_output_format == :html && !options[:theme].is_a?(Hash))
+end
+save_options[:direction] = options[:direction] if options[:direction] && (svg_backed_format || %i[html mermaid dot plantuml].include?(resolved_output_format))
+if svg_backed_format
+  save_options[:layout] = options[:layout] if options[:layout]
+  save_options[:fit] = options[:fit] if options[:fit]
+  save_options[:responsive] = options[:responsive] if options.key?(:responsive)
+  save_options[:state_radius] = options[:state_radius] if options[:state_radius]
+  save_options[:preserve_manual_positions] = options[:preserve_manual_positions] if options.key?(:preserve_manual_positions)
+  save_options[:auto_size] = options[:auto_size] if options.key?(:auto_size)
+  save_options[:xml_declaration] = options[:xml_declaration] if options.key?(:xml_declaration)
+  save_options[:pretty] = options[:pretty] if options.key?(:pretty)
+  save_options[:minify] = options[:minify] if options.key?(:minify)
+  save_options[:svg_id] = options[:svg_id] if options[:svg_id]
+end
+if %i[png pdf webp].include?(resolved_output_format)
+  save_options[:converter] = options[:converter] if options[:converter]
+end
+save_options[:scale] = options[:scale] if options[:scale] && resolved_output_format == :png
+if resolved_output_format == :html
+  save_options[:cdn] = options[:cdn] if options[:cdn]
+  save_options[:offline] = options[:offline] if options.key?(:offline)
+  save_options[:title] = options[:title] if options[:title]
+  save_options[:lang] = options[:lang] if options[:lang]
+  save_options[:show_source] = options[:show_source] if options.key?(:show_source)
+end
+if %i[html mermaid plantuml].include?(resolved_output_format)
+  save_options[:notes] = options[:notes] if options.key?(:notes)
+end
+if %i[html mermaid].include?(resolved_output_format)
+  save_options[:class_defs] = options[:class_defs] if options.key?(:class_defs)
+end
 
 automaton.save(
   output_path,
