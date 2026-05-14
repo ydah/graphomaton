@@ -44,6 +44,18 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
         expect(mermaid_output).to include('note right of q_note: Entry state')
       end
 
+      it 'can render Mermaid choice, fork, and join pseudostates from metadata' do
+        automaton.add_state('decision', metadata: { mermaid: { shape: 'choice' } })
+        automaton.add_state('split', metadata: { mermaid_shape: 'fork' })
+        automaton.add_state('merge', metadata: { mermaid_type: 'join' })
+
+        mermaid_output = mermaid_exporter.export
+
+        expect(mermaid_output).to include('state decision <<choice>>')
+        expect(mermaid_output).to include('state split <<fork>>')
+        expect(mermaid_output).to include('state merge <<join>>')
+      end
+
       it 'can emit Mermaid class definitions for state roles' do
         automaton.set_initial('A')
         automaton.add_final('C')

@@ -11,6 +11,7 @@ class Graphomaton
       DEFAULT_NOTES = false
       DEFAULT_CLASS_DEFS = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
+      PSEUDOSTATE_TYPES = %i[choice fork join].freeze
 
       def initialize(automaton, direction: DEFAULT_DIRECTION, notes: DEFAULT_NOTES, class_defs: DEFAULT_CLASS_DEFS)
         @automaton = automaton
@@ -24,6 +25,7 @@ class Graphomaton
         lines = ['stateDiagram-v2']
         lines << "    direction #{direction_keyword}"
         lines.concat(state_alias_lines)
+        lines.concat(pseudostate_lines)
 
         lines << "    [*] --> #{state_name(@automaton.initial_state)}" if @automaton.initial_state
 
@@ -247,6 +249,43 @@ class Graphomaton
 
           "    state \"#{escape_mermaid_string(label || name)}\" as #{state_identifier}"
         end
+      end
+
+      def pseudostate_lines
+        @automaton.states.filter_map do |name, state|
+          type = pseudostate_type(state)
+          next unless type
+
+          "    state #{state_name(name)} <<#{type}>>"
+        end
+      end
+
+      def pseudostate_type(state)
+        type = mermaid_metadata_value(state, :shape) ||
+               mermaid_metadata_value(state, :type) ||
+               mermaid_metadata_value(state, :kind) ||
+               state_metadata_value(state, :mermaid_shape) ||
+               state_metadata_value(state, :mermaid_type)
+        normalized = type.to_s.tr('-', '_').to_sym
+
+        PSEUDOSTATE_TYPES.include?(normalized) ? normalized : nil
+      end
+
+      def mermaid_metadata_value(state, key)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        mermaid = metadata[:mermaid] || metadata['mermaid']
+        return nil unless mermaid.is_a?(Hash)
+
+        mermaid[key] || mermaid[key.to_s]
+      end
+
+      def state_metadata_value(state, key)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[key] || metadata[key.to_s]
       end
 
       def state_note_lines
