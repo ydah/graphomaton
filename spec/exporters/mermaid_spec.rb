@@ -126,6 +126,19 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
 
         expect(mermaid_output).to include('a<br/>b')
       end
+
+      it 'uniquifies colliding sanitized state names' do
+        local = Graphomaton.new
+        local.add_state('State 1')
+        local.add_state('State-1')
+        local.add_transition('State 1', 'State-1', 'a')
+        local.add_transition('State-1', 'State 1', 'b')
+
+        mermaid_output = described_class.new(local).export
+
+        expect(mermaid_output).to include('State_1 --> State_1_2 : a')
+        expect(mermaid_output).to include('State_1_2 --> State_1 : b')
+      end
     end
 
     context 'with complete automaton' do

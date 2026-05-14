@@ -124,6 +124,19 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
 
         expect(plantuml_output).to include('a\\\\b\\nc')
       end
+
+      it 'uniquifies colliding sanitized state names' do
+        local = Graphomaton.new
+        local.add_state('State 1')
+        local.add_state('State-1')
+        local.add_transition('State 1', 'State-1', 'a')
+        local.add_transition('State-1', 'State 1', 'b')
+
+        plantuml_output = described_class.new(local).export
+
+        expect(plantuml_output).to include('State_1 --> State_1_2 : a')
+        expect(plantuml_output).to include('State_1_2 --> State_1 : b')
+      end
     end
 
     context 'with complete automaton' do

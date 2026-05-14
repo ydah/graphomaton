@@ -12,6 +12,7 @@ class Graphomaton
         @direction = resolve_direction(direction)
         @theme = resolve_theme(theme)
         @notes = notes
+        @state_names = unique_state_names
       end
 
       def export
@@ -24,18 +25,18 @@ class Graphomaton
         lines << ''
 
         if @automaton.initial_state
-          lines << "[*] --> #{sanitize_state_name(@automaton.initial_state)}"
+          lines << "[*] --> #{state_name(@automaton.initial_state)}"
         end
 
         @automaton.transitions.each do |trans|
-          from = sanitize_state_name(trans[:from])
-          to = sanitize_state_name(trans[:to])
+          from = state_name(trans[:from])
+          to = state_name(trans[:to])
           label = escape_label(trans[:label])
           lines << "#{from} --> #{to} : #{label}"
         end
 
         @automaton.final_states.each do |state|
-          lines << "#{sanitize_state_name(state)} --> [*]"
+          lines << "#{state_name(state)} --> [*]"
         end
 
         lines.concat(state_note_lines) if @notes
@@ -95,6 +96,28 @@ class Graphomaton
         end
       end
 
+      def unique_state_names
+        counts = Hash.new(0)
+        @automaton.states.each_key.each_with_object({}) do |name, state_names|
+          sanitized = sanitize_state_name(name)
+          if quoted_state_name?(sanitized)
+            state_names[name] = sanitized
+            next
+          end
+
+          counts[sanitized] += 1
+          state_names[name] = counts[sanitized] == 1 ? sanitized : "#{sanitized}_#{counts[sanitized]}"
+        end
+      end
+
+      def quoted_state_name?(state_name)
+        state_name.start_with?('"') && state_name.end_with?('"')
+      end
+
+      def state_name(name)
+        @state_names.fetch(name) { sanitize_state_name(name) }
+      end
+
       def escape_label(label)
         label.to_s
              .gsub('\\') { '\\\\' }
@@ -106,7 +129,7 @@ class Graphomaton
           label = state[:label]
           next if label.nil? || label.to_s == name.to_s
 
-          "state \"#{escape_state_label(label)}\" as #{sanitize_state_name(name)}"
+          "state \"#{escape_state_label(label)}\" as #{state_name(name)}"
         end
       end
 
@@ -115,7 +138,7 @@ class Graphomaton
           note = state_note(state)
           next unless note
 
-          "note right of #{sanitize_state_name(name)} : #{escape_label(note)}"
+          "note right of #{state_name(name)} : #{escape_label(note)}"
         end
       end
 
