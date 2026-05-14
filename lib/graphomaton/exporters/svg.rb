@@ -670,6 +670,7 @@ class Graphomaton
       .trap-state .state-circle { stroke-dasharray: 2 4; }
       .highlighted-transition .transition-line { stroke: #ef4444; stroke-width: #{highlighted_transition_stroke_width}; }
       .inactive-transition { opacity: 0.25; }
+      .bundled-transition .transition-line { stroke-dasharray: 10 4; }
 #{state_effect_animation_css}
         CSS
       end

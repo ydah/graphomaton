@@ -904,9 +904,11 @@ RSpec.describe Graphomaton do
       svg_output = local.to_svg
       doc = REXML::Document.new(svg_output)
       transition = REXML::XPath.first(doc, '//g[@id="transition-q0-q1-a"]')
+      style = REXML::XPath.first(doc, '//style')
 
       expect(transition.attributes['class']).to include('bundled-transition')
       expect(transition.attributes['data-bundle']).to eq('main')
+      expect(style.text).to include('.bundled-transition .transition-line')
     end
 
     it 'uses transition metadata URL as an SVG link' do
