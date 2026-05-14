@@ -1,93 +1,63 @@
 # Graphomaton [![Gem Version](https://badge.fury.io/rb/graphomaton.svg?icon=si%3Arubygems)](https://badge.fury.io/rb/graphomaton) [![CI](https://github.com/ydah/graphomaton/actions/workflows/ci.yml/badge.svg)](https://github.com/ydah/graphomaton/actions/workflows/ci.yml)
 
-A tiny Ruby library for generating finite state machine (automaton) diagrams in multiple formats: SVG, PNG, PDF, WebP, HTML (Mermaid.js), GraphViz (DOT), and PlantUML.
+A small Ruby library for generating finite state machine and automaton diagrams as SVG, PNG, PDF, WebP, HTML with Mermaid.js, GraphViz DOT, and PlantUML.
 
 ![Image](https://github.com/user-attachments/assets/6907869c-1077-4a73-8394-4117f25adc17)
 
 ## Installation
 
-Add this line to your application's Gemfile:
-
 ```ruby
 gem 'graphomaton'
 ```
 
-And then execute:
-
 ```bash
 bundle install
-```
-
-Or install it yourself as:
-
-```bash
+# or
 gem install graphomaton
 ```
 
-## Usage
+## Quick start
 
 ```ruby
 require 'graphomaton'
 
-# Create a DFA that accepts strings ending with 'ab'
 automaton = Graphomaton.new
-
-# Add states
-automaton.add_state('q0')
+automaton.add_state('q0', label: 'Start')
 automaton.add_state('q1')
-automaton.add_state('q2')
-automaton.add_state('q_named', label: 'Named State', style: { fill: '#fee2e2' }, metadata: { tooltip: 'Shown in SVG' }, shape: :rounded_rect)
-
-# Set initial and final states
+automaton.add_state('q2', label: 'Accept')
 automaton.set_initial('q0')
 automaton.add_final('q2')
 
-# Add transitions
 automaton.add_transition('q0', 'q1', 'a')
 automaton.add_transition('q1', 'q2', 'b')
-automaton.add_transition('q0', 'q2', ['a', 'b'])
-automaton.add_transition('q1', 'q2', ['b', 'a'], sort_labels: true)
-automaton.add_transition('q0', 'q1', :epsilon)
-automaton.add_transition('q0', 'q2', 'error', line_style: :dashed)
-automaton.add_transition('q1', 'q1', 'loop', style: { stroke: '#ef4444' }, metadata: { tooltip: 'Highlighted loop' })
-automaton.add_transition('q0', 'q0', 'b')
-automaton.add_transition('q1', 'q0', 'a')
-automaton.add_transition('q2', 'q0', 'b')
-automaton.add_transition('q2', 'q1', 'a')
+automaton.add_transition('q0', 'q2', :epsilon)
 
-# Save in different formats
-automaton.save_svg('output.svg')              # SVG format
-automaton.save_png('output.png')              # PNG format (requires a converter)
-automaton.save_pdf('output.pdf')              # PDF format (requires a converter)
-automaton.save_webp('output.webp')            # WebP format (requires ImageMagick)
-automaton.save_html('output.html')            # HTML with Mermaid.js (requires internet)
-automaton.save_dot('output.dot')              # GraphViz DOT format
-automaton.save_plantuml('output.puml')        # PlantUML format
+automaton.save_svg('diagram.svg')
+automaton.save_html('diagram.html')
+automaton.save_dot('diagram.dot')
+automaton.save_plantuml('diagram.puml')
+```
 
-# Or use the unified API
+Use `render` and `save` when the format is selected dynamically:
+
+```ruby
 automaton.render(format: :svg, width: 800, height: 600)
-automaton.save('output.svg', format: :svg, width: 800, height: 600)
+automaton.save('diagram.svg', format: :svg, width: 800, height: 600)
+```
 
-# Validate references before rendering if desired
+Validate and inspect the automaton before rendering:
+
+```ruby
 automaton.validate!
 automaton.layout_warnings(800, 600)
-automaton.live_states
+automaton.reachable_states
 automaton.dead_states
 automaton.trap_states
 ```
 
-`label` is used as the display name in SVG, DOT, Mermaid, and PlantUML while the state ID remains stable for transitions.
-State and transition metadata `tooltip`/`description` is used as SVG tooltip text. Metadata `url`/`href` creates clickable SVG links.
-Transition metadata `bundle` routes native SVG edges through a shared control point and emits `data-bundle` with a `bundled-transition` class.
-SVG renders `choice`/`fork`/`join` pseudostates from `svg` or compatible metadata as diamond/bar shapes.
-Mermaid choice/fork/join pseudostates can be requested with state metadata such as `{ mermaid: { shape: 'choice' } }`, `mermaid_shape`, or `mermaid_type`.
-Mermaid composite states can be requested with state metadata `parent`.
-Mermaid also renders state metadata `group` or `cluster` as composite group blocks.
-State metadata `group` or `cluster` renders SVG background groups around related states.
-SVG state groups include stable `state-group-*` IDs and `data-group` attributes for viewer-side folding or highlighting.
-State metadata `icon` renders a compact SVG icon label inside the state.
+## Loading data
 
-You can also build an automaton from Hash, JSON, or YAML input:
+Build an automaton from Hash, JSON, or YAML:
 
 ```ruby
 automaton = Graphomaton.from_hash(
@@ -104,171 +74,179 @@ Graphomaton.from_json(File.read('automaton.json'))
 Graphomaton.from_yaml(File.read('automaton.yml'))
 ```
 
-### CLI
+## CLI
 
 ```bash
 graphomaton --input automaton.yml --output diagram.svg
-graphomaton --input automaton.yml --output diagram.svg --validate
-graphomaton --input automaton.yml --output diagram.svg --layout-warnings
-graphomaton --input automaton.json --output diagram.png --format png --theme dark --scale 2 --converter magick
-graphomaton --input automaton.yml --output diagram.svg --layout layered --direction lr
-graphomaton --input automaton.yml --output diagram.svg --layout force --padding 80 --node-spacing 140 --force-iterations 80 --layout-seed 42
-graphomaton --input automaton.yml --output diagram.svg --layout graphviz --graphviz-command dot
-graphomaton --input automaton.yml --output diagram.svg --auto-density-spacing
-graphomaton --input automaton.yml --output diagram.svg --responsive --state-radius 32 --fit cover --auto-size
-graphomaton --input automaton.yml --output diagram.svg --auto-state-radius --min-state-radius 32 --max-state-radius 72
-graphomaton --input automaton.yml --output diagram.svg --state-shape ellipse --edge-style orthogonal --arrow-shape vee
-graphomaton --input automaton.yml --output diagram.svg --edge-style spline
-graphomaton --input automaton.yml --output diagram.svg --state-stroke-width 4 --transition-stroke-width 3 --font-family "Noto Sans" --state-effect shadow
-graphomaton --input automaton.yml --output diagram.svg --state-effect pulse
-graphomaton --input automaton.yml --output diagram.svg --xml-declaration --pretty
-graphomaton --input automaton.yml --output diagram.svg --css-variables --no-embed-styles
-graphomaton --input automaton.yml --output diagram.svg --wrap-labels --state-wrap --label-tooltips --html-tooltips --rotate-labels --show-final-arrows
-graphomaton --input automaton.yml --output diagram.svg --sort-labels --highlight-transition "q0:q1:a, b" --loop-position right
-graphomaton --input automaton.yml --output diagram.svg --label-padding 20 --label-radius 8 --label-border --initial-arrow-label begin --final-arrow-label done
-graphomaton --input automaton.yml --output diagram.svg --highlight-unreachable --unreachable-zone right --highlight-dead-states
-graphomaton --input automaton.yml --output diagram.svg --scc-groups
-graphomaton --input automaton.yml --output diagram.svg --fold-groups
-graphomaton --input automaton.yml --output diagram.svg --no-preserve-manual-positions
-graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml
-graphomaton --list-themes
-graphomaton --theme-gallery --output theme_gallery.html
-graphomaton --theme-gallery --theme-gallery-animated --theme-file theme.yml --output theme_gallery.html
-graphomaton --input automaton.yml --output diagram.html --title "Automaton" --lang en --show-source --pan-zoom --mathjax --notes --class-defs
-graphomaton --input automaton.yml --output diagram.html --cdn ./mermaid.min.js --inline-mermaid
+graphomaton --input automaton.yml --output diagram.svg --validate --layout-warnings
+graphomaton --input automaton.json --output diagram.png --format png --theme dark --scale 2
+graphomaton --input automaton.yml --output diagram.html --title "Automaton" --show-source --pan-zoom
 graphomaton --input automaton.yml --output diagram.dot --rank-constraints
 ```
 
-### Themes
+Common SVG options:
 
-Native SVG and PNG output can be rendered with a named theme:
+```bash
+graphomaton --input automaton.yml --output diagram.svg --layout layered --direction lr
+graphomaton --input automaton.yml --output diagram.svg --layout force --node-spacing 140 --force-iterations 80 --layout-seed 42
+graphomaton --input automaton.yml --output diagram.svg --layout graphviz --graphviz-command dot
+graphomaton --input automaton.yml --output diagram.svg --responsive --fit cover --auto-size
+graphomaton --input automaton.yml --output diagram.svg --state-shape ellipse --edge-style spline --arrow-shape vee
+graphomaton --input automaton.yml --output diagram.svg --wrap-labels --state-wrap --label-tooltips --html-tooltips
+graphomaton --input automaton.yml --output diagram.svg --highlight-unreachable --unreachable-zone right --highlight-dead-states
+graphomaton --input automaton.yml --output diagram.svg --scc-groups --fold-groups
+graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml
+```
+
+Theme utilities:
+
+```bash
+graphomaton --list-themes
+graphomaton --theme-gallery --output theme_gallery.html
+graphomaton --theme-gallery --theme-gallery-animated --theme-file theme.yml --output theme_gallery.html
+```
+
+## Themes
+
+Native SVG and SVG-backed outputs support named or custom themes:
 
 ```ruby
-automaton.save_svg('output_dark.svg', theme: :dark)
-automaton.save_png('output_forest.png', theme: :forest)
-automaton.save_svg('output_auto.svg', theme: :auto) # follows prefers-color-scheme
-custom_theme = Graphomaton.theme_from_yaml(File.read('theme.yml'))
-automaton.save_svg('output_custom.svg', theme: custom_theme)
+automaton.save_svg('diagram.svg', theme: :dark)
+automaton.save_png('diagram.png', theme: :forest)
+automaton.save_svg('diagram.svg', theme: :auto) # follows prefers-color-scheme
+
+theme = Graphomaton.theme_from_yaml(File.read('theme.yml'))
+automaton.save_svg('diagram.svg', theme: theme)
+
 Graphomaton::Theme.save_gallery_html('theme_gallery.html')
 ```
 
-Available themes: `:light`, `:dark`, `:forest`, `:ocean`, `:high_contrast`, `:color_blind`, `:print`, `:minimal`, `:academic`, `:presentation`, `:auto`.
+Built-in themes:
 
-### Output Formats
-
-Graphomaton supports multiple output formats:
-
-#### 1. SVG (Native)
-```ruby
-automaton.save_svg('diagram.svg', 800, 600, theme: :light)
+```text
+light, dark, forest, ocean, high_contrast, color_blind, print, minimal, academic, presentation, auto
 ```
-Generates a standalone SVG file with custom rendering.
-You can also control layout direction and responsive sizing:
+
+## SVG output
+
+SVG is Graphomaton's native renderer. It supports multiple layouts, styling options, metadata-driven annotations, and converter-backed raster/vector outputs.
+
+### Layouts
 
 ```ruby
-automaton.save_svg('diagram.svg', 800, 600, direction: :tb, responsive: true)
 automaton.save_svg('diagram.svg', 800, 600, layout: :linear, direction: :lr)
-automaton.save_svg('diagram.svg', 800, 600, layout: :circle, direction: :tb)
-automaton.save_svg('diagram.svg', 800, 600, layout: :grid, direction: :lr)
-automaton.save_svg('diagram.svg', 800, 600, layout: :layered, direction: :lr)
-automaton.save_svg('diagram.svg', 800, 600, layout: :bfs, direction: :lr)
-automaton.save_svg('diagram.svg', 800, 600, layout: :force, direction: :lr)
+automaton.save_svg('diagram.svg', 800, 600, layout: :circle)
+automaton.save_svg('diagram.svg', 800, 600, layout: :grid)
+automaton.save_svg('diagram.svg', 800, 600, layout: :layered)
+automaton.save_svg('diagram.svg', 800, 600, layout: :bfs)
+automaton.save_svg('diagram.svg', 800, 600, layout: :force, layout_seed: 42)
 automaton.save_svg('diagram.svg', 800, 600, layout: :graphviz, graphviz_command: 'dot')
 automaton.save_svg('diagram.svg', 800, 600, layout: :manual)
-automaton.save_svg('diagram.svg', 800, 600, svg_id: 'diagram-main')
-automaton.save_svg('diagram.svg', 800, 600, state_stroke_width: 3, transition_stroke_width: 2)
-automaton.save_svg('diagram.svg', 800, 600, font_family: '"Noto Sans JP", sans-serif', state_font_weight: 700)
-automaton.save_svg(
-  'diagram.svg',
-  800,
-  600,
-  layout: :force,
-  padding: 80,
-  node_spacing: 120,
-  rank_spacing: 120,
-  force_iterations: 120,
-  layout_seed: 42
+```
+
+Layout notes:
+
+- `direction` accepts `:lr`, `:tb`, `:rl`, and `:bt`.
+- `layout` accepts `:linear`, `:circle`, `:grid`, `:layered`, `:bfs`, `:force`, `:graphviz`, `:dot`, and `:manual`.
+- `:layered` and `:bfs` use deterministic barycenter ordering to reduce crossings.
+- `:force` accepts `padding`, `node_spacing`, `rank_spacing`, `force_iterations`, and `layout_seed`.
+- `:graphviz` and `:dot` call `dot -Tplain` through `graphviz_command:` and normalize returned node coordinates into the SVG canvas.
+- `preserve_manual_positions: false` lets automatic layouts reposition states with explicit coordinates.
+- `fit: :contain` fits positions into the canvas; `fit: :cover` stretches positions to use the canvas.
+- `auto_size: true` expands the SVG viewport around rendered positions.
+
+### Styling and labels
+
+```ruby
+automaton.save_svg('diagram.svg', state_shape: :ellipse)
+automaton.save_svg('diagram.svg', state_stroke_width: 3, transition_stroke_width: 2)
+automaton.save_svg('diagram.svg', edge_style: :orthogonal)
+automaton.save_svg('diagram.svg', arrow_shape: :vee, arrow_size: 14)
+automaton.save_svg('diagram.svg', state_effect: :shadow)
+automaton.save_svg('diagram.svg', font_family: '"Noto Sans JP", sans-serif', state_font_weight: 700)
+
+automaton.save_svg('diagram.svg', wrap: true, max_transition_label_width: 120)
+automaton.save_svg('diagram.svg', state_wrap: true, max_state_label_width: 120)
+automaton.save_svg('diagram.svg', label_tooltips: true, html_tooltips: true)
+automaton.save_svg('diagram.svg', rotate_labels: true)
+automaton.save_svg('diagram.svg', label_background: false)
+automaton.save_svg('diagram.svg', label_padding: 16, label_radius: 8, label_border: true)
+```
+
+Other SVG options:
+
+- `svg_id:` sets a stable SVG root and marker ID prefix.
+- `css_variables: true` emits theme values as CSS variables.
+- `embed_styles: false` skips the embedded style block.
+- `xml_declaration: true`, `pretty: true`, and `minify: true` control serialization.
+- `initial_arrow_length`, `initial_arrow_label`, `final_arrow_length`, `final_arrow_label`, and `show_final_arrows` control native start/end arrows.
+
+### Metadata
+
+State and transition metadata can enrich generated diagrams without changing state IDs:
+
+```ruby
+automaton.add_state(
+  'q0',
+  label: 'Start',
+  metadata: {
+    tooltip: 'Entry point',
+    url: 'https://example.com',
+    group: 'main',
+    icon: 'S',
+    mermaid: { shape: 'choice' }
+  }
+)
+
+automaton.add_transition(
+  'q0',
+  'q1',
+  'next',
+  metadata: {
+    tooltip: 'Main path',
+    bundle: 'primary'
+  }
 )
 ```
 
-`direction` accepts `:lr`, `:tb`, `:rl`, `:bt` for left-right, top-bottom, right-left, and bottom-top layouts.
-`initial_position` accepts `:auto` and `:start`. `:start` places the initial state near the start side of the layout.
-`final_position` accepts `:auto` and `:end`. `:end` moves final states toward the end side of the layout.
-`layout` currently supports `:linear`, `:circle`, `:grid`, `:layered`, `:bfs`, `:force`, `:graphviz`, `:dot`, `:manual`.
-`layered` and `bfs` layouts use deterministic barycenter ordering to reduce crossings between adjacent layers.
-`preserve_manual_positions: false` lets automatic layouts reposition states that were added with explicit coordinates.
-`fit: :contain` scales and shifts resolved positions so the graph fits inside the requested canvas.
-`fit: :cover` stretches resolved positions to use the full requested canvas.
-`svg_id:` sets a stable SVG root ID and marker ID prefix, useful when embedding multiple diagrams.
-`auto_size` expands SVG viewport automatically to the rendered positions when set to `true`.
-`auto_density_spacing` increases node and rank spacing for dense graphs when set to `true`.
-`unreachable_zone` accepts `:none`, `:right`, `:bottom`, `:left`, and `:top`.
-`edge_style` accepts `:auto`, `:straight`, `:curved`, `:orthogonal`, and `:spline`.
-`:auto` curves SVG edges that would otherwise pass too close to another state.
-`arrow_size` controls SVG arrowhead size.
-`arrow_shape` accepts `:triangle`, `:vee`, and `:stealth`.
-`initial_arrow_length` and `initial_arrow_label` control the native SVG initial arrow.
-`final_arrow_length` and `final_arrow_label` control optional native SVG final arrows.
-`force` accepts optional tuning keys `padding`, `node_spacing`, `rank_spacing`, `force_iterations`, and `layout_seed`.
-`graphviz` and `dot` layouts call `dot -Tplain` through `graphviz_command:` and normalize the returned node coordinates into the SVG canvas. Graphviz is optional and only required when those layouts are selected.
+Metadata behavior:
 
-You can also control label display behavior:
+- `label` changes the display name while preserving the state ID for transitions.
+- `tooltip` or `description` becomes SVG tooltip text.
+- `url` or `href` creates SVG links and DOT URL attributes.
+- `group` or `cluster` renders SVG background groups, Mermaid/PlantUML composite states, and DOT clusters.
+- `icon` renders a compact SVG icon label inside the state.
+- `bundle` routes native SVG edges through a shared control point and emits `data-bundle`.
+- `choice`, `fork`, and `join` pseudostates can be requested with `svg`, `dot`, `mermaid`, `plantuml`, or compatible shorthand metadata.
+- `fold_groups: true` collapses grouped SVG states into compound nodes, hides internal transitions, and rewrites external transitions to the folded node.
+- `scc_groups: true` renders SVG groups around strongly connected components.
+
+## Output formats
+
+| Format | Method | Notes |
+| --- | --- | --- |
+| SVG | `save_svg` | Native renderer. |
+| PNG | `save_png` | Converts native SVG. Requires `rsvg-convert`, `magick`, or `convert`. |
+| PDF | `save_pdf` | Converts native SVG. Requires `rsvg-convert`, `magick`, or `convert`. |
+| WebP | `save_webp` | Converts native SVG. Requires ImageMagick `magick` or `convert`. |
+| HTML | `save_html` | Mermaid.js state diagram in an HTML page. |
+| DOT | `save_dot` | GraphViz DOT source. |
+| PlantUML | `save_plantuml` | PlantUML state diagram source. |
+
+### Converter-backed formats
 
 ```ruby
-automaton.save_svg('diagram.svg', 800, 600, wrap: true, max_transition_label_width: 120)
-automaton.save_svg('diagram.svg', 800, 600, sort_labels: true)
-automaton.save_svg('diagram.svg', 800, 600, label_tooltips: true)
-automaton.save_svg('diagram.svg', 800, 600, html_tooltips: true)
-automaton.save_svg('diagram.svg', 800, 600, rotate_labels: true)
-automaton.save_svg('diagram.svg', 800, 600, label_background: false)
-automaton.save_svg('diagram.svg', 800, 600, label_padding: 16, label_radius: 8, label_border: true)
-automaton.save_svg('diagram.svg', 800, 600, highlight_unreachable: true)
-automaton.save_svg('diagram.svg', 800, 600, unreachable_zone: :right)
-automaton.save_svg('diagram.svg', 800, 600, scc_groups: true)
-automaton.save_svg('diagram.svg', 800, 600, fold_groups: true)
-automaton.save_svg('diagram.svg', 800, 600, highlight_dead_states: true)
-automaton.save_svg('diagram.svg', 800, 600, highlight_initial_state: true, highlight_final_states: true)
-automaton.save_svg('diagram.svg', 800, 600, highlight_transitions: [{ from: 'q0', to: 'q1', label: 'a' }])
-automaton.save_svg('diagram.svg', 800, 600, xml_declaration: true)
-automaton.save_svg('diagram.svg', 800, 600, css_variables: true)
-automaton.save_svg('diagram.svg', 800, 600, embed_styles: false)
-automaton.save_svg('diagram.svg', 800, 600, pretty: true)
-automaton.save_svg('diagram.svg', 800, 600, minify: true)
-automaton.save_svg('diagram.svg', 800, 600, state_effect: :shadow)
-automaton.save_svg('diagram.svg', 800, 600, loop_position: :right)
-automaton.save_svg('diagram.svg', 800, 600, edge_style: :orthogonal)
-automaton.save_svg('diagram.svg', 800, 600, state_shape: :ellipse)
-automaton.save_svg('diagram.svg', 800, 600, show_final_arrows: true)
-```
-
-`fold_groups: true` collapses states sharing metadata `group` or `cluster` into compound SVG nodes, hides internal transitions, and rewrites external transitions to the folded node.
-
-#### 2. PNG
-```ruby
-automaton.save_png('diagram.png', 800, 600, theme: :dark)
-automaton.save_png('diagram@2x.png', 800, 600, scale: 2.0)
-automaton.save_png('diagram.png', 800, 600, converter: :magick)
-Graphomaton.png_available?(converter: :auto) #=> true when a PNG converter is installed
-```
-Generates a PNG file by converting Graphomaton's native SVG output. Requires one of these commands to be available on `PATH`: `rsvg-convert`, `magick`, or `convert`.
-
-#### 3. PDF
-```ruby
-automaton.save_pdf('diagram.pdf', 800, 600, theme: :print)
+automaton.save_png('diagram.png', 800, 600, scale: 2.0, converter: :magick)
 automaton.save_pdf('diagram.pdf', 800, 600, converter: :magick)
-Graphomaton.pdf_available?(converter: :auto) #=> true when a PDF converter is installed
-```
-Generates a PDF file by converting Graphomaton's native SVG output. Requires one of these commands to be available on `PATH`: `rsvg-convert`, `magick`, or `convert`.
-
-#### 4. WebP
-```ruby
-automaton.save_webp('diagram.webp', 800, 600, theme: :dark)
 automaton.save_webp('diagram.webp', 800, 600, converter: :magick)
-Graphomaton.webp_available?(converter: :auto) #=> true when a WebP converter is installed
-```
-Generates a WebP file by converting Graphomaton's native SVG output. Requires ImageMagick's `magick` or `convert` command to be available on `PATH`.
 
-#### 5. HTML (Mermaid.js)
+Graphomaton.png_available?(converter: :auto)
+Graphomaton.pdf_available?(converter: :auto)
+Graphomaton.webp_available?(converter: :auto)
+```
+
+### HTML with Mermaid.js
+
 ```ruby
 automaton.save_html('diagram.html')
 automaton.save_html('diagram.html', show_source: true)
@@ -276,26 +254,18 @@ automaton.save_html('diagram.html', theme: :auto)
 automaton.save_html('diagram.html', cdn: './mermaid.min.js', inline_mermaid: true)
 automaton.save_html('diagram.html', pan_zoom: true)
 automaton.save_html('diagram.html', mathjax: true)
-automaton.save_html('diagram.html', notes: true)
-automaton.save_html('diagram.html', class_defs: true)
+automaton.save_html('diagram.html', notes: true, class_defs: true)
 ```
-Generates an HTML file with embedded Mermaid.js state diagram. The diagram is rendered in the browser using Mermaid.js from CDN.
 
-**Note:** Requires internet connection to load Mermaid.js from CDN. Does not work in offline environments.
+By default, HTML output uses Mermaid.js from CDN. Use a local `cdn:` path with `inline_mermaid: true` for offline output.
 
-#### 6. GraphViz (DOT)
+### GraphViz DOT
+
 ```ruby
 automaton.save_dot('diagram.dot')
 automaton.save_dot('diagram.dot', theme: :ocean)
 automaton.save_dot('diagram.dot', rank_constraints: true)
 ```
-Generates a DOT file that can be converted to images using GraphViz:
-State and transition metadata keys `url`/`href` and `tooltip`/`description` are emitted as DOT `URL` and `tooltip` attributes.
-DOT renders `choice`/`fork`/`join` pseudostates from `dot` or compatible metadata as GraphViz shapes.
-State metadata `group` or `cluster` is emitted as DOT clusters.
-Transition metadata `bundle` is emitted as a DOT `class` attribute for GraphViz SVG post-processing.
-PlantUML also renders state metadata `group` or `cluster` as composite blocks, and `choice`/`fork`/`join` pseudostates from `plantuml` or compatible metadata.
-Transition `line_style: :dashed` and `line_style: :dotted` are emitted as DOT edge `style` attributes.
 
 ```bash
 dot -Tpng diagram.dot -o diagram.png
@@ -305,20 +275,18 @@ neato -Tsvg diagram.dot -o diagram-neato.svg
 sfdp -Tsvg diagram.dot -o diagram-sfdp.svg
 ```
 
-Use `dot` for ranked left-to-right or top-to-bottom state-machine layouts. Use `neato` or `sfdp` when you want GraphViz to spread dense or highly connected graphs more freely.
+Use `dot` for ranked state-machine layouts. Use `neato` or `sfdp` for dense graphs where free spreading is preferred.
 
-#### 7. PlantUML
+### PlantUML
+
 ```ruby
 automaton.save_plantuml('diagram.puml')
 automaton.save_plantuml('diagram.puml', theme: :forest)
 automaton.save_plantuml('diagram.puml', notes: true)
 ```
-Generates a PlantUML file that can be converted to images using PlantUML server or JAR:
-```bash
-# Using PlantUML JAR
-java -jar plantuml.jar diagram.puml
 
-# Using online server
+```bash
+java -jar plantuml.jar diagram.puml
 curl -X POST --data-binary @diagram.puml https://www.plantuml.com/plantuml/png > diagram.png
 ```
 
@@ -332,4 +300,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the Graphomaton project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/ydah/graphomaton/blob/main/CODE_OF_CONDUCT.md).
+Everyone interacting in the Graphomaton project's codebases, issue trackers, chat rooms, and mailing lists is expected to follow the [code of conduct](https://github.com/ydah/graphomaton/blob/main/CODE_OF_CONDUCT.md).
