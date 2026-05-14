@@ -73,6 +73,18 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'lists built-in themes without an input automaton' do
+    stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      File.expand_path('../exe/graphomaton', __dir__),
+      '--list-themes'
+    )
+
+    expect(status).to be_success, stderr
+    expect(stdout).to include("light\n")
+    expect(stdout).to include("dark\n")
+  end
+
   it 'fails for unsupported input extensions' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.txt')

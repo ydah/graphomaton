@@ -129,6 +129,7 @@ graphomaton --input automaton.yml --output diagram.svg --highlight-unreachable -
 graphomaton --input automaton.yml --output diagram.svg --scc-groups
 graphomaton --input automaton.yml --output diagram.svg --no-preserve-manual-positions
 graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml
+graphomaton --list-themes
 graphomaton --theme-gallery --output theme_gallery.html
 graphomaton --theme-gallery --theme-file theme.yml --output theme_gallery.html
 graphomaton --input automaton.yml --output diagram.html --title "Automaton" --lang en --show-source --pan-zoom --mathjax --notes --class-defs
