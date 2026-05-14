@@ -15,6 +15,7 @@ options = {
 
 parser = OptionParser.new do |opts|
   opts.banner = 'Usage: graphomaton --input automaton.yml --output diagram.svg [options]'
+  opts.separator '       graphomaton --theme-gallery --output theme_gallery.html [options]'
 
   opts.on('-i', '--input PATH', 'Input JSON or YAML file') { |value| options[:input] = value }
   opts.on('-o', '--output PATH', 'Output file path') { |value| options[:output] = value }
