@@ -201,6 +201,63 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'passes SVG styling and analysis options through the CLI' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+              initial: true
+            - id: q1
+              final: true
+            - id: dead
+            - id: trap
+          transitions:
+            - from: q0
+              to: q1
+              label: a
+            - from: dead
+              to: trap
+              label: b
+            - from: trap
+              to: trap
+              label: c
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--state-shape',
+        'ellipse',
+        '--edge-style',
+        'orthogonal',
+        '--arrow-shape',
+        'vee',
+        '--highlight-unreachable',
+        '--highlight-dead-states',
+        '--highlight-initial-state',
+        '--highlight-final-states'
+      )
+
+      content = File.read(output)
+      expect(status).to be_success, stderr
+      expect(content).to include('<ellipse')
+      expect(content).to include("class='state initial-state'")
+      expect(content).to include('unreachable-state')
+      expect(content).to include('dead-state')
+      expect(content).to include('trap-state')
+      expect(content).to include('accepting-state')
+    end
+  end
+
   it 'ignores options that do not apply to the selected output format' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')

@@ -103,8 +103,10 @@ graphomaton --input automaton.yml --output diagram.svg
 graphomaton --input automaton.json --output diagram.png --format png --theme dark --scale 2 --converter magick
 graphomaton --input automaton.yml --output diagram.svg --layout layered --direction lr
 graphomaton --input automaton.yml --output diagram.svg --responsive --state-radius 32 --fit cover --auto-size
+graphomaton --input automaton.yml --output diagram.svg --state-shape ellipse --edge-style orthogonal --arrow-shape vee
 graphomaton --input automaton.yml --output diagram.svg --xml-declaration --pretty
 graphomaton --input automaton.yml --output diagram.svg --wrap-labels --state-wrap --label-tooltips --show-final-arrows
+graphomaton --input automaton.yml --output diagram.svg --highlight-unreachable --highlight-dead-states
 graphomaton --input automaton.yml --output diagram.svg --no-preserve-manual-positions
 graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml
 graphomaton --input automaton.yml --output diagram.html --title "Automaton" --lang en --show-source --notes --class-defs

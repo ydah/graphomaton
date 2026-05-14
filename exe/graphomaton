@@ -30,6 +30,9 @@ parser = OptionParser.new do |opts|
   opts.on('--fit FIT', 'Fit mode for resolved SVG positions') { |value| options[:fit] = value.to_sym }
   opts.on('--responsive', 'Render responsive SVG width and height attributes') { options[:responsive] = true }
   opts.on('--state-radius RADIUS', Float, 'SVG state radius') { |value| options[:state_radius] = value }
+  opts.on('--state-shape SHAPE', 'SVG state shape') { |value| options[:state_shape] = value.to_sym }
+  opts.on('--edge-style STYLE', 'SVG edge style') { |value| options[:edge_style] = value.to_sym }
+  opts.on('--arrow-shape SHAPE', 'SVG arrowhead shape') { |value| options[:arrow_shape] = value.to_sym }
   opts.on('--no-preserve-manual-positions', 'Allow automatic layouts to reposition states with explicit coordinates') { options[:preserve_manual_positions] = false }
   opts.on('--auto-size', 'Expand SVG canvas from resolved graph bounds') { options[:auto_size] = true }
   opts.on('--xml-declaration', 'Include an XML declaration in SVG output') { options[:xml_declaration] = true }
@@ -43,6 +46,10 @@ parser = OptionParser.new do |opts|
   opts.on('--label-tooltips', 'Add SVG title tooltips for labels') { options[:label_tooltips] = true }
   opts.on('--no-label-background', 'Hide SVG transition label backgrounds') { options[:label_background] = false }
   opts.on('--show-final-arrows', 'Render native SVG arrows from final states') { options[:show_final_arrows] = true }
+  opts.on('--highlight-unreachable', 'Highlight unreachable states in SVG output') { options[:highlight_unreachable] = true }
+  opts.on('--highlight-dead-states', 'Highlight dead and trap states in SVG output') { options[:highlight_dead_states] = true }
+  opts.on('--highlight-initial-state', 'Highlight the initial state in SVG output') { options[:highlight_initial_state] = true }
+  opts.on('--highlight-final-states', 'Highlight accepting states in SVG output') { options[:highlight_final_states] = true }
   opts.on('--cdn URL_OR_PATH', 'Mermaid CDN URL or local script path for HTML output') { |value| options[:cdn] = value }
   opts.on('--offline', 'Use a non-module Mermaid script tag for HTML output') { options[:offline] = true }
   opts.on('--inline-mermaid', 'Inline Mermaid script from --cdn path in HTML output') { options[:inline_mermaid] = true }
@@ -109,6 +116,9 @@ if svg_backed_format
   save_options[:fit] = options[:fit] if options[:fit]
   save_options[:responsive] = options[:responsive] if options.key?(:responsive)
   save_options[:state_radius] = options[:state_radius] if options[:state_radius]
+  save_options[:state_shape] = options[:state_shape] if options[:state_shape]
+  save_options[:edge_style] = options[:edge_style] if options[:edge_style]
+  save_options[:arrow_shape] = options[:arrow_shape] if options[:arrow_shape]
   save_options[:preserve_manual_positions] = options[:preserve_manual_positions] if options.key?(:preserve_manual_positions)
   save_options[:auto_size] = options[:auto_size] if options.key?(:auto_size)
   save_options[:xml_declaration] = options[:xml_declaration] if options.key?(:xml_declaration)
@@ -122,6 +132,10 @@ if svg_backed_format
   save_options[:label_tooltips] = options[:label_tooltips] if options.key?(:label_tooltips)
   save_options[:label_background] = options[:label_background] if options.key?(:label_background)
   save_options[:show_final_arrows] = options[:show_final_arrows] if options.key?(:show_final_arrows)
+  save_options[:highlight_unreachable] = options[:highlight_unreachable] if options.key?(:highlight_unreachable)
+  save_options[:highlight_dead_states] = options[:highlight_dead_states] if options.key?(:highlight_dead_states)
+  save_options[:highlight_initial_state] = options[:highlight_initial_state] if options.key?(:highlight_initial_state)
+  save_options[:highlight_final_states] = options[:highlight_final_states] if options.key?(:highlight_final_states)
 end
 if %i[png pdf webp].include?(resolved_output_format)
   save_options[:converter] = options[:converter] if options[:converter]
