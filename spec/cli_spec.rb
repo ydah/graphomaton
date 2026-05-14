@@ -154,6 +154,53 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'passes SVG label options through the CLI' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+              initial: true
+              label: VeryLongStateName
+            - id: q1
+              final: true
+          transitions:
+            - from: q0
+              to: q1
+              label: this transition label should wrap
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--wrap-labels',
+        '--max-transition-label-width',
+        '60',
+        '--state-wrap',
+        '--max-state-label-width',
+        '50',
+        '--label-tooltips',
+        '--no-label-background',
+        '--show-final-arrows'
+      )
+
+      content = File.read(output)
+      expect(status).to be_success, stderr
+      expect(content).to include('<tspan')
+      expect(content).to include('<title>this transition label should wrap</title>')
+      expect(content).not_to include("class='label-bg'")
+      expect(content).to include("class='final-transition'")
+    end
+  end
+
   it 'ignores options that do not apply to the selected output format' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')

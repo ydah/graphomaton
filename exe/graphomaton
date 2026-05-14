@@ -36,6 +36,13 @@ parser = OptionParser.new do |opts|
   opts.on('--pretty', 'Pretty-print SVG output') { options[:pretty] = true }
   opts.on('--minify', 'Minify SVG output') { options[:minify] = true }
   opts.on('--svg-id ID', 'Stable SVG root ID prefix') { |value| options[:svg_id] = value }
+  opts.on('--wrap-labels', 'Wrap long SVG transition labels') { options[:wrap] = true }
+  opts.on('--max-transition-label-width WIDTH', Float, 'Maximum SVG transition label width before wrapping') { |value| options[:max_transition_label_width] = value }
+  opts.on('--state-wrap', 'Wrap long SVG state labels') { options[:state_wrap] = true }
+  opts.on('--max-state-label-width WIDTH', Float, 'Maximum SVG state label width before wrapping') { |value| options[:max_state_label_width] = value }
+  opts.on('--label-tooltips', 'Add SVG title tooltips for labels') { options[:label_tooltips] = true }
+  opts.on('--no-label-background', 'Hide SVG transition label backgrounds') { options[:label_background] = false }
+  opts.on('--show-final-arrows', 'Render native SVG arrows from final states') { options[:show_final_arrows] = true }
   opts.on('--cdn URL_OR_PATH', 'Mermaid CDN URL or local script path for HTML output') { |value| options[:cdn] = value }
   opts.on('--offline', 'Use a non-module Mermaid script tag for HTML output') { options[:offline] = true }
   opts.on('--inline-mermaid', 'Inline Mermaid script from --cdn path in HTML output') { options[:inline_mermaid] = true }
@@ -108,6 +115,13 @@ if svg_backed_format
   save_options[:pretty] = options[:pretty] if options.key?(:pretty)
   save_options[:minify] = options[:minify] if options.key?(:minify)
   save_options[:svg_id] = options[:svg_id] if options[:svg_id]
+  save_options[:wrap] = options[:wrap] if options.key?(:wrap)
+  save_options[:max_transition_label_width] = options[:max_transition_label_width] if options[:max_transition_label_width]
+  save_options[:state_wrap] = options[:state_wrap] if options.key?(:state_wrap)
+  save_options[:max_state_label_width] = options[:max_state_label_width] if options[:max_state_label_width]
+  save_options[:label_tooltips] = options[:label_tooltips] if options.key?(:label_tooltips)
+  save_options[:label_background] = options[:label_background] if options.key?(:label_background)
+  save_options[:show_final_arrows] = options[:show_final_arrows] if options.key?(:show_final_arrows)
 end
 if %i[png pdf webp].include?(resolved_output_format)
   save_options[:converter] = options[:converter] if options[:converter]
