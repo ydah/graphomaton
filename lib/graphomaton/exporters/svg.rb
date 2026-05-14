@@ -62,6 +62,24 @@ class Graphomaton
       STATE_EFFECT_OPTIONS = %i[none shadow glow].freeze
       ARROW_SHAPE_OPTIONS = %i[triangle vee stealth].freeze
       TRANSITION_LINE_STYLE_OPTIONS = %i[solid dashed dotted].freeze
+      TEXT_UNIT_WIDTH = 14.0
+      COMBINING_MARK_RANGES = [
+        0x0300..0x036F,
+        0x1AB0..0x1AFF,
+        0x1DC0..0x1DFF,
+        0x20D0..0x20FF,
+        0xFE20..0xFE2F
+      ].freeze
+      EAST_ASIAN_WIDE_RANGES = [
+        0x1100..0x115F,
+        0x2E80..0xA4CF,
+        0xAC00..0xD7A3,
+        0xF900..0xFAFF,
+        0xFE10..0xFE6F,
+        0xFF01..0xFF60,
+        0xFFE0..0xFFE6,
+        0x1F300..0x1FAFF
+      ].freeze
 
       THEMES = {
         light: {
@@ -448,18 +466,12 @@ class Graphomaton
       end
 
       def calculate_text_width(text)
-        ascii_chars = text.chars.count { |c| c.ascii_only? }
-        non_ascii_chars = text.length - ascii_chars
-
-        width = (ascii_chars * 8) + (non_ascii_chars * 16) + (@label_padding * 2)
-        [width, 60].max
+        width = (text_display_width_units(text) * TEXT_UNIT_WIDTH) + (@label_padding * 2)
+        [width.ceil, 60].max
       end
 
       def calculate_state_font_size(name)
-        ascii_chars = name.chars.count { |c| c.ascii_only? }
-        non_ascii_chars = name.length - ascii_chars
-
-        estimated_width = (ascii_chars * 0.55) + (non_ascii_chars * 0.9)
+        estimated_width = text_display_width_units(name)
         available_width = (@state_radius || DEFAULT_STATE_RADIUS) * 1.7
 
         base_size = 20
@@ -470,6 +482,30 @@ class Graphomaton
                           end
 
         [calculated_size, 12].max
+      end
+
+      def text_display_width_units(text)
+        text.to_s.each_char.sum { |char| character_width_units(char) }
+      end
+
+      def character_width_units(char)
+        codepoint = char.ord
+        return 0.0 if zero_width_codepoint?(codepoint)
+        return 0.4 if char.match?(/\s/)
+        return 1.0 if codepoint_in_ranges?(codepoint, EAST_ASIAN_WIDE_RANGES)
+        return 0.55 if codepoint < 0x80
+
+        0.65
+      end
+
+      def zero_width_codepoint?(codepoint)
+        codepoint == 0x200D ||
+          codepoint == 0xFE0F ||
+          codepoint_in_ranges?(codepoint, COMBINING_MARK_RANGES)
+      end
+
+      def codepoint_in_ranges?(codepoint, ranges)
+        ranges.any? { |range| range.cover?(codepoint) }
       end
 
       def add_defs(svg)

@@ -533,6 +533,22 @@ RSpec.describe Graphomaton::Exporters::Svg do
       expect(width).to be > 0
     end
 
+    it 'uses wider metrics for Japanese characters than ASCII characters' do
+      ascii_width = svg_exporter.send(:calculate_text_width, 'abcdefgh')
+      japanese_width = svg_exporter.send(:calculate_text_width, '状態遷移状態遷移')
+
+      expect(japanese_width).to be > ascii_width
+    end
+
+    it 'does not overestimate latin accents or combining marks as full-width characters' do
+      ascii_width = svg_exporter.send(:calculate_text_width, 'cafe cafe cafe')
+      accented_width = svg_exporter.send(:calculate_text_width, 'café café café')
+      combining_width = svg_exporter.send(:calculate_text_width, "cafe\u0301 cafe\u0301 cafe\u0301")
+
+      expect(accented_width).to be_within(6).of(ascii_width)
+      expect(combining_width).to be_within(1).of(ascii_width)
+    end
+
     it 'returns minimum width for empty text' do
       width = svg_exporter.send(:calculate_text_width, '')
       expect(width).to eq(60)
