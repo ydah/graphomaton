@@ -111,6 +111,7 @@ graphomaton --input automaton.yml --output diagram.svg --state-stroke-width 4 --
 graphomaton --input automaton.yml --output diagram.svg --xml-declaration --pretty
 graphomaton --input automaton.yml --output diagram.svg --css-variables --no-embed-styles
 graphomaton --input automaton.yml --output diagram.svg --wrap-labels --state-wrap --label-tooltips --show-final-arrows
+graphomaton --input automaton.yml --output diagram.svg --sort-labels --highlight-transition "q0:q1:a, b" --loop-position right
 graphomaton --input automaton.yml --output diagram.svg --label-padding 20 --label-radius 8 --label-border --initial-arrow-label begin --final-arrow-label done
 graphomaton --input automaton.yml --output diagram.svg --highlight-unreachable --highlight-dead-states
 graphomaton --input automaton.yml --output diagram.svg --no-preserve-manual-positions

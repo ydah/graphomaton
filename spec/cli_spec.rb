@@ -278,6 +278,53 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'passes SVG transition ordering and highlight options through the CLI' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+              initial: true
+            - id: q1
+            - id: q2
+          transitions:
+            - from: q0
+              to: q1
+              label: b
+            - from: q0
+              to: q1
+              label: a
+            - from: q2
+              to: q2
+              label: loop
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--sort-labels',
+        '--highlight-transition',
+        'q0:q1:a, b',
+        '--loop-position',
+        'right'
+      )
+
+      content = File.read(output)
+      expect(status).to be_success, stderr
+      expect(content).to include('a, b')
+      expect(content).to include('highlighted-transition')
+      expect(content).to include('loop')
+    end
+  end
+
   it 'passes SVG label background and arrow options through the CLI' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
