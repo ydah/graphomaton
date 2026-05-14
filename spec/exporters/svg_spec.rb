@@ -240,6 +240,32 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(circles.first.attributes['r'].to_f).to eq(22.0)
       end
 
+      it 'can grow state radius from label width when enabled' do
+        long_label = Graphomaton.new
+        long_label.add_state('q_long', label: 'VeryLongStateNameForRadius')
+
+        svg_output = described_class.new(long_label).export(auto_state_radius: true, max_state_radius: 90)
+        doc = REXML::Document.new(svg_output)
+        circle = REXML::XPath.first(doc, '//circle[@class="state-circle"]')
+
+        expect(circle.attributes['r'].to_f).to be > described_class::DEFAULT_STATE_RADIUS
+      end
+
+      it 'clamps automatic state radius to configured bounds' do
+        long_label = Graphomaton.new
+        long_label.add_state('q_long', label: 'ExtremelyLongStateNameThatWouldOtherwiseGrowTooMuch')
+
+        svg_output = described_class.new(long_label).export(
+          auto_state_radius: true,
+          min_state_radius: 44,
+          max_state_radius: 48
+        )
+        doc = REXML::Document.new(svg_output)
+        circle = REXML::XPath.first(doc, '//circle[@class="state-circle"]')
+
+        expect(circle.attributes['r'].to_f).to eq(48.0)
+      end
+
       it 'can render without preserving manual state positions' do
         manual = Graphomaton.new
         manual.add_state('A', 10, 10)

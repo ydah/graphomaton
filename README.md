@@ -106,6 +106,7 @@ graphomaton --input automaton.json --output diagram.png --format png --theme dar
 graphomaton --input automaton.yml --output diagram.svg --layout layered --direction lr
 graphomaton --input automaton.yml --output diagram.svg --layout force --padding 80 --node-spacing 140 --force-iterations 80 --layout-seed 42
 graphomaton --input automaton.yml --output diagram.svg --responsive --state-radius 32 --fit cover --auto-size
+graphomaton --input automaton.yml --output diagram.svg --auto-state-radius --min-state-radius 32 --max-state-radius 72
 graphomaton --input automaton.yml --output diagram.svg --state-shape ellipse --edge-style orthogonal --arrow-shape vee
 graphomaton --input automaton.yml --output diagram.svg --state-stroke-width 4 --transition-stroke-width 3 --font-family "Noto Sans" --state-effect shadow
 graphomaton --input automaton.yml --output diagram.svg --xml-declaration --pretty

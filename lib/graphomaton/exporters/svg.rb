@@ -7,6 +7,9 @@ class Graphomaton
   module Exporters
     class Svg
       DEFAULT_STATE_RADIUS = 40
+      DEFAULT_AUTO_STATE_RADIUS = false
+      DEFAULT_MIN_STATE_RADIUS = 24
+      DEFAULT_MAX_STATE_RADIUS = 72
       DEFAULT_STATE_SHAPE = :circle
       DEFAULT_STATE_STROKE_WIDTH = 2
       DEFAULT_TRANSITION_STROKE_WIDTH = 1.5
@@ -181,7 +184,9 @@ class Graphomaton
       end
 
       def export(width = 800, height = 600, theme: DEFAULT_THEME, layout: DEFAULT_LAYOUT, direction: DEFAULT_DIRECTION, responsive: false,
-                 state_radius: DEFAULT_STATE_RADIUS, state_shape: DEFAULT_STATE_SHAPE,
+                 state_radius: DEFAULT_STATE_RADIUS, auto_state_radius: DEFAULT_AUTO_STATE_RADIUS,
+                 min_state_radius: DEFAULT_MIN_STATE_RADIUS, max_state_radius: DEFAULT_MAX_STATE_RADIUS,
+                 state_shape: DEFAULT_STATE_SHAPE,
                  state_stroke_width: DEFAULT_STATE_STROKE_WIDTH,
                  transition_stroke_width: DEFAULT_TRANSITION_STROKE_WIDTH,
                  wrap: DEFAULT_WRAP, max_transition_label_width: DEFAULT_MAX_LABEL_WIDTH,
@@ -222,7 +227,7 @@ class Graphomaton
                  preserve_manual_positions: Graphomaton::DEFAULT_PRESERVE_MANUAL_POSITIONS,
                  fit: Graphomaton::DEFAULT_FIT,
                  title: nil, description: nil, svg_id: nil)
-        @state_radius = state_radius.to_f
+        @state_radius = resolve_state_radius(state_radius, auto_state_radius, min_state_radius, max_state_radius)
         @state_shape = resolve_state_shape(state_shape)
         @state_stroke_width = [state_stroke_width.to_f, 0.1].max
         @transition_stroke_width = [transition_stroke_width.to_f, 0.1].max
@@ -463,6 +468,26 @@ class Graphomaton
                                'version' => Graphomaton::VERSION,
                                'format' => 'svg'
                              })
+      end
+
+      def resolve_state_radius(state_radius, auto_state_radius, min_state_radius, max_state_radius)
+        radius = [state_radius.to_f, 1.0].max
+        return radius unless auto_state_radius
+
+        min_radius = [min_state_radius.to_f, 1.0].max
+        max_radius = [max_state_radius.to_f, min_radius].max
+        label_radius = state_label_radius
+
+        [[radius, label_radius, min_radius].max, max_radius].min
+      end
+
+      def state_label_radius
+        max_width_units = @automaton.states.map do |name, state|
+          text_display_width_units(state_label(name, state))
+        end.max || 0
+        return DEFAULT_STATE_RADIUS if max_width_units <= 0
+
+        ((max_width_units * 20) / 1.7).ceil
       end
 
       def calculate_text_width(text)

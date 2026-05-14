@@ -278,6 +278,38 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'passes SVG automatic state radius options through the CLI' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+              label: ExtremelyLongStateNameForRadius
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--auto-state-radius',
+        '--min-state-radius',
+        '44',
+        '--max-state-radius',
+        '48'
+      )
+
+      expect(status).to be_success, stderr
+      expect(File.read(output)).to include("r='48.0'")
+    end
+  end
+
   it 'passes SVG transition ordering and highlight options through the CLI' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
