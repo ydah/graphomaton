@@ -332,6 +332,53 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'passes SVG group folding through the CLI' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(
+        input,
+        <<~YAML
+          states:
+            - id: q0
+              x: 100
+              y: 100
+              metadata:
+                group: alpha
+            - id: q1
+              x: 220
+              y: 100
+              metadata:
+                group: alpha
+            - id: q2
+              x: 340
+              y: 100
+          transitions:
+            - from: q1
+              to: q2
+              label: exit
+        YAML
+      )
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input',
+        input,
+        '--output',
+        output,
+        '--layout',
+        'manual',
+        '--fold-groups'
+      )
+
+      content = File.read(output)
+      expect(status).to be_success, stderr
+      expect(content).to include("data-folded-group='alpha'")
+      expect(content).to include("data-from='group:alpha'")
+    end
+  end
+
   it 'passes SVG label options through the CLI' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')

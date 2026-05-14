@@ -128,6 +128,7 @@ graphomaton --input automaton.yml --output diagram.svg --sort-labels --highlight
 graphomaton --input automaton.yml --output diagram.svg --label-padding 20 --label-radius 8 --label-border --initial-arrow-label begin --final-arrow-label done
 graphomaton --input automaton.yml --output diagram.svg --highlight-unreachable --unreachable-zone right --highlight-dead-states
 graphomaton --input automaton.yml --output diagram.svg --scc-groups
+graphomaton --input automaton.yml --output diagram.svg --fold-groups
 graphomaton --input automaton.yml --output diagram.svg --no-preserve-manual-positions
 graphomaton --input automaton.yml --output diagram.svg --theme-file theme.yml
 graphomaton --list-themes
@@ -224,6 +225,7 @@ automaton.save_svg('diagram.svg', 800, 600, label_padding: 16, label_radius: 8, 
 automaton.save_svg('diagram.svg', 800, 600, highlight_unreachable: true)
 automaton.save_svg('diagram.svg', 800, 600, unreachable_zone: :right)
 automaton.save_svg('diagram.svg', 800, 600, scc_groups: true)
+automaton.save_svg('diagram.svg', 800, 600, fold_groups: true)
 automaton.save_svg('diagram.svg', 800, 600, highlight_dead_states: true)
 automaton.save_svg('diagram.svg', 800, 600, highlight_initial_state: true, highlight_final_states: true)
 automaton.save_svg('diagram.svg', 800, 600, highlight_transitions: [{ from: 'q0', to: 'q1', label: 'a' }])
@@ -238,6 +240,8 @@ automaton.save_svg('diagram.svg', 800, 600, edge_style: :orthogonal)
 automaton.save_svg('diagram.svg', 800, 600, state_shape: :ellipse)
 automaton.save_svg('diagram.svg', 800, 600, show_final_arrows: true)
 ```
+
+`fold_groups: true` collapses states sharing metadata `group` or `cluster` into compound SVG nodes, hides internal transitions, and rewrites external transitions to the folded node.
 
 #### 2. PNG
 ```ruby

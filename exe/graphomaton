@@ -97,6 +97,7 @@ parser = OptionParser.new do |opts|
   opts.on('--final-arrow-label LABEL', 'SVG final arrow label') { |value| options[:final_arrow_label] = value }
   opts.on('--show-final-arrows', 'Render native SVG arrows from final states') { options[:show_final_arrows] = true }
   opts.on('--scc-groups', 'Render SVG groups around strongly connected components') { options[:scc_groups] = true }
+  opts.on('--fold-groups', 'Fold grouped SVG states into compound nodes') { options[:fold_groups] = true }
   opts.on('--highlight-unreachable', 'Highlight unreachable states in SVG output') { options[:highlight_unreachable] = true }
   opts.on('--unreachable-zone POSITION', 'Move unreachable SVG states to none, right, bottom, left, or top') { |value| options[:unreachable_zone] = value.to_sym }
   opts.on('--highlight-dead-states', 'Highlight dead and trap states in SVG output') { options[:highlight_dead_states] = true }
@@ -273,6 +274,7 @@ if svg_backed_format
   save_options[:final_arrow_label] = options[:final_arrow_label] if options[:final_arrow_label]
   save_options[:show_final_arrows] = options[:show_final_arrows] if options.key?(:show_final_arrows)
   save_options[:scc_groups] = options[:scc_groups] if options.key?(:scc_groups)
+  save_options[:fold_groups] = options[:fold_groups] if options.key?(:fold_groups)
   save_options[:highlight_unreachable] = options[:highlight_unreachable] if options.key?(:highlight_unreachable)
   save_options[:unreachable_zone] = options[:unreachable_zone] if options[:unreachable_zone]
   save_options[:highlight_dead_states] = options[:highlight_dead_states] if options.key?(:highlight_dead_states)

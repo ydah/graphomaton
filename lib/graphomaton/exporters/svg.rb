@@ -62,6 +62,7 @@ class Graphomaton
       DEFAULT_STATE_WRAP = false
       DEFAULT_MAX_STATE_LABEL_WIDTH = 120
       DEFAULT_SCC_GROUPS = false
+      DEFAULT_FOLD_GROUPS = false
       LAYOUT_OPTIONS = %i[linear circle grid layered bfs force graphviz dot manual].freeze
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
       LOOP_POSITION_OPTIONS = %i[auto top right bottom left].freeze
@@ -236,6 +237,7 @@ class Graphomaton
                  edge_style: DEFAULT_EDGE_STYLE,
                  show_final_arrows: DEFAULT_SHOW_FINAL_ARROWS,
                  scc_groups: DEFAULT_SCC_GROUPS,
+                 fold_groups: DEFAULT_FOLD_GROUPS,
                  preserve_manual_positions: Graphomaton::DEFAULT_PRESERVE_MANUAL_POSITIONS,
                  fit: Graphomaton::DEFAULT_FIT,
                  title: nil, description: nil, svg_id: nil)
@@ -288,6 +290,7 @@ class Graphomaton
         @font_family = font_family
         @state_font_weight = state_font_weight
         @transition_font_weight = transition_font_weight
+        @automaton = folded_automaton(@automaton) if fold_groups
         @positions = @automaton.layout_positions(
           width,
           height,
@@ -1620,6 +1623,111 @@ class Graphomaton
         metadata[:group] || metadata['group'] || metadata[:cluster] || metadata['cluster']
       end
 
+      def folded_automaton(source)
+        groups = source.states.each_with_object({}) do |(name, state), grouped|
+          group_name = state_group_name(state)
+          next unless group_name
+
+          grouped[group_name] ||= []
+          grouped[group_name] << name
+        end
+        groups.select! { |_, members| members.size > 1 }
+        return source if groups.empty?
+
+        folded = Graphomaton.new
+        group_ids = {}
+        member_to_group = {}
+
+        groups.each do |group_name, members|
+          group_id = folded_group_state_id(group_name, source.states, group_ids.values)
+          group_ids[group_name] = group_id
+          members.each { |member| member_to_group[member] = group_id }
+        end
+
+        source.states.each do |name, state|
+          group_name = state_group_name(state)
+          if group_name && groups.key?(group_name)
+            next if folded.states.key?(group_ids[group_name])
+
+            position = folded_group_position(groups[group_name], source.states)
+            folded.add_state(
+              group_ids[group_name],
+              position[:x],
+              position[:y],
+              label: group_name.to_s,
+              metadata: folded_group_metadata(group_name, groups[group_name]),
+              shape: :rounded_rect
+            )
+          else
+            folded.add_state(
+              name,
+              state[:x],
+              state[:y],
+              label: state[:label],
+              style: state[:style],
+              metadata: state[:metadata],
+              shape: state[:shape]
+            )
+          end
+        end
+
+        source.transitions.each do |transition|
+          from = member_to_group.fetch(transition[:from], transition[:from])
+          to = member_to_group.fetch(transition[:to], transition[:to])
+          next if from == to
+
+          folded.add_transition(
+            from,
+            to,
+            transition[:label],
+            style: transition[:style],
+            metadata: transition[:metadata],
+            line_style: transition[:line_style]
+          )
+        end
+
+        folded.set_initial(member_to_group.fetch(source.initial_state, source.initial_state)) if source.initial_state
+        source.final_states.each do |state|
+          folded.add_final(member_to_group.fetch(state, state))
+        end
+
+        folded
+      end
+
+      def folded_group_state_id(group_name, states, reserved)
+        base = "group:#{group_name}"
+        candidate = base
+        index = 2
+        while states.key?(candidate) || reserved.include?(candidate)
+          candidate = "#{base}:#{index}"
+          index += 1
+        end
+        candidate
+      end
+
+      def folded_group_position(members, states)
+        positioned = members.filter_map do |member|
+          state = states[member]
+          next unless state && state[:x] && state[:y]
+
+          { x: state[:x].to_f, y: state[:y].to_f }
+        end
+        return { x: nil, y: nil } if positioned.empty?
+
+        {
+          x: positioned.sum { |position| position[:x] } / positioned.size,
+          y: positioned.sum { |position| position[:y] } / positioned.size
+        }
+      end
+
+      def folded_group_metadata(group_name, members)
+        {
+          folded_group: group_name,
+          folded_states: members,
+          tooltip: "Folded group #{group_name}: #{members.join(', ')}"
+        }
+      end
+
       def state_group_bounds(positions)
         padding = [@state_radius * 0.75, 28].max
         min_x = positions.map { |position| position[:x].to_f }.min - @state_radius - padding
@@ -1868,11 +1976,17 @@ class Graphomaton
         classes << 'initial-state' if @highlight_initial_state && @automaton.initial_state == name
         classes << 'accepting-state' if @highlight_final_states && @automaton.final_states.include?(name)
 
-        {
+        attributes = {
           'class' => classes.join(' '),
           'id' => unique_svg_id("state-#{svg_id_component(name)}"),
           'data-state' => name.to_s
         }
+        state = @automaton.states[name]
+        folded_group = state_metadata_value(state, :folded_group) if state
+        folded_states = state_metadata_value(state, :folded_states) if state
+        attributes['data-folded-group'] = folded_group.to_s if folded_group
+        attributes['data-folded-states'] = Array(folded_states).join(',') if folded_states
+        attributes
       end
 
       def transition_group_attributes(transition)

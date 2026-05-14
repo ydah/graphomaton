@@ -1310,6 +1310,7 @@ class Graphomaton
              edge_style: Exporters::Svg::DEFAULT_EDGE_STYLE,
              show_final_arrows: Exporters::Svg::DEFAULT_SHOW_FINAL_ARROWS,
              scc_groups: Exporters::Svg::DEFAULT_SCC_GROUPS,
+             fold_groups: Exporters::Svg::DEFAULT_FOLD_GROUPS,
              preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
              fit: DEFAULT_FIT,
              title: nil, description: nil, svg_id: nil)
@@ -1365,6 +1366,7 @@ class Graphomaton
       edge_style: edge_style,
       show_final_arrows: show_final_arrows,
       scc_groups: scc_groups,
+      fold_groups: fold_groups,
       preserve_manual_positions: preserve_manual_positions,
       fit: fit,
       wrap: wrap,
@@ -1432,6 +1434,7 @@ class Graphomaton
                edge_style: Exporters::Svg::DEFAULT_EDGE_STYLE,
                show_final_arrows: Exporters::Svg::DEFAULT_SHOW_FINAL_ARROWS,
                scc_groups: Exporters::Svg::DEFAULT_SCC_GROUPS,
+               fold_groups: Exporters::Svg::DEFAULT_FOLD_GROUPS,
                preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
                fit: DEFAULT_FIT,
                title: nil, description: nil, svg_id: nil)
@@ -1489,6 +1492,7 @@ class Graphomaton
         edge_style: edge_style,
         show_final_arrows: show_final_arrows,
         scc_groups: scc_groups,
+        fold_groups: fold_groups,
         preserve_manual_positions: preserve_manual_positions,
         fit: fit,
         wrap: wrap,

@@ -1088,6 +1088,29 @@ RSpec.describe Graphomaton do
       expect(group_label.text).to eq('alpha')
     end
 
+    it 'can fold grouped SVG states into compound nodes' do
+      local = described_class.new
+      local.add_state('q0', 100, 100, metadata: { group: 'alpha' })
+      local.add_state('q1', 220, 100, metadata: { group: 'alpha' })
+      local.add_state('q2', 340, 100)
+      local.set_initial('q0')
+      local.add_final('q1')
+      local.add_transition('q0', 'q1', 'internal')
+      local.add_transition('q1', 'q2', 'exit')
+
+      svg_output = local.to_svg(layout: :manual, fold_groups: true)
+      doc = REXML::Document.new(svg_output)
+      folded = REXML::XPath.first(doc, '//*[@data-folded-group="alpha"]')
+      hidden_state = REXML::XPath.match(doc, '//*[@data-state="q0"]')
+      transition = REXML::XPath.first(doc, '//*[@data-from="group:alpha"][@data-to="q2"]')
+
+      expect(folded).not_to be_nil
+      expect(folded.attributes['data-folded-states']).to eq('q0,q1')
+      expect(hidden_state).to be_empty
+      expect(transition.attributes['data-label']).to eq('exit')
+      expect(svg_output).not_to include('internal')
+    end
+
     it 'renders SVG SCC groups when requested' do
       local = described_class.new
       local.add_state('q0', 100, 100)
