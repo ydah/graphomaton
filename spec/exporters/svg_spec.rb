@@ -667,6 +667,21 @@ RSpec.describe Graphomaton::Exporters::Svg do
       has_wrapped_label = labels.any? { |label| !label.get_elements('tspan').empty? }
       expect(has_wrapped_label).to be true
     end
+
+    it 'can rotate transition labels along edges' do
+      rotated = Graphomaton.new
+      rotated.add_state('A', 100, 100)
+      rotated.add_state('B', 260, 180)
+      rotated.add_transition('A', 'B', 'diagonal')
+
+      svg_output = described_class.new(rotated).export(layout: :manual, edge_style: :straight, rotate_labels: true)
+      doc = REXML::Document.new(svg_output)
+      label = REXML::XPath.first(doc, '//text[@class="transition-label"]')
+      background = REXML::XPath.first(doc, '//rect[@class="label-bg"]')
+
+      expect(label.attributes['transform']).to include('rotate(')
+      expect(background.attributes['transform']).to eq(label.attributes['transform'])
+    end
   end
 
   describe '#collision_free_label_box' do

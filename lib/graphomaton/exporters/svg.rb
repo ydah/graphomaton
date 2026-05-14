@@ -19,6 +19,7 @@ class Graphomaton
       DEFAULT_MERGE_PARALLEL_TRANSITIONS = true
       DEFAULT_WRAP = false
       DEFAULT_SORT_LABELS = false
+      DEFAULT_ROTATE_LABELS = false
       DEFAULT_LABEL_TOOLTIPS = false
       DEFAULT_HTML_TOOLTIPS = false
       DEFAULT_LABEL_BACKGROUND = true
@@ -212,6 +213,7 @@ class Graphomaton
                  label_border: DEFAULT_LABEL_BORDER,
                  label_padding: DEFAULT_LABEL_PADDING,
                  label_radius: DEFAULT_LABEL_RADIUS,
+                 rotate_labels: DEFAULT_ROTATE_LABELS,
                  highlight_unreachable: DEFAULT_HIGHLIGHT_UNREACHABLE,
                  highlight_dead_states: DEFAULT_HIGHLIGHT_DEAD_STATES,
                  highlight_initial_state: DEFAULT_HIGHLIGHT_INITIAL_STATE,
@@ -252,6 +254,7 @@ class Graphomaton
         @label_border = label_border
         @label_padding = [label_padding.to_f, 0].max
         @label_radius = [label_radius.to_f, 0].max
+        @rotate_labels = rotate_labels
         @highlight_unreachable = highlight_unreachable
         @highlight_dead_states = highlight_dead_states
         @highlight_initial_state = highlight_initial_state
@@ -1115,7 +1118,7 @@ class Graphomaton
         label_x = (start_x + end_x) / 2
         label_y = ((start_y + end_y) / 2) - 10
 
-        add_label(svg, label_x, label_y, trans[:label])
+        add_label(svg, label_x, label_y, trans[:label], angle: label_rotation_angle(start_x, start_y, end_x, end_y))
       end
 
       def add_curved_line(svg, start_x, start_y, end_x, end_y, x1, y1, x2, y2, trans, parallel_count, pair_index, states_between, from_state_index)
@@ -1164,7 +1167,7 @@ class Graphomaton
         label_x = ((1 - t) * (1 - t) * start_x) + (2 * (1 - t) * t * control_x) + (t * t * end_x)
         label_y = ((1 - t) * (1 - t) * start_y) + (2 * (1 - t) * t * control_y) + (t * t * end_y)
 
-        add_label(svg, label_x, label_y, trans[:label])
+        add_label(svg, label_x, label_y, trans[:label], angle: label_rotation_angle(start_x, start_y, end_x, end_y))
       end
 
       def add_orthogonal_line(svg, start_x, start_y, end_x, end_y, trans)
@@ -1173,15 +1176,17 @@ class Graphomaton
           path_d = "M #{start_x} #{start_y} L #{start_x} #{mid_y} L #{end_x} #{mid_y} L #{end_x} #{end_y}"
           label_x = (start_x + end_x) / 2.0
           label_y = mid_y - 8
+          label_angle = label_rotation_angle(start_x, mid_y, end_x, mid_y)
         else
           mid_x = (start_x + end_x) / 2.0
           path_d = "M #{start_x} #{start_y} L #{mid_x} #{start_y} L #{mid_x} #{end_y} L #{end_x} #{end_y}"
           label_x = mid_x
           label_y = ((start_y + end_y) / 2.0) - 8
+          label_angle = label_rotation_angle(mid_x, start_y, mid_x, end_y)
         end
 
         svg.add_element('path', transition_line_attributes(trans, 'd' => path_d))
-        add_label(svg, label_x, label_y, trans[:label])
+        add_label(svg, label_x, label_y, trans[:label], angle: label_angle)
       end
 
       def add_overlapping_state_transition(svg, x, y, trans)
@@ -1202,7 +1207,7 @@ class Graphomaton
         add_label(svg, x + loop_width, y - loop_height, trans[:label])
       end
 
-      def add_label(svg, x, y, text)
+      def add_label(svg, x, y, text, angle: nil)
         lines = transition_label_lines(text)
         text_width = transition_label_box_lines_width(lines)
         text_height = transition_label_box_height(lines)
@@ -1215,24 +1220,29 @@ class Graphomaton
         }
         box = collision_free_label_box(base_box)
         @label_boxes << box
+        transform = label_rotation_transform(box, angle)
 
         if @label_background
-          svg.add_element('rect', {
-                            'class' => 'label-bg',
-                            'x' => box[:x].to_s,
-                            'y' => box[:y].to_s,
-                            'width' => box[:width].to_s,
-                            'height' => box[:height].to_s,
-                            'rx' => @label_radius.to_s
-                          })
+          label_background_attributes = {
+            'class' => 'label-bg',
+            'x' => box[:x].to_s,
+            'y' => box[:y].to_s,
+            'width' => box[:width].to_s,
+            'height' => box[:height].to_s,
+            'rx' => @label_radius.to_s
+          }
+          label_background_attributes['transform'] = transform if transform
+          svg.add_element('rect', label_background_attributes)
         end
 
-        label = svg.add_element('text', {
-                                  'class' => 'transition-label',
-                                  'x' => (box[:x] + (box[:width] / 2)).to_s,
-                                  'y' => (box[:y] + 12).to_s,
-                                  'text-anchor' => 'middle'
-                                })
+        label_attributes = {
+          'class' => 'transition-label',
+          'x' => (box[:x] + (box[:width] / 2)).to_s,
+          'y' => (box[:y] + 12).to_s,
+          'text-anchor' => 'middle'
+        }
+        label_attributes['transform'] = transform if transform
+        label = svg.add_element('text', label_attributes)
         if lines.size == 1
           label.text = lines.first
         else
@@ -1242,6 +1252,21 @@ class Graphomaton
             tspan.attributes['dy'] = index.zero? ? '0' : '16'
           end
         end
+      end
+
+      def label_rotation_angle(start_x, start_y, end_x, end_y)
+        angle = Math.atan2(end_y - start_y, end_x - start_x) * 180.0 / Math::PI
+        angle += 180.0 if angle < -90.0
+        angle -= 180.0 if angle > 90.0
+        angle.round(2)
+      end
+
+      def label_rotation_transform(box, angle)
+        return nil unless @rotate_labels && angle
+
+        center_x = box[:x] + (box[:width] / 2.0)
+        center_y = box[:y] + (box[:height] / 2.0)
+        "rotate(#{angle} #{center_x} #{center_y})"
       end
 
       def add_initial_arrow(svg)
