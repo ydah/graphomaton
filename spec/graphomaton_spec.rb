@@ -1344,7 +1344,7 @@ RSpec.describe Graphomaton do
       initial_arrow = REXML::XPath.first(doc, '//line[@class="initial-arrow"]')
       label = REXML::XPath.match(doc, '//text[@class="transition-label"]').find { |node| node.text == 'entry' }
 
-      expect(initial_arrow.attributes['x2'].to_f - initial_arrow.attributes['x1'].to_f).to eq(48.0)
+      expect(initial_arrow.attributes['x2'].to_f - initial_arrow.attributes['x1'].to_f).to be >= 48.0
       expect(label).not_to be_nil
     end
 
@@ -1355,6 +1355,18 @@ RSpec.describe Graphomaton do
 
       expect(label.attributes['x'].to_f).to be > 0
       expect(label.attributes['text-anchor']).to eq('end')
+      initial_arrow = REXML::XPath.first(doc, '//line[@class="initial-arrow"]')
+      expect(initial_arrow.attributes['x1'].to_f).to be < label.attributes['x'].to_f
+    end
+
+    it 'keeps initial arrowheads outside the initial state boundary' do
+      svg_output = automaton.to_svg(state_radius: 40)
+      doc = REXML::Document.new(svg_output)
+      initial_state = REXML::XPath.first(doc, '//g[@id="state-q0"]/circle')
+      initial_arrow = REXML::XPath.first(doc, '//line[@class="initial-arrow"]')
+
+      state_left_edge = initial_state.attributes['cx'].to_f - initial_state.attributes['r'].to_f
+      expect(initial_arrow.attributes['x2'].to_f).to be < state_left_edge
     end
 
     it 'aligns initial arrows with the SVG direction' do
@@ -1479,6 +1491,16 @@ RSpec.describe Graphomaton do
       expect(style.text).to include('stroke-width: 1')
       expect(label_bg.attributes['width'].to_f).to be > 80
       expect(label_bg.attributes['rx']).to eq('8.0')
+    end
+
+    it 'vertically centers transition labels in their background boxes' do
+      svg_output = automaton.to_svg
+      doc = REXML::Document.new(svg_output)
+      label_bg = REXML::XPath.first(doc, '//rect[@class="label-bg"]')
+      label = REXML::XPath.first(doc, '//text[@class="transition-label"]')
+      box_center = label_bg.attributes['y'].to_f + (label_bg.attributes['height'].to_f / 2.0)
+
+      expect(label.attributes['y'].to_f).to be_within(3.0).of(box_center + 5.0)
     end
 
     it 'can highlight unreachable states' do

@@ -1427,7 +1427,7 @@ class Graphomaton
         label_attributes = {
           'class' => 'transition-label',
           'x' => (box[:x] + (box[:width] / 2)).to_s,
-          'y' => (box[:y] + 12).to_s,
+          'y' => label_text_y(box, lines).to_s,
           'text-anchor' => 'middle'
         }
         label_attributes['transform'] = transform if transform
@@ -1438,9 +1438,19 @@ class Graphomaton
           lines.each_with_index do |line, index|
             tspan = label.add_element('tspan', { 'x' => (box[:x] + (box[:width] / 2)).to_s })
             tspan.text = line
-            tspan.attributes['dy'] = index.zero? ? '0' : '16'
+            tspan.attributes['dy'] = index.zero? ? '0' : label_line_height.to_s
           end
         end
+      end
+
+      def label_text_y(box, lines)
+        line_height = label_line_height
+        text_block_height = line_height * lines.size
+        box[:y] + ((box[:height] - text_block_height) / 2.0) + (line_height * 0.72)
+      end
+
+      def label_line_height
+        16.0
       end
 
       def add_label_leader(svg, target_x, target_y, box)
@@ -1510,26 +1520,30 @@ class Graphomaton
       def initial_arrow_points(state)
         x = state[:x].to_f
         y = state[:y].to_f
-        gap = 30
+        gap = 8
+        radius = @state_radius
         length = @initial_arrow_length
 
         case @direction
         when :rl
-          x1 = [x + gap + length, @canvas_width].compact.min
-          x2 = [x + gap, @canvas_width].compact.min
+          x2 = [x + radius + gap, @canvas_width].compact.min
+          x1 = [x2 + length, @canvas_width].compact.min
           [x1, y, x2, y, x1 + 4, y - 10, 'start']
         when :tb
-          y1 = [y - gap - length, 0.0].max
-          y2 = [y - gap, 0.0].max
+          y2 = [y - radius - gap, 0.0].max
+          y1 = [y2 - length, 0.0].max
           [x, y1, x, y2, x + 8, y1 + 14, 'start']
         when :bt
-          y1 = [y + gap + length, @canvas_height].compact.min
-          y2 = [y + gap, @canvas_height].compact.min
+          y2 = [y + radius + gap, @canvas_height].compact.min
+          y1 = [y2 + length, @canvas_height].compact.min
           [x, y1, x, y2, x + 8, y1 - 4, 'start']
         else
-          x1 = [x - gap - length, 0.0].max
-          x2 = [x - gap, 0.0].max
-          [x1, y, x2, y, x1 - 4, y - 10, 'end']
+          x2 = [x - radius - gap, 0.0].max
+          x1 = [x2 - length, 0.0].max
+          label_x = [x1 - 4, 0.0].max
+          label_width = @initial_arrow_label ? calculate_text_width(@initial_arrow_label) : 0.0
+          arrow_start_x = @initial_arrow_label ? [label_x - (label_width * 0.45), 0.0].max : x1
+          [arrow_start_x, y, x2, y, label_x, y - 10, 'end']
         end
       end
 
