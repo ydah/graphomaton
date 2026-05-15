@@ -291,13 +291,14 @@ class Graphomaton
         @state_font_weight = state_font_weight
         @transition_font_weight = transition_font_weight
         @automaton = folded_automaton(@automaton) if fold_groups
+        layout_padding = @padding.to_f + automatic_group_margin
         @positions = @automaton.layout_positions(
           width,
           height,
           layout: @layout,
           direction: @direction,
           state_radius: @state_radius,
-          padding: @padding,
+          padding: layout_padding,
           node_spacing: @node_spacing,
           rank_spacing: @rank_spacing,
           force_iterations: @force_iterations,
@@ -312,7 +313,9 @@ class Graphomaton
         if auto_size
           width, height = auto_size_canvas(width, height)
         end
-        @label_boxes = []
+        @canvas_width = width.to_f
+        @canvas_height = height.to_f
+        @label_boxes = state_collision_boxes + group_label_collision_boxes
         @title_text = title
         @description_text = description
         @svg_id = svg_id ? svg_id_component(svg_id) : "graphomaton-#{object_id}"
@@ -1035,7 +1038,7 @@ class Graphomaton
       def collision_free_label_box(base_box)
         box = base_box.dup
         attempts = 0
-        max_attempts = 32
+        max_attempts = 80
         while (label_box_overlap?(box) || label_box_overlaps_state?(box)) && attempts < max_attempts
           offset_x, offset_y = label_box_offset(attempts)
           box = {
@@ -1052,7 +1055,7 @@ class Graphomaton
       def label_box_offset(attempt)
         return [0, 0] if attempt.zero?
 
-        step = 8
+        step = [@state_radius * 0.3, 12].max
         directions = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]]
         ring = attempt / directions.size
         index = attempt % directions.size
@@ -1093,7 +1096,8 @@ class Graphomaton
 
           dx = state[:x] - closest_x
           dy = state[:y] - closest_y
-        return true if (dx * dx + dy * dy) < (@state_radius * @state_radius)
+        clearance_radius = @state_radius + 10.0
+        return true if (dx * dx + dy * dy) < (clearance_radius * clearance_radius)
         end
 
         false
@@ -1597,6 +1601,7 @@ class Graphomaton
       def add_scc_state_groups(groups)
         strongly_connected_components.each_with_index do |component, index|
           next if component.size < 2
+          next if component.any? { |state| explicit_state_group?(state) }
 
           group_name = "SCC #{index + 1}"
           groups[group_name] ||= []
@@ -1658,6 +1663,22 @@ class Graphomaton
         @automaton.transitions.filter_map do |transition|
           transition[:to] if transition[:from] == state
         end
+      end
+
+      def automatic_group_margin
+        return 0 if @layout == :manual
+        return 0 unless svg_group_decorations?
+
+        state_group_padding
+      end
+
+      def svg_group_decorations?
+        @scc_groups || @automaton.states.any? { |_, state| state_group_name(state) }
+      end
+
+      def explicit_state_group?(state_name)
+        state = @automaton.states[state_name]
+        state && state_group_name(state)
       end
 
       def state_group_name(state)
@@ -1773,18 +1794,67 @@ class Graphomaton
       end
 
       def state_group_bounds(positions)
-        padding = [@state_radius * 0.75, 28].max
+        padding = state_group_padding
         min_x = positions.map { |position| position[:x].to_f }.min - @state_radius - padding
         max_x = positions.map { |position| position[:x].to_f }.max + @state_radius + padding
         min_y = positions.map { |position| position[:y].to_f }.min - @state_radius - padding
         max_y = positions.map { |position| position[:y].to_f }.max + @state_radius + padding
 
-        {
+        clamp_state_group_bounds(
           x: min_x,
           y: min_y,
           width: max_x - min_x,
           height: max_y - min_y
+        )
+      end
+
+      def state_group_padding
+        [@state_radius * 0.75, 28].max
+      end
+
+      def clamp_state_group_bounds(bounds)
+        return bounds unless @canvas_width&.positive? && @canvas_height&.positive?
+
+        right = bounds[:x] + bounds[:width]
+        bottom = bounds[:y] + bounds[:height]
+        x = bounds[:x].clamp(0.0, @canvas_width)
+        y = bounds[:y].clamp(0.0, @canvas_height)
+        clamped_right = right.clamp(x, @canvas_width)
+        clamped_bottom = bottom.clamp(y, @canvas_height)
+
+        {
+          x: x,
+          y: y,
+          width: [clamped_right - x, 1.0].max,
+          height: [clamped_bottom - y, 1.0].max
         }
+      end
+
+      def state_collision_boxes
+        margin = 10.0
+        @positions.values.filter_map do |position|
+          next unless position[:x] && position[:y]
+
+          radius = @state_radius + margin
+          {
+            x: position[:x].to_f - radius,
+            y: position[:y].to_f - radius,
+            width: radius * 2.0,
+            height: radius * 2.0
+          }
+        end
+      end
+
+      def group_label_collision_boxes
+        grouped_state_positions.map do |name, positions|
+          bounds = state_group_bounds(positions)
+          {
+            x: bounds[:x] + 8.0,
+            y: bounds[:y] + 8.0,
+            width: [name.to_s.length * 8.0, 32.0].max,
+            height: 18.0
+          }
+        end
       end
 
       def add_states(svg)

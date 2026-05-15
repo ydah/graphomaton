@@ -992,6 +992,32 @@ RSpec.describe Graphomaton do
       expect(control_points.uniq.size).to eq(1)
     end
 
+    it 'keeps SVG transition labels away from state nodes' do
+      local = described_class.new
+      local.add_state('q0', 80, 100)
+      local.add_state('q1', 200, 100)
+      local.add_state('q2', 320, 100)
+      local.add_transition('q0', 'q2', 'skip')
+
+      svg_output = local.to_svg(400, 200, layout: :manual, edge_style: :straight)
+      doc = REXML::Document.new(svg_output)
+      label_box = REXML::XPath.first(doc, '//g[@data-label="skip"]/rect[@class="label-bg"]')
+      label_x = label_box.attributes['x'].to_f
+      label_y = label_box.attributes['y'].to_f
+      label_right = label_x + label_box.attributes['width'].to_f
+      label_bottom = label_y + label_box.attributes['height'].to_f
+      state_left = 150.0
+      state_top = 50.0
+      state_right = 250.0
+      state_bottom = 150.0
+
+      overlaps_middle_state = label_x < state_right &&
+                              label_right > state_left &&
+                              label_y < state_bottom &&
+                              label_bottom > state_top
+      expect(overlaps_middle_state).to be false
+    end
+
     it 'uses transition metadata URL as an SVG link' do
       local = described_class.new
       local.add_state('q0')
@@ -1104,6 +1130,40 @@ RSpec.describe Graphomaton do
       expect(group.attributes['data-group']).to eq('alpha')
       expect(group_box).not_to be_nil
       expect(group_label.text).to eq('alpha')
+    end
+
+    it 'keeps SVG state group boxes inside the canvas' do
+      local = described_class.new
+      local.add_state('q0', 40, 40, metadata: { group: 'edge' })
+      local.add_state('q1', 100, 40, metadata: { group: 'edge' })
+
+      svg_output = local.to_svg(200, 200, layout: :manual)
+      doc = REXML::Document.new(svg_output)
+      group_box = REXML::XPath.first(doc, '//rect[@class="state-group-box"]')
+      x = group_box.attributes['x'].to_f
+      y = group_box.attributes['y'].to_f
+      right = x + group_box.attributes['width'].to_f
+      bottom = y + group_box.attributes['height'].to_f
+
+      expect(x).to be >= 0
+      expect(y).to be >= 0
+      expect(right).to be <= 200
+      expect(bottom).to be <= 200
+    end
+
+    it 'does not overlay SCC groups on explicit SVG state groups' do
+      local = described_class.new
+      local.add_state('q0', 100, 100, metadata: { group: 'alpha' })
+      local.add_state('q1', 220, 100, metadata: { group: 'alpha' })
+      local.add_transition('q0', 'q1', 'a')
+      local.add_transition('q1', 'q0', 'b')
+
+      svg_output = local.to_svg(layout: :manual, scc_groups: true)
+      doc = REXML::Document.new(svg_output)
+      group_labels = REXML::XPath.match(doc, '//text[@class="state-group-label"]').map(&:text)
+
+      expect(group_labels).to include('alpha')
+      expect(group_labels).not_to include('SCC 1')
     end
 
     it 'can fold grouped SVG states into compound nodes' do
