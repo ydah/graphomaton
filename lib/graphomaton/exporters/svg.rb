@@ -291,7 +291,7 @@ class Graphomaton
         @state_font_weight = state_font_weight
         @transition_font_weight = transition_font_weight
         @automaton = folded_automaton(@automaton) if fold_groups
-        layout_padding = @padding.to_f + automatic_group_margin
+        layout_padding = automatic_layout_padding
         @positions = @automaton.layout_positions(
           width,
           height,
@@ -497,8 +497,8 @@ class Graphomaton
 
         return [width.to_f, height.to_f] unless min_x && max_x && min_y && max_y
 
-        horizontal_margin = [@padding.to_f, @state_radius + 20].max
-        vertical_margin = [@padding.to_f, @state_radius + 20].max
+        horizontal_margin = [automatic_layout_padding, @state_radius + 20].max
+        vertical_margin = [automatic_layout_padding, @state_radius + 20].max
         shift_x = min_x - horizontal_margin
         shift_y = min_y - vertical_margin
 
@@ -665,6 +665,7 @@ class Graphomaton
       .state-icon { font-family: #{@font_family}; text-anchor: middle; fill: #{theme_css_value(:state_text)}; font-size: 14px; text-rendering: geometricPrecision; }
       .transition-line { stroke: #{theme_css_value(:stroke)}; stroke-width: #{@transition_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .transition-label { font-family: #{@font_family}; font-size: 14px; fill: #{theme_css_value(:transition_label)}; text-rendering: geometricPrecision; #{font_weight_css(@transition_font_weight)} }
+      .label-leader { stroke: #{theme_css_value(:transition_label)}; stroke-width: 1; opacity: 0.45; fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; }
       .initial-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .final-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
       .label-bg { fill: #{theme_css_value(:label_background)}; opacity: #{theme_css_value(:label_opacity)}; #{label_border_css} }
@@ -1408,6 +1409,7 @@ class Graphomaton
         box = collision_free_label_box(base_box)
         @label_boxes << box
         transform = label_rotation_transform(box, angle)
+        add_label_leader(svg, x, y, box) unless transform
 
         if @label_background
           label_background_attributes = {
@@ -1439,6 +1441,22 @@ class Graphomaton
             tspan.attributes['dy'] = index.zero? ? '0' : '16'
           end
         end
+      end
+
+      def add_label_leader(svg, target_x, target_y, box)
+        center_x = box[:x] + (box[:width] / 2.0)
+        center_y = box[:y] + (box[:height] / 2.0)
+        dx = center_x - target_x
+        dy = center_y - target_y
+        return if Math.sqrt((dx * dx) + (dy * dy)) < 18.0
+
+        svg.add_element('line', {
+                          'class' => 'label-leader',
+                          'x1' => center_x.to_s,
+                          'y1' => center_y.to_s,
+                          'x2' => target_x.to_s,
+                          'y2' => target_y.to_s
+                        })
       end
 
       def label_rotation_angle(start_x, start_y, end_x, end_y)
@@ -1497,13 +1515,21 @@ class Graphomaton
 
         case @direction
         when :rl
-          [x + gap + length, y, x + gap, y, x + gap + length + 10, y - 10, 'start']
+          x1 = [x + gap + length, @canvas_width].compact.min
+          x2 = [x + gap, @canvas_width].compact.min
+          [x1, y, x2, y, x1 + 4, y - 10, 'start']
         when :tb
-          [x, y - gap - length, x, y - gap, x + 8, y - gap - length - 8, 'start']
+          y1 = [y - gap - length, 0.0].max
+          y2 = [y - gap, 0.0].max
+          [x, y1, x, y2, x + 8, y1 + 14, 'start']
         when :bt
-          [x, y + gap + length, x, y + gap, x + 8, y + gap + length + 16, 'start']
+          y1 = [y + gap + length, @canvas_height].compact.min
+          y2 = [y + gap, @canvas_height].compact.min
+          [x, y1, x, y2, x + 8, y1 - 4, 'start']
         else
-          [x - gap - length, y, x - gap, y, x - gap - length - 10, y - 10, 'end']
+          x1 = [x - gap - length, 0.0].max
+          x2 = [x - gap, 0.0].max
+          [x1, y, x2, y, x1 - 4, y - 10, 'end']
         end
       end
 
@@ -1545,13 +1571,20 @@ class Graphomaton
 
         case @direction
         when :rl
-          [x - radius, y, x - radius - length, y, x - radius - length - 8, y - 8, 'end']
+          x1 = [x - radius, 0.0].max
+          x2 = [x - radius - length, 0.0].max
+          [x1, y, x2, y, x2 + 4, y - 8, 'start']
         when :tb
-          [x, y + radius, x, y + radius + length, x + 8, y + radius + length + 16, 'start']
+          y1 = [y + radius, @canvas_height].compact.min
+          y2 = [y + radius + length, @canvas_height].compact.min
+          [x, y1, x, y2, x + 8, y2 - 4, 'start']
         when :bt
-          [x, y - radius, x, y - radius - length, x + 8, y - radius - length - 8, 'start']
+          y2 = [y - radius - length, 0.0].max
+          [x, y - radius, x, y2, x + 8, y2 + 14, 'start']
         else
-          [x + radius, y, x + radius + length, y, x + radius + length + 8, y - 8, 'start']
+          x1 = [x + radius, @canvas_width].compact.min
+          x2 = [x + radius + length, @canvas_width].compact.min
+          [x1, y, x2, y, x2 - 4, y - 8, 'end']
         end
       end
 
@@ -1670,6 +1703,23 @@ class Graphomaton
         return 0 unless svg_group_decorations?
 
         state_group_padding
+      end
+
+      def automatic_layout_padding
+        [@padding.to_f + automatic_group_margin, automatic_arrow_margin].max
+      end
+
+      def automatic_arrow_margin
+        margin = 0.0
+        if @automaton.initial_state
+          label_margin = @initial_arrow_label ? calculate_text_width(@initial_arrow_label) : 0.0
+          margin = [margin, 30.0 + @initial_arrow_length.to_f + label_margin + 8.0].max
+        end
+        if @show_final_arrows && @automaton.final_states.any?
+          label_margin = @final_arrow_label ? calculate_text_width(@final_arrow_label) : 0.0
+          margin = [margin, @state_radius.to_f + @final_arrow_length.to_f + label_margin + 8.0].max
+        end
+        margin
       end
 
       def svg_group_decorations?

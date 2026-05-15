@@ -578,8 +578,8 @@ class Graphomaton
     available_x = [width - (2 * margin), 0].max.to_f
     available_y = [height - (2 * margin), 0].max.to_f
     count = auto_states.size
-    horizontal_step = count > 1 ? [available_x / (count - 1), node_spacing].min : 0
-    vertical_step = count > 1 ? [available_y / (count - 1), node_spacing].min : 0
+    horizontal_step = count > 1 ? available_x / (count - 1) : 0
+    vertical_step = count > 1 ? available_y / (count - 1) : 0
 
     positions = {}
     auto_states.each_with_index do |name, index|

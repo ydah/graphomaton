@@ -456,6 +456,14 @@ RSpec.describe Graphomaton do
         expect(y_values.uniq.size).to eq(1) # All at same y-coordinate
       end
 
+      it 'uses the available canvas width for sparse linear layouts' do
+        automaton.auto_layout(800, 600, layout: :linear, direction: :lr)
+
+        expect(automaton.states['q0'][:x]).to be <= 100
+        expect(automaton.states['q1'][:x]).to be_between(350, 450)
+        expect(automaton.states['q2'][:x]).to be >= 700
+      end
+
       it 'supports directional layout' do
         automaton.auto_layout(800, 600, direction: :tb)
 
@@ -1002,6 +1010,7 @@ RSpec.describe Graphomaton do
       svg_output = local.to_svg(400, 200, layout: :manual, edge_style: :straight)
       doc = REXML::Document.new(svg_output)
       label_box = REXML::XPath.first(doc, '//g[@data-label="skip"]/rect[@class="label-bg"]')
+      leader = REXML::XPath.first(doc, '//g[@data-label="skip"]/line[@class="label-leader"]')
       label_x = label_box.attributes['x'].to_f
       label_y = label_box.attributes['y'].to_f
       label_right = label_x + label_box.attributes['width'].to_f
@@ -1016,6 +1025,7 @@ RSpec.describe Graphomaton do
                               label_y < state_bottom &&
                               label_bottom > state_top
       expect(overlaps_middle_state).to be false
+      expect(leader).not_to be_nil
     end
 
     it 'uses transition metadata URL as an SVG link' do
@@ -1336,6 +1346,15 @@ RSpec.describe Graphomaton do
 
       expect(initial_arrow.attributes['x2'].to_f - initial_arrow.attributes['x1'].to_f).to eq(48.0)
       expect(label).not_to be_nil
+    end
+
+    it 'keeps initial arrow labels inside the SVG canvas' do
+      svg_output = automaton.to_svg(initial_arrow_label: 'start')
+      doc = REXML::Document.new(svg_output)
+      label = REXML::XPath.match(doc, '//text[@class="transition-label"]').find { |node| node.text == 'start' }
+
+      expect(label.attributes['x'].to_f).to be > 0
+      expect(label.attributes['text-anchor']).to eq('end')
     end
 
     it 'aligns initial arrows with the SVG direction' do
