@@ -74,6 +74,120 @@ Graphomaton.from_json(File.read('automaton.json'))
 Graphomaton.from_yaml(File.read('automaton.yml'))
 ```
 
+## Examples
+
+### Styled SVG with metadata
+
+```ruby
+automaton = Graphomaton.new
+automaton.add_state(
+  'idle',
+  label: 'Idle',
+  metadata: { tooltip: 'Waiting for work', group: 'runtime', icon: 'I' }
+)
+automaton.add_state(
+  'running',
+  label: 'Running',
+  metadata: { tooltip: 'Processing job', group: 'runtime', url: 'https://example.com/runbook' }
+)
+automaton.add_state('failed', label: 'Failed', style: { fill: '#fee2e2', stroke: '#dc2626' })
+
+automaton.set_initial('idle')
+automaton.add_transition('idle', 'running', 'start', metadata: { bundle: 'happy-path' })
+automaton.add_transition('running', 'idle', 'finish', metadata: { bundle: 'happy-path' })
+automaton.add_transition('running', 'failed', 'error', line_style: :dashed)
+
+automaton.save_svg(
+  'runtime.svg',
+  900,
+  500,
+  layout: :layered,
+  direction: :lr,
+  theme: :ocean,
+  edge_style: :spline,
+  label_tooltips: true,
+  html_tooltips: true
+)
+```
+
+### Manual coordinates
+
+```ruby
+automaton = Graphomaton.new
+automaton.add_state('north', 300, 80)
+automaton.add_state('east', 520, 260)
+automaton.add_state('south', 300, 440)
+automaton.add_state('west', 80, 260)
+
+automaton.add_transition('north', 'east', 'turn')
+automaton.add_transition('east', 'south', 'turn')
+automaton.add_transition('south', 'west', 'turn')
+automaton.add_transition('west', 'north', 'turn')
+
+automaton.save_svg('manual.svg', 600, 520, layout: :manual, fit: :contain)
+```
+
+### Folded groups
+
+```ruby
+automaton = Graphomaton.new
+automaton.add_state('parse', metadata: { group: 'frontend' })
+automaton.add_state('validate', metadata: { group: 'frontend' })
+automaton.add_state('execute', metadata: { group: 'backend' })
+automaton.add_state('persist', metadata: { group: 'backend' })
+
+automaton.add_transition('parse', 'validate', 'ok')
+automaton.add_transition('validate', 'execute', 'accepted')
+automaton.add_transition('execute', 'persist', 'done')
+
+automaton.save_svg('folded.svg', layout: :layered, fold_groups: true)
+```
+
+### YAML input for the CLI
+
+```yaml
+states:
+  - id: idle
+    label: Idle
+    initial: true
+    metadata:
+      group: runtime
+      tooltip: Waiting for work
+  - id: running
+    label: Running
+    metadata:
+      group: runtime
+  - id: done
+    final: true
+transitions:
+  - from: idle
+    to: running
+    label: start
+  - from: running
+    to: done
+    label: finish
+    line_style: dashed
+```
+
+```bash
+graphomaton --input automaton.yml --output runtime.svg --layout layered --direction lr --theme ocean
+```
+
+### Export several formats
+
+```ruby
+outputs = {
+  svg: 'diagram.svg',
+  html: 'diagram.html',
+  dot: 'diagram.dot',
+  plantuml: 'diagram.puml'
+}
+
+outputs.each do |format, path|
+  automaton.save(path, format: format)
+end
+```
+
 ## CLI
 
 ```bash
