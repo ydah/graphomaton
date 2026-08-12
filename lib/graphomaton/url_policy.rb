@@ -3,8 +3,6 @@
 require 'uri'
 
 class Graphomaton
-  class SecurityError < StandardError; end
-
   class UrlPolicy
     LINK_SCHEMES = %w[http https mailto].freeze
     ASSET_SCHEMES = %w[https].freeze

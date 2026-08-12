@@ -5,7 +5,7 @@ require 'timeout'
 
 class Graphomaton
   class ProcessRunner
-    class Error < StandardError; end
+    class Error < Graphomaton::Error; end
     class TimeoutError < Error; end
     class OutputLimitError < Error; end
 

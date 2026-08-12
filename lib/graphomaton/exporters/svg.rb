@@ -7,6 +7,7 @@ require 'rexml/formatters/pretty'
 class Graphomaton
   module Exporters
     class Svg
+      include Graphomaton::ExporterIntrospection
       DEFAULT_STATE_RADIUS = 40
       DEFAULT_AUTO_STATE_RADIUS = false
       DEFAULT_MIN_STATE_RADIUS = 24
@@ -489,7 +490,7 @@ class Graphomaton
         resolved_rank_spacing = finite_number!(rank_spacing, 'rank_spacing', nonnegative: true)
         return [resolved_node_spacing, resolved_rank_spacing] unless auto_density_spacing
 
-        state_count = @automaton.states.size
+        state_count = @automaton.state_records.size
         return [resolved_node_spacing, resolved_rank_spacing] if state_count <= 4
 
         multiplier = 1.0 + ([[state_count - 4, 16].min, 0].max * 0.06)
@@ -701,8 +702,8 @@ class Graphomaton
       end
 
       def generated_description
-        state_count = @automaton.states.size
-        transition_count = @automaton.transitions.size
+        state_count = @automaton.state_records.size
+        transition_count = @automaton.transition_records.size
 
         "Automaton with #{state_count} states and #{transition_count} transitions."
       end
@@ -729,7 +730,7 @@ class Graphomaton
       end
 
       def state_label_radius
-        max_width_units = @automaton.states.map do |name, state|
+        max_width_units = @automaton.state_records.map do |name, state|
           text_display_width_units(state_label(name, state))
         end.max || 0
         return DEFAULT_STATE_RADIUS if max_width_units <= 0
@@ -962,8 +963,8 @@ class Graphomaton
 
       def default_svg_id(width, height)
         components = [
-          @automaton.states,
-          @automaton.transitions,
+          @automaton.state_records,
+          @automaton.transition_records,
           @automaton.initial_state,
           @automaton.final_states,
           @positions,
@@ -1003,7 +1004,7 @@ class Graphomaton
           next if from_state.nil? || to_state.nil?
 
           if @merge_parallel_transitions || group.size == 1
-            transition = first.dup
+            transition = first.to_h
             transition[:label] = merged_label(group)
 
             if from_state == to_state
@@ -1023,10 +1024,10 @@ class Graphomaton
       end
 
       def transition_groups
-        return @automaton.transitions.map { |transition| [transition] } unless @merge_parallel_transitions
+        return @automaton.transition_records.map { |transition| [transition] } unless @merge_parallel_transitions
 
         grouped = {}
-        @automaton.transitions.each do |transition|
+        @automaton.transition_records.each do |transition|
           grouped[transition_key(transition)] ||= []
           grouped[transition_key(transition)] << transition
         end
@@ -1420,7 +1421,7 @@ class Graphomaton
         delta_y = target[:y].to_f - center[:y].to_f
         return [center[:x].to_f, center[:y].to_f] if delta_x.zero? && delta_y.zero?
 
-        shape = state_shape(@automaton.states.fetch(name))
+        shape = state_shape(@automaton.state_records.fetch(name))
         scale = connection_scale(shape, delta_x, delta_y)
         [center[:x].to_f + (delta_x * scale), center[:y].to_f + (delta_y * scale)]
       end
@@ -1454,7 +1455,7 @@ class Graphomaton
       def transition_bundle_points
         bundles = Hash.new { |hash, key| hash[key] = [] }
 
-        @automaton.transitions.each do |transition|
+        @automaton.transition_records.each do |transition|
           bundle = transition_bundle(transition)
           next unless bundle
 
@@ -1780,7 +1781,7 @@ class Graphomaton
 
       def add_initial_arrow(svg)
         init = state_position(@automaton.initial_state)
-        init ||= @automaton.states[@automaton.initial_state]
+        init ||= @automaton.state_records[@automaton.initial_state]
         return unless init
 
         return unless init[:x] && init[:y]
@@ -1843,7 +1844,7 @@ class Graphomaton
 
       def add_final_arrows(svg)
         @automaton.final_states.each do |state_name|
-          state = state_position(state_name) || @automaton.states[state_name]
+          state = state_position(state_name) || @automaton.state_records[state_name]
           next unless state && state[:x] && state[:y]
 
           x1, y1, x2, y2, label_x, label_y, anchor = final_arrow_points(state)
@@ -1925,7 +1926,7 @@ class Graphomaton
       end
 
       def grouped_state_positions
-        groups = @automaton.states.each_with_object({}) do |(name, state), grouped|
+        groups = @automaton.state_records.each_with_object({}) do |(name, state), grouped|
           group_name = state_group_name(state)
           next unless group_name
 
@@ -1985,11 +1986,11 @@ class Graphomaton
       end
 
       def svg_group_decorations?
-        @scc_groups || @automaton.states.any? { |_, state| state_group_name(state) }
+        @scc_groups || @automaton.state_records.any? { |_, state| state_group_name(state) }
       end
 
       def explicit_state_group?(state_name)
-        state = @automaton.states[state_name]
+        state = @automaton.state_records[state_name]
         state && state_group_name(state)
       end
 
@@ -2170,7 +2171,7 @@ class Graphomaton
       end
 
       def add_states(svg)
-        @automaton.states.each do |name, state|
+        @automaton.state_records.each do |name, state|
           label = state_label(name, state)
           lines = state_label_lines(label)
           position = state_position(name) || state
@@ -2429,7 +2430,7 @@ class Graphomaton
           'id' => unique_svg_id("state-#{svg_id_component(name)}"),
           'data-state' => name.to_s
         }
-        state = @automaton.states[name]
+        state = @automaton.state_records[name]
         folded_group = state_metadata_value(state, :folded_group) if state
         folded_states = state_metadata_value(state, :folded_states) if state
         attributes['data-folded-group'] = folded_group.to_s if folded_group

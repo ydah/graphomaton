@@ -7,7 +7,8 @@ require_relative 'svg'
 class Graphomaton
   module Exporters
     class Webp
-      class ConversionError < StandardError; end
+      include Graphomaton::ExporterIntrospection
+      class ConversionError < Graphomaton::ConversionError; end
 
       DEFAULT_CONVERTER = :auto
       DEFAULT_TIMEOUT = ProcessRunner::DEFAULT_TIMEOUT

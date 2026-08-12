@@ -7,7 +7,8 @@ require_relative 'svg'
 class Graphomaton
   module Exporters
     class Png
-      class ConversionError < StandardError; end
+      include Graphomaton::ExporterIntrospection
+      class ConversionError < Graphomaton::ConversionError; end
 
       PNG_SIGNATURE = "\x89PNG\r\n\x1A\n".b.freeze
       DEFAULT_SCALE = 1.0

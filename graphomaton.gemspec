@@ -22,7 +22,7 @@ Gem::Specification.new do |spec|
   spec.metadata['rubygems_mfa_required'] = 'true'
 
   spec.files = Dir.chdir(__dir__) do
-    Dir['lib/**/*', 'exe/*', 'README.md', 'CHANGELOG.md', 'LICENSE.txt']
+    Dir['lib/**/*', 'exe/*', 'sig/**/*', 'README.md', 'CHANGELOG.md', 'LICENSE.txt']
       .select { |path| File.file?(path) }
       .sort
   end

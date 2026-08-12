@@ -352,8 +352,8 @@ RSpec.describe Graphomaton do
   describe '#add_state' do
     context 'when adding a state without position' do
       it 'adds a state with nil coordinates' do
-        state_name = automaton.add_state('q0')
-        expect(state_name).to eq('q0')
+        result = automaton.add_state('q0')
+        expect(result).to equal(automaton)
         expect(automaton.states['q0']).to eq({ name: 'q0', x: nil, y: nil })
       end
     end
@@ -886,8 +886,8 @@ RSpec.describe Graphomaton do
         local.add_state('right')
         local.add_transition('left', 'right', 'edge')
 
-        initial = local.layout_force_positions(%w[left right], 2000, 600, :lr, 40, 80, 120, 0)
-        resolved = local.layout_force_positions(%w[left right], 2000, 600, :lr, 40, 80, 120, 1)
+        initial = local.send(:layout_force_positions, %w[left right], 2000, 600, :lr, 40, 80, 120, 0)
+        resolved = local.send(:layout_force_positions, %w[left right], 2000, 600, :lr, 40, 80, 120, 1)
 
         initial_distance = initial['right'][:x] - initial['left'][:x]
         resolved_distance = resolved['right'][:x] - resolved['left'][:x]
@@ -895,8 +895,8 @@ RSpec.describe Graphomaton do
       end
 
       it 'separates coincident force-layout states deterministically' do
-        first = automaton.layout_force_positions(%w[q0 q1], 160, 200, :lr, 40, 80, 120, 2)
-        second = automaton.layout_force_positions(%w[q0 q1], 160, 200, :lr, 40, 80, 120, 2)
+        first = automaton.send(:layout_force_positions, %w[q0 q1], 160, 200, :lr, 40, 80, 120, 2)
+        second = automaton.send(:layout_force_positions, %w[q0 q1], 160, 200, :lr, 40, 80, 120, 2)
 
         expect(first).to eq(second)
         expect(first['q0']).not_to eq(first['q1'])

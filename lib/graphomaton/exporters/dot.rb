@@ -3,6 +3,7 @@
 class Graphomaton
   module Exporters
     class Dot
+      include Graphomaton::ExporterIntrospection
       DEFAULT_DIRECTION = :lr
       DEFAULT_RANK_CONSTRAINTS = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
@@ -19,7 +20,7 @@ class Graphomaton
         @theme = resolve_theme(theme)
         @rank_constraints = rank_constraints
         @identifiers = IdentifierAllocator.new
-        @state_names = @automaton.states.each_key.to_h do |name|
+        @state_names = @automaton.state_records.each_key.to_h do |name|
           [name, @identifiers.allocate([:state, name], preferred: name, prefix: 'state')]
         end
         @start_name = @identifiers.allocate(:start, preferred: '__start__', prefix: '__graphomaton_start')
@@ -48,7 +49,7 @@ class Graphomaton
         lines.concat(rank_constraints)
         lines << '' if rank_constraints.any?
 
-        @automaton.transitions.each do |trans|
+        @automaton.transition_records.each do |trans|
           lines << "    #{quoted_state_id(trans[:from])} -> #{quoted_state_id(trans[:to])} [#{edge_attributes(trans)}];"
         end
 
@@ -96,7 +97,7 @@ class Graphomaton
       end
 
       def state_attribute_lines
-        @state_attribute_lines ||= @automaton.states.map do |name, state|
+        @state_attribute_lines ||= @automaton.state_records.map do |name, state|
           attributes = state_attributes(name, state)
           suffix = attributes.empty? ? '' : " [#{attributes.join(', ')}]"
           "    #{quoted_state_id(name)}#{suffix};"
@@ -155,7 +156,7 @@ class Graphomaton
       end
 
       def state_cluster_lines
-        clusters = @automaton.states.each_with_object({}) do |(name, state), groups|
+        clusters = @automaton.state_records.each_with_object({}) do |(name, state), groups|
           group = state_group_name(state)
           next unless group
 

@@ -3,18 +3,21 @@
 require 'json'
 require 'open3'
 require 'shellwords'
+require 'set'
 require 'yaml'
 
 require_relative 'graphomaton/atomic_file'
+require_relative 'graphomaton/errors'
+require_relative 'graphomaton/exporter_registry'
 require_relative 'graphomaton/identifier_allocator'
 require_relative 'graphomaton/input_policy'
+require_relative 'graphomaton/model'
 require_relative 'graphomaton/process_runner'
 require_relative 'graphomaton/url_policy'
 require_relative 'graphomaton/exporters'
 require_relative 'graphomaton/version'
 
 class Graphomaton
-  class ValidationError < StandardError; end
 
   class Theme
     def self.default
@@ -184,6 +187,19 @@ class Graphomaton
     mmd: :mermaid,
     puml: :plantuml
   }.freeze
+  ALL_EXPORT_CAPABILITIES = %i[
+    state_style transition_style url tooltip group parent pseudostate bundle line_style
+  ].freeze
+  EXPORTERS = ExporterRegistry.new.tap do |registry|
+    registry.register(:svg, extensions: %w[svg], capabilities: ALL_EXPORT_CAPABILITIES) { Exporters::Svg }
+    registry.register(:png, extensions: %w[png], binary: true, capabilities: ALL_EXPORT_CAPABILITIES) { Exporters::Png }
+    registry.register(:pdf, extensions: %w[pdf], binary: true, capabilities: ALL_EXPORT_CAPABILITIES) { Exporters::Pdf }
+    registry.register(:webp, extensions: %w[webp], binary: true, capabilities: ALL_EXPORT_CAPABILITIES) { Exporters::Webp }
+    registry.register(:html, extensions: %w[html], capabilities: %i[group parent pseudostate tooltip]) { Exporters::Mermaid }
+    registry.register(:mermaid, aliases: %i[mmd], extensions: %w[mermaid mmd], capabilities: %i[group parent pseudostate tooltip]) { Exporters::Mermaid }
+    registry.register(:dot, aliases: %i[gv], extensions: %w[dot gv], capabilities: %i[url tooltip group pseudostate bundle line_style]) { Exporters::Dot }
+    registry.register(:plantuml, aliases: %i[puml], extensions: %w[plantuml puml], capabilities: %i[group parent pseudostate tooltip]) { Exporters::Plantuml }
+  end
   DEFAULT_INITIAL_POSITION = :auto
   DEFAULT_FINAL_POSITION = :auto
   DEFAULT_EPSILON_LABEL = "\u03b5"
@@ -194,7 +210,10 @@ class Graphomaton
   DEFAULT_MAX_LABEL_LENGTH = 64 * 1024
   DEFAULT_MAX_GROUP_DEPTH = 64
   DEFAULT_MAX_CANVAS_AREA = 100_000_000
-  attr_accessor :states, :transitions, :initial_state, :final_states
+  VALIDATION_MODES = %i[deferred strict].freeze
+  UNSET = Object.new.freeze
+  EMPTY_TRANSITIONS = [].freeze
+  attr_reader :initial_state, :revision
 
   def self.png_available?(converter: Exporters::Png::DEFAULT_CONVERTER)
     Exporters::Png.available?(converter: converter)
@@ -206,6 +225,14 @@ class Graphomaton
 
   def self.webp_available?(converter: Exporters::Webp::DEFAULT_CONVERTER)
     Exporters::Webp.available?(converter: converter)
+  end
+
+  def self.register_exporter(name, **options, &loader)
+    EXPORTERS.register(name, **options, &loader)
+  end
+
+  def self.exporter_capabilities(format)
+    EXPORTERS.fetch(format).capabilities
   end
 
   def self.from_hash(data = nil, max_states: DEFAULT_MAX_STATES, max_transitions: DEFAULT_MAX_TRANSITIONS,
@@ -292,7 +319,7 @@ class Graphomaton
   def self.add_state_from_input(automaton, input, max_metadata_depth:, max_label_length:, strict_schema:)
     unless input.is_a?(Hash)
       raise ArgumentError, 'State input requires a non-nil id' if input.nil?
-      raise ArgumentError, "Duplicate state id: #{input.inspect}" if automaton.states.key?(input)
+      raise ArgumentError, "Duplicate state id: #{input.inspect}" if automaton.state_records.key?(input)
 
       automaton.add_state(input, max_metadata_depth: max_metadata_depth, max_label_length: max_label_length)
       return
@@ -302,7 +329,7 @@ class Graphomaton
 
     name = input_value(input, :id, :name)
     raise ArgumentError, 'State input requires id or name' if name.nil?
-    raise ArgumentError, "Duplicate state id: #{name.inspect}" if automaton.states.key?(name)
+    raise ArgumentError, "Duplicate state id: #{name.inspect}" if automaton.state_records.key?(name)
 
     InputPolicy.boolean!(input_value(input, :initial), context: "State #{name.inspect} initial")
     InputPolicy.boolean!(input_value(input, :final, :accepting), context: "State #{name.inspect} final")
@@ -339,6 +366,7 @@ class Graphomaton
       end
 
       from, to, label = input
+      label = structured_label_from_input(label)
       automaton.add_transition(from, to, label, max_metadata_depth: max_metadata_depth, max_label_length: max_label_length)
       return
     end
@@ -349,7 +377,7 @@ class Graphomaton
 
     from = input_value(input, :from)
     to = input_value(input, :to)
-    label = input_value(input, :label)
+    label = structured_label_from_input(input_value(input, :label))
     raise ArgumentError, 'Transition input requires from, to, and label' if from.nil? || to.nil? || label.nil?
 
     automaton.add_transition(
@@ -364,6 +392,33 @@ class Graphomaton
     )
   end
   private_class_method :add_transition_from_input
+
+  def self.structured_label_from_input(label)
+    return label unless label.is_a?(Hash)
+
+    type = input_value(label, :type, :kind)
+    return label unless type
+
+    case type.to_sym
+    when :text
+      Label.text(input_value(label, :value, :text))
+    when :symbols
+      Label.symbols(*Array(input_value(label, :value, :symbols)))
+    when :epsilon
+      Label.epsilon
+    when :uml
+      value = input_value(label, :value)
+      value = label unless value.is_a?(Hash)
+      Label.uml(
+        event: input_value(value, :event),
+        guard: input_value(value, :guard),
+        action: input_value(value, :action)
+      )
+    else
+      raise ArgumentError, "Unknown label type: #{type.inspect}"
+    end
+  end
+  private_class_method :structured_label_from_input
 
   def self.state_inputs(input)
     return [] if input.nil?
@@ -411,7 +466,7 @@ class Graphomaton
 
   def self.enforce_group_depth(automaton, maximum)
     enforce_positive_limit(maximum, 'max_group_depth')
-    automaton.states.each_key do |state|
+    automaton.state_records.each_key do |state|
       depth = 0
       current = state
       seen = {}
@@ -419,7 +474,7 @@ class Graphomaton
         break if seen[current]
 
         seen[current] = true
-        metadata = automaton.states[current]&.fetch(:metadata, nil)
+        metadata = automaton.state_records[current]&.fetch(:metadata, nil)
         current = metadata.is_a?(Hash) ? input_value(metadata, :parent) : nil
         depth += 1 if current
         raise ArgumentError, "State hierarchy exceeds max_group_depth (#{maximum})" if depth > maximum
@@ -453,13 +508,41 @@ class Graphomaton
   end
   private_class_method :input_value
 
-  def initialize
+  def initialize(validation: :deferred)
+    @validation_mode = validation.to_sym
+    unless VALIDATION_MODES.include?(@validation_mode)
+      raise ArgumentError, "Unknown validation mode: #{validation.inspect}. Available modes: #{VALIDATION_MODES.join(', ')}"
+    end
+
     @states = {}
     @transitions = []
     @initial_state = nil
     @final_states = []
+    @final_state_set = Set.new
     @state_positions = {}
     @manual_states = {}
+    @revision = 0
+    @next_transition_id = 0
+  end
+
+  def states
+    immutable_snapshot(@states.transform_values(&:to_h))
+  end
+
+  def transitions
+    immutable_snapshot(@transitions.map(&:to_h))
+  end
+
+  def final_states
+    immutable_snapshot(@final_states)
+  end
+
+  def state_records
+    @states.dup.freeze
+  end
+
+  def transition_records
+    @transitions.dup.freeze
   end
 
   def add_state(name, x = nil, y = nil, label: nil, style: nil, metadata: nil, shape: nil,
@@ -483,14 +566,89 @@ class Graphomaton
       validate_finite_number!(y, 'state y coordinate')
     end
 
+    stable_name = immutable_copy(name)
+    @manual_states[stable_name] = !x.nil? && !y.nil?
+    @states[stable_name] = State.new(
+      id: stable_name,
+      x: x,
+      y: y,
+      label: immutable_copy(label),
+      style: immutable_copy(style),
+      metadata: immutable_copy(metadata),
+      shape: shape
+    )
+    graph_changed!
+    self
+  end
+
+  def upsert_state(name, x = nil, y = nil, **attributes)
+    return add_state(name, x, y, **attributes) unless @states.key?(name)
+
+    update_state(name, x: x, y: y, **attributes)
+  end
+
+  def update_state(name, **attributes)
+    state = @states.fetch(name) { raise ArgumentError, "State is not defined: #{name.inspect}" }
+    allowed = %i[x y label style metadata shape]
+    unknown = attributes.keys - allowed
+    raise ArgumentError, "Unknown state attributes: #{unknown.join(', ')}" unless unknown.empty?
+    if attributes.key?(:x) != attributes.key?(:y)
+      raise ArgumentError, 'State coordinates require both x and y'
+    end
+
+    x = attributes.fetch(:x, state.x)
+    y = attributes.fetch(:y, state.y)
+    if x.nil? != y.nil?
+      raise ArgumentError, 'State coordinates require both x and y'
+    end
+    unless x.nil?
+      validate_finite_number!(x, 'state x coordinate')
+      validate_finite_number!(y, 'state y coordinate')
+    end
+    label = attributes.fetch(:label, state.label)
+    metadata = attributes.fetch(:metadata, state.metadata)
+    InputPolicy.text!(label, context: "State #{name.inspect} label", max_bytes: DEFAULT_MAX_LABEL_LENGTH)
+    if metadata
+      InputPolicy.nested_depth!(
+        metadata,
+        maximum: DEFAULT_MAX_METADATA_DEPTH,
+        context: "State #{name.inspect} metadata",
+        max_string_bytes: DEFAULT_MAX_LABEL_LENGTH
+      )
+    end
+
+    @states[name] = State.new(
+      id: state.id,
+      x: x,
+      y: y,
+      label: immutable_copy(label),
+      style: immutable_copy(attributes.fetch(:style, state.style)),
+      metadata: immutable_copy(metadata),
+      shape: attributes.fetch(:shape, state.shape)
+    )
     @manual_states[name] = !x.nil? && !y.nil?
-    state = { name: name, x: x, y: y }
-    state[:label] = label unless label.nil?
-    state[:style] = deep_copy(style) unless style.nil?
-    state[:metadata] = deep_copy(metadata) unless metadata.nil?
-    state[:shape] = shape unless shape.nil?
-    @states[name] = state
-    name
+    graph_changed!
+    self
+  end
+
+  def remove_state(name, cascade: false)
+    raise ArgumentError, "State is not defined: #{name.inspect}" unless @states.key?(name)
+
+    connected = @transitions.select { |transition| transition.from == name || transition.to == name }
+    if connected.any? && !cascade
+      raise ArgumentError, "State #{name.inspect} has transitions; pass cascade: true to remove them"
+    end
+
+    @states.delete(name)
+    @manual_states.delete(name)
+    @state_positions.delete(name)
+    @transitions -= connected
+    @initial_state = nil if @initial_state == name
+    if @final_state_set.delete?(name)
+      @final_states.delete(name)
+    end
+    graph_changed!
+    self
   end
 
   def add_transition(from, to, label, style: nil, metadata: nil, line_style: nil,
@@ -500,7 +658,10 @@ class Graphomaton
     InputPolicy.identifier!(to, context: 'Transition target')
     raise ArgumentError, 'Transition label cannot be nil' if label.nil?
     labels = label.is_a?(Array) ? label : [label]
-    labels.each { |item| InputPolicy.text!(item, context: 'Transition label', max_bytes: max_label_length) }
+    raise ArgumentError, 'Transition labels cannot contain nil' if labels.any?(&:nil?)
+    labels.each do |item|
+      InputPolicy.text!(item.to_s, context: 'Transition label', max_bytes: max_label_length)
+    end
     if metadata
       InputPolicy.nested_depth!(
         metadata,
@@ -509,48 +670,129 @@ class Graphomaton
         max_string_bytes: max_label_length
       )
     end
-    transition = { from: from, to: to, label: normalize_transition_label(label, epsilon_label: epsilon_label, sort_labels: sort_labels) }
-    transition[:style] = deep_copy(style) unless style.nil?
-    transition[:metadata] = deep_copy(metadata) unless metadata.nil?
-    transition[:line_style] = line_style unless line_style.nil?
-    @transitions << transition
+    if @validation_mode == :strict
+      raise ValidationError, "Transition source #{from.inspect} is not defined" unless @states.key?(from)
+      raise ValidationError, "Transition target #{to.inspect} is not defined" unless @states.key?(to)
+    end
+    @next_transition_id += 1
+    @transitions << Transition.new(
+      id: @next_transition_id,
+      from: immutable_copy(from),
+      to: immutable_copy(to),
+      label: immutable_copy(normalize_transition_label(label, epsilon_label: epsilon_label, sort_labels: sort_labels)),
+      style: immutable_copy(style),
+      metadata: immutable_copy(metadata),
+      line_style: line_style
+    )
+    graph_changed!
+    self
+  end
+
+  def update_transition(identifier, **attributes)
+    index = transition_index(identifier)
+    transition = @transitions.fetch(index)
+    allowed = %i[from to label style metadata line_style]
+    unknown = attributes.keys - allowed
+    raise ArgumentError, "Unknown transition attributes: #{unknown.join(', ')}" unless unknown.empty?
+
+    from = attributes.fetch(:from, transition.from)
+    to = attributes.fetch(:to, transition.to)
+    label = attributes.fetch(:label, transition.label)
+    InputPolicy.identifier!(from, context: 'Transition source')
+    InputPolicy.identifier!(to, context: 'Transition target')
+    raise ArgumentError, 'Transition label cannot be nil' if label.nil?
+    InputPolicy.text!(label.to_s, context: 'Transition label', max_bytes: DEFAULT_MAX_LABEL_LENGTH)
+    if @validation_mode == :strict
+      raise ValidationError, "Transition source #{from.inspect} is not defined" unless @states.key?(from)
+      raise ValidationError, "Transition target #{to.inspect} is not defined" unless @states.key?(to)
+    end
+    metadata = attributes.fetch(:metadata, transition.metadata)
+    InputPolicy.nested_depth!(metadata, maximum: DEFAULT_MAX_METADATA_DEPTH, context: 'Transition metadata') if metadata
+
+    @transitions[index] = Transition.new(
+      id: transition.id,
+      from: immutable_copy(from),
+      to: immutable_copy(to),
+      label: immutable_copy(label),
+      style: immutable_copy(attributes.fetch(:style, transition.style)),
+      metadata: immutable_copy(metadata),
+      line_style: attributes.fetch(:line_style, transition.line_style)
+    )
+    graph_changed!
+    self
+  end
+
+  def remove_transition(identifier)
+    @transitions.delete_at(transition_index(identifier))
+    graph_changed!
+    self
   end
 
   def set_initial(state)
-    @initial_state = state
+    InputPolicy.identifier!(state, context: 'Initial state id')
+    raise ValidationError, "Initial state #{state.inspect} is not defined" if @validation_mode == :strict && !@states.key?(state)
+
+    @initial_state = immutable_copy(state)
+    graph_changed!
+    self
+  end
+
+  def clear_initial
+    return self if @initial_state.nil?
+
+    @initial_state = nil
+    graph_changed!
+    self
   end
 
   def add_final(state)
     InputPolicy.identifier!(state, context: 'Final state id')
-    @final_states << state unless @final_states.include?(state)
+    raise ValidationError, "Final state #{state.inspect} is not defined" if @validation_mode == :strict && !@states.key?(state)
+    return self if @final_state_set.include?(state)
+
+    stable_state = immutable_copy(state)
+    @final_states << stable_state
+    @final_state_set << stable_state
+    graph_changed!
+    self
   end
 
-  def validation_errors
-    errors = []
-    errors << "Initial state #{@initial_state.inspect} is not defined" if @initial_state && !@states.key?(@initial_state)
+  def remove_final(state)
+    return self unless @final_state_set.delete?(state)
 
-    @final_states.each do |state|
-      errors << "Final state #{state.inspect} is not defined" unless @states.key?(state)
-    end
-
-    @transitions.each_with_index do |transition, index|
-      from = transition[:from]
-      to = transition[:to]
-      errors << "Transition #{index} source #{from.inspect} is not defined" unless @states.key?(from)
-      errors << "Transition #{index} target #{to.inspect} is not defined" unless @states.key?(to)
-    end
-
-    errors.concat(hierarchy_validation_errors)
-
-    errors
+    @final_states.delete(state)
+    graph_changed!
+    self
   end
 
-  def valid?
-    validation_errors.empty?
+  def validation_diagnostics(profile: :references)
+    profiles = Array(profile).map(&:to_sym)
+    profiles = %i[references fsm_semantics dfa] if profiles.include?(:all)
+    diagnostics = reference_diagnostics if profiles.include?(:references)
+    diagnostics ||= []
+    diagnostics.concat(fsm_semantic_diagnostics) if profiles.include?(:fsm_semantics)
+    diagnostics.concat(dfa_diagnostics) if profiles.include?(:dfa)
+    diagnostics.freeze
   end
 
-  def validate!
-    errors = validation_errors
+  def validation_errors(profile: :references)
+    validation_diagnostics(profile: profile)
+      .select { |diagnostic| diagnostic.severity == :error }
+      .map(&:message)
+  end
+
+  def analysis_warnings
+    validation_diagnostics(profile: :fsm_semantics)
+      .select { |diagnostic| diagnostic.severity == :warning }
+      .map(&:message)
+  end
+
+  def valid?(profile: :references)
+    validation_errors(profile: profile).empty?
+  end
+
+  def validate!(profile: :references)
+    errors = validation_errors(profile: profile)
     return true if errors.empty?
 
     raise ValidationError, errors.join("\n")
@@ -558,6 +800,38 @@ class Graphomaton
 
   def reachable_states
     layered_distances.keys
+  end
+
+  def reachable_from(state)
+    raise ArgumentError, "State is not defined: #{state.inspect}" unless @states.key?(state)
+
+    ensure_analysis_index!
+    visited = { state => true }
+    queue = [state]
+    head = 0
+    while head < queue.length
+      current = queue[head]
+      head += 1
+      @outgoing_by_state[current].each do |transition|
+        target = transition.to
+        next if visited[target]
+
+        visited[target] = true
+        queue << target
+      end
+    end
+    ordered_state_names.select { |name| visited[name] }
+  end
+
+  alias reachable_from_initial reachable_states
+
+  def graph_roots
+    ensure_analysis_index!
+    ordered_state_names.select { |state| @incoming_by_state[state].empty? }
+  end
+
+  def weakly_connected_components
+    weak_components(ordered_state_names)
   end
 
   def unreachable_states
@@ -568,14 +842,7 @@ class Graphomaton
     defined_final_states = @final_states.select { |state| @states.key?(state) }
     return [] if defined_final_states.empty?
 
-    reverse_edges = Hash.new { |hash, key| hash[key] = [] }
-    @transitions.each do |transition|
-      from = transition[:from]
-      to = transition[:to]
-      next unless @states.key?(from) && @states.key?(to)
-
-      reverse_edges[to] << from
-    end
+    ensure_analysis_index!
 
     reachable = defined_final_states.to_h { |state| [state, true] }
     queue = reachable.keys
@@ -583,7 +850,8 @@ class Graphomaton
     while head < queue.length
       state = queue[head]
       head += 1
-      reverse_edges[state].each do |previous|
+      @incoming_by_state[state].each do |transition|
+        previous = transition.from
         next if reachable[previous]
 
         reachable[previous] = true
@@ -606,27 +874,36 @@ class Graphomaton
   end
 
   def trap_states
+    self_loop_traps
+  end
+
+  def self_loop_traps
+    ensure_analysis_index!
     ordered_state_names.select do |state|
-      outgoing = @transitions.select do |transition|
-        transition[:from] == state && @states.key?(transition[:to])
-      end
+      outgoing = @outgoing_by_state[state]
       next false if outgoing.empty?
 
-      outgoing.all? { |transition| transition[:to] == state }
+      outgoing.all? { |transition| transition.to == state }
+    end
+  end
+
+  def sink_states
+    ensure_analysis_index!
+    ordered_state_names.select { |state| @outgoing_by_state[state].empty? }
+  end
+
+  def bottom_sccs
+    ensure_analysis_index!
+    strongly_connected_components.select do |component|
+      members = component.to_set
+      component.all? { |state| @outgoing_by_state[state].all? { |transition| members.include?(transition.to) } }
     end
   end
 
   def strongly_connected_components
-    adjacency = @states.each_key.to_h { |state| [state, []] }
-    reverse_adjacency = @states.each_key.to_h { |state| [state, []] }
-    @transitions.each do |transition|
-      from = transition[:from]
-      to = transition[:to]
-      next unless adjacency.key?(from) && adjacency.key?(to)
-
-      adjacency[from] << to
-      reverse_adjacency[to] << from
-    end
+    ensure_analysis_index!
+    adjacency = @outgoing_by_state.transform_values { |transitions| transitions.map(&:to) }
+    reverse_adjacency = @incoming_by_state.transform_values { |transitions| transitions.map(&:from) }
 
     visited = {}
     finish_order = []
@@ -841,7 +1118,7 @@ class Graphomaton
                  initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                  preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
                  fit: DEFAULT_FIT)
-    return if @states.empty?
+    return self if @states.empty?
 
     resolved_layout = resolve_layout(layout)
     effective_preserve_manual_positions = preserve_manual_positions || resolved_layout == :manual
@@ -866,9 +1143,18 @@ class Graphomaton
       state = @states[name]
       next if effective_preserve_manual_positions && manual_position?(name) && resolve_fit(fit) == :none
 
-      state[:x] = position[:x]
-      state[:y] = position[:y]
+      @states[name] = State.new(
+        id: state.id,
+        x: position[:x],
+        y: position[:y],
+        label: state.label,
+        style: state.style,
+        metadata: state.metadata,
+        shape: state.shape
+      )
     end
+    graph_changed!
+    self
   end
 
   def layout_linear_positions(auto_states, width, height, direction, state_radius = DEFAULT_STATE_RADIUS,
@@ -1082,12 +1368,10 @@ class Graphomaton
   end
 
   def layer_neighbor_positions(name, adjacent_index, incoming:)
-    @transitions.filter_map do |transition|
-      neighbor = if incoming
-                   transition[:from] if transition[:to] == name
-                 else
-                   transition[:to] if transition[:from] == name
-                 end
+    ensure_analysis_index!
+    transitions = incoming ? @incoming_by_state[name] : @outgoing_by_state[name]
+    transitions.filter_map do |transition|
+      neighbor = incoming ? transition.from : transition.to
       adjacent_index[neighbor] if neighbor && adjacent_index.key?(neighbor)
     end
   end
@@ -1134,17 +1418,8 @@ class Graphomaton
   def weak_components(states)
     return [] if states.empty?
 
+    ensure_analysis_index!
     remaining = states.to_h { |state| [state, true] }
-    adjacency = Hash.new { |hash, key| hash[key] = [] }
-
-    @transitions.each do |trans|
-      from = trans[:from]
-      to = trans[:to]
-      next unless remaining.key?(from) && remaining.key?(to)
-
-      adjacency[from] << to
-      adjacency[to] << from
-    end
 
     components = []
     while (seed = remaining.keys.first)
@@ -1156,7 +1431,7 @@ class Graphomaton
         next unless remaining.delete(state)
 
         component << state
-        adjacency[state].each do |next_state|
+        @undirected_neighbors[state].each do |next_state|
           next unless remaining.key?(next_state)
 
           stack << next_state
@@ -1172,12 +1447,7 @@ class Graphomaton
   def layered_distances
     return {} unless @initial_state && @states[@initial_state]
 
-    adjacency = Hash.new { |hash, key| hash[key] = [] }
-    @transitions.each do |trans|
-      next unless @states.key?(trans[:from]) && @states.key?(trans[:to])
-
-      adjacency[trans[:from]] << trans[:to]
-    end
+    ensure_analysis_index!
 
     distances = {}
     queue = [@initial_state]
@@ -1187,7 +1457,8 @@ class Graphomaton
     while head < queue.length
       current = queue[head]
       head += 1
-      adjacency[current].each do |next_state|
+      @outgoing_by_state[current].each do |transition|
+        next_state = transition.to
         next if distances.key?(next_state)
 
         distances[next_state] = distances[current] + 1
@@ -1522,30 +1793,95 @@ class Graphomaton
   end
 
   def count_parallel_transitions(from, to)
-    count = 0
-    @transitions.each do |trans|
-      if (trans[:from] == from && trans[:to] == to) ||
-         (trans[:from] == to && trans[:to] == from)
-        count += 1
-      end
-    end
-    count
+    ensure_analysis_index!
+    @transitions_by_undirected_pair.fetch(Set[from, to].freeze, EMPTY_TRANSITIONS).size
   end
 
   def get_transition_index(from, to, label)
-    index = 0
-    @transitions.each do |trans|
-      next unless (trans[:from] == from && trans[:to] == to) ||
-                  (trans[:from] == to && trans[:to] == from)
-      return index if trans[:from] == from && trans[:to] == to && trans[:label] == label
-
-      index += 1
-    end
-    index
+    ensure_analysis_index!
+    transitions = @transitions_by_undirected_pair.fetch(Set[from, to].freeze, EMPTY_TRANSITIONS)
+    transitions.index { |transition| transition.from == from && transition.to == to && transition.label == label } || transitions.size
   end
 
-  def render(format: :svg, width: 800, height: 600, **options)
-    case resolve_format(format)
+  def outgoing_by_state
+    ensure_analysis_index!
+    @outgoing_by_state.transform_values { |transitions| transitions.map(&:to_h).freeze }.freeze
+  end
+
+  def incoming_by_state
+    ensure_analysis_index!
+    @incoming_by_state.transform_values { |transitions| transitions.map(&:to_h).freeze }.freeze
+  end
+
+  def transitions_by_pair
+    ensure_analysis_index!
+    @transitions_by_directed_pair.transform_values { |transitions| transitions.map(&:to_h).freeze }.freeze
+  end
+
+  def to_h
+    output = {
+      version: 1,
+      states: @states.values.map do |state|
+        serialized = { id: state.id }
+        serialized[:x] = state.x unless state.x.nil?
+        serialized[:y] = state.y unless state.y.nil?
+        serialized[:label] = state.label unless state.label.nil?
+        serialized[:style] = state.style unless state.style.nil?
+        serialized[:metadata] = state.metadata unless state.metadata.nil?
+        serialized[:shape] = state.shape unless state.shape.nil?
+        serialized
+      end,
+      transitions: @transitions.map do |transition|
+        serialized = transition.to_h
+        serialized[:label] = transition.label.to_h if transition.label.is_a?(Label)
+        serialized
+      end
+    }
+    output[:initial] = @initial_state unless @initial_state.nil?
+    output[:final] = @final_states unless @final_states.empty?
+    immutable_snapshot(output)
+  end
+
+  def to_json(*arguments)
+    JSON.generate(to_h, *arguments)
+  end
+
+  def to_yaml(**options)
+    to_h.to_yaml(**options)
+  end
+
+  def ==(other)
+    other.is_a?(Graphomaton) && to_h == other.to_h
+  end
+
+  def write(io, format: :svg, width: 800, height: 600, **options)
+    output = render(format: format, width: width, height: height, **options)
+    io.binmode if io.respond_to?(:binmode) && %i[png pdf webp].include?(resolve_format(format))
+    io.write(output)
+  end
+
+  def semantic_diagnostics(format)
+    resolved = resolve_format(format)
+    capabilities = self.class.exporter_capabilities(resolved)
+    ExporterCapabilities.losses_for(self, capabilities).map do |feature|
+      Diagnostic.new(
+        code: 'unsupported-export-feature',
+        severity: :warning,
+        path: ['export', resolved.to_s],
+        message: "#{resolved} output does not preserve #{feature}",
+        hint: 'Choose SVG or remove the unsupported feature.'
+      )
+    end.freeze
+  end
+
+  def render(format: :svg, width: 800, height: 600, strict_semantics: false, **options)
+    resolved_format = resolve_format(format)
+    losses = semantic_diagnostics(resolved_format)
+    if strict_semantics && losses.any?
+      raise ExportError, losses.map(&:message).join("\n")
+    end
+
+    case resolved_format
     when :svg
       to_svg(width, height, **options)
     when :png
@@ -1565,27 +1901,16 @@ class Graphomaton
     end
   end
 
+  def render_with(options)
+    raise ArgumentError, 'options must be a Graphomaton::RenderOptions' unless options.is_a?(RenderOptions)
+
+    render(format: options.format, width: options.width, height: options.height, **options.options)
+  end
+
   def save(filename, format: nil, width: 800, height: 600, **options)
     resolved_format = resolve_format(format || File.extname(filename).delete_prefix('.'))
-
-    case resolved_format
-    when :svg
-      save_svg(filename, width, height, **options)
-    when :png
-      save_png(filename, width, height, **options)
-    when :pdf
-      save_pdf(filename, width, height, **options)
-    when :webp
-      save_webp(filename, width, height, **options)
-    when :html
-      save_html(filename, **options)
-    when :mermaid
-      AtomicFile.write(filename, to_mermaid(**options))
-    when :dot
-      save_dot(filename, **options)
-    when :plantuml
-      save_plantuml(filename, **options)
-    end
+    output = render(format: resolved_format, width: width, height: height, **options)
+    AtomicFile.write(filename, output, binary: self.class::EXPORTERS.fetch(resolved_format).binary)
   end
 
   def to_svg(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
@@ -1944,6 +2269,14 @@ class Graphomaton
     AtomicFile.write(filename, to_plantuml(direction: direction, theme: theme, notes: notes))
   end
 
+  private :layout_linear_positions,
+          :layout_circle_positions,
+          :layout_grid_positions,
+          :layout_layered_positions,
+          :layout_layered_groups,
+          :layout_force_positions,
+          :layout_graphviz_positions
+
   private
 
   def validate_finite_number!(value, name, positive: false, nonnegative: false)
@@ -1997,11 +2330,7 @@ class Graphomaton
   end
 
   def resolve_format(format)
-    resolved = format.to_s.delete_prefix('.').downcase.to_sym
-    resolved = FORMAT_ALIASES.fetch(resolved, resolved)
-    return resolved if FORMAT_OPTIONS.include?(resolved)
-
-    raise ArgumentError, "Unknown format: #{format.inspect}. Available formats: #{FORMAT_OPTIONS.join(', ')}"
+    self.class::EXPORTERS.resolve(format)
   end
 
   def normalize_transition_label(label, epsilon_label: DEFAULT_EPSILON_LABEL, sort_labels: false)
@@ -2015,6 +2344,7 @@ class Graphomaton
   end
 
   def normalize_single_transition_label(label, epsilon_label: DEFAULT_EPSILON_LABEL)
+    return label if label.is_a?(Label)
     return epsilon_label if label == :epsilon
 
     label
@@ -2041,6 +2371,158 @@ class Graphomaton
     else
       value
     end
+  end
+
+  def immutable_copy(value)
+    copy = deep_copy(value)
+    deep_freeze(copy)
+  end
+
+  def immutable_snapshot(value)
+    immutable_copy(value)
+  end
+
+  def deep_freeze(value)
+    stack = [value]
+    visited = {}
+    until stack.empty?
+      current = stack.pop
+      next unless current.is_a?(Hash) || current.is_a?(Array) || current.is_a?(String)
+      next if visited[current.object_id]
+
+      visited[current.object_id] = true
+      if current.is_a?(Hash)
+        current.each { |key, item| stack << key << item }
+      elsif current.is_a?(Array)
+        current.each { |item| stack << item }
+      end
+      current.freeze
+    end
+    value.freeze
+  end
+
+  def reference_diagnostics
+    diagnostics = []
+    if @initial_state && !@states.key?(@initial_state)
+      diagnostics << diagnostic(
+        'undefined-initial-state',
+        :error,
+        ['initial'],
+        "Initial state #{@initial_state.inspect} is not defined"
+      )
+    end
+    @final_states.each_with_index do |state, index|
+      next if @states.key?(state)
+
+      diagnostics << diagnostic(
+        'undefined-final-state',
+        :error,
+        ['final', index],
+        "Final state #{state.inspect} is not defined"
+      )
+    end
+    @transitions.each_with_index do |transition, index|
+      unless @states.key?(transition.from)
+        diagnostics << diagnostic(
+          'undefined-transition-source',
+          :error,
+          ['transitions', index, 'from'],
+          "Transition #{index} source #{transition.from.inspect} is not defined"
+        )
+      end
+      next if @states.key?(transition.to)
+
+      diagnostics << diagnostic(
+        'undefined-transition-target',
+        :error,
+        ['transitions', index, 'to'],
+        "Transition #{index} target #{transition.to.inspect} is not defined"
+      )
+    end
+    hierarchy_validation_errors.each do |message|
+      diagnostics << diagnostic('invalid-state-hierarchy', :error, ['states'], message)
+    end
+    diagnostics
+  end
+
+  def fsm_semantic_diagnostics
+    diagnostics = []
+    if @initial_state.nil?
+      diagnostics << diagnostic(
+        'missing-initial-state',
+        :warning,
+        ['initial'],
+        'Automaton has no initial state',
+        'Set an initial state before using reachability analysis.'
+      )
+    end
+    if @final_states.empty?
+      diagnostics << diagnostic(
+        'missing-final-state',
+        :warning,
+        ['final'],
+        'Automaton has no final states',
+        'dead_states is empty when no accepting states are defined.'
+      )
+    end
+    diagnostics
+  end
+
+  def dfa_diagnostics
+    ensure_analysis_index!
+    @states.each_key.flat_map do |from|
+      labels = @outgoing_by_state[from].group_by(&:label)
+      labels.filter_map do |label, transitions|
+        next unless transitions.map(&:to).uniq.size > 1
+
+        diagnostic(
+          'nondeterministic-transition',
+          :error,
+          ['states', from],
+          "State #{from.inspect} has multiple targets for label #{label.inspect}"
+        )
+      end
+    end.uniq(&:message)
+  end
+
+  def diagnostic(code, severity, path, message, hint = nil)
+    Diagnostic.new(code: code, severity: severity, path: path.freeze, message: message, hint: hint)
+  end
+
+  def ensure_analysis_index!
+    return if @analysis_index_revision == @revision
+
+    @outgoing_by_state = @states.each_key.to_h { |state| [state, []] }
+    @incoming_by_state = @states.each_key.to_h { |state| [state, []] }
+    @undirected_neighbors = @states.each_key.to_h { |state| [state, []] }
+    @transitions_by_directed_pair = Hash.new { |hash, key| hash[key] = [] }
+    @transitions_by_undirected_pair = Hash.new { |hash, key| hash[key] = [] }
+    @transitions.each do |transition|
+      @transitions_by_directed_pair[[transition.from, transition.to]] << transition
+      @transitions_by_undirected_pair[Set[transition.from, transition.to].freeze] << transition
+      next unless @states.key?(transition.from) && @states.key?(transition.to)
+
+      @outgoing_by_state[transition.from] << transition
+      @incoming_by_state[transition.to] << transition
+      @undirected_neighbors[transition.from] << transition.to unless @undirected_neighbors[transition.from].include?(transition.to)
+      @undirected_neighbors[transition.to] << transition.from unless @undirected_neighbors[transition.to].include?(transition.from)
+    end
+    @analysis_index_revision = @revision
+  end
+
+  def transition_index(identifier)
+    transition_id = identifier.is_a?(Transition) ? identifier.id : identifier
+    index = @transitions.index { |transition| transition.id == transition_id }
+    return index if index
+
+    raise ArgumentError, "Transition is not defined: #{identifier.inspect}"
+  end
+
+  def graph_changed!
+    @revision += 1
+    @analysis_index_revision = nil
+    @state_positions = {}
+    self
   end
 
   def hierarchy_validation_errors

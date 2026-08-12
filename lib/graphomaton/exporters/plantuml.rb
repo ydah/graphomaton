@@ -3,6 +3,7 @@
 class Graphomaton
   module Exporters
     class Plantuml
+      include Graphomaton::ExporterIntrospection
       DEFAULT_DIRECTION = :lr
       DEFAULT_NOTES = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
@@ -34,7 +35,7 @@ class Graphomaton
           lines << "[*] --> #{state_name(@automaton.initial_state)}"
         end
 
-        @automaton.transitions.each do |trans|
+        @automaton.transition_records.each do |trans|
           from = state_name(trans[:from])
           to = state_name(trans[:to])
           label = escape_label(trans[:label])
@@ -94,7 +95,7 @@ class Graphomaton
       end
 
       def allocate_state_names
-        @automaton.states.each_key.to_h do |name|
+        @automaton.state_records.each_key.to_h do |name|
           preferred = name.to_s if valid_identifier?(name)
           [name, @identifiers.allocate([:state, name], preferred: preferred, prefix: 'state')]
         end
@@ -117,7 +118,7 @@ class Graphomaton
       end
 
       def state_alias_lines
-        @automaton.states.filter_map do |name, state|
+        @automaton.state_records.filter_map do |name, state|
           next if valid_state_parent(state)
           next if state_group_name(state)
           next if pseudostate_type(state)
@@ -127,7 +128,7 @@ class Graphomaton
       end
 
       def pseudostate_lines
-        @automaton.states.filter_map do |name, state|
+        @automaton.state_records.filter_map do |name, state|
           type = pseudostate_type(state)
           next unless type
           next if valid_state_parent(state) || state_group_name(state)
@@ -168,7 +169,7 @@ class Graphomaton
       end
 
       def state_group_lines
-        groups = @automaton.states.each_with_object({}) do |(name, state), grouped_states|
+        groups = @automaton.state_records.each_with_object({}) do |(name, state), grouped_states|
           group = state_group_name(state)
           next unless group
           next if valid_state_parent(state)
@@ -200,7 +201,7 @@ class Graphomaton
 
       def composite_state_lines
         roots = hierarchy_children.keys.select do |parent|
-          parent_state = @automaton.states.fetch(parent)
+          parent_state = @automaton.state_records.fetch(parent)
           !valid_state_parent(parent_state) && !state_group_name(parent_state)
         end
 
@@ -220,7 +221,7 @@ class Graphomaton
       end
 
       def hierarchy_children
-        @hierarchy_children ||= @automaton.states.each_with_object({}) do |(name, state), groups|
+        @hierarchy_children ||= @automaton.state_records.each_with_object({}) do |(name, state), groups|
           parent = valid_state_parent(state)
           next unless parent
 
@@ -238,7 +239,7 @@ class Graphomaton
 
       def valid_state_parent(state)
         parent = state_parent(state)
-        return nil unless parent && @automaton.states.key?(parent)
+        return nil unless parent && @automaton.state_records.key?(parent)
 
         parent
       end
@@ -251,7 +252,7 @@ class Graphomaton
       end
 
       def state_note_lines
-        @automaton.states.filter_map do |name, state|
+        @automaton.state_records.filter_map do |name, state|
           note = state_note(state)
           next unless note
 

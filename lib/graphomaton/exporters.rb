@@ -1,9 +1,13 @@
 # frozen_string_literal: true
 
-require_relative 'exporters/svg'
-require_relative 'exporters/png'
-require_relative 'exporters/pdf'
-require_relative 'exporters/webp'
-require_relative 'exporters/mermaid'
-require_relative 'exporters/dot'
-require_relative 'exporters/plantuml'
+class Graphomaton
+  module Exporters
+    autoload :Svg, File.expand_path('exporters/svg', __dir__)
+    autoload :Png, File.expand_path('exporters/png', __dir__)
+    autoload :Pdf, File.expand_path('exporters/pdf', __dir__)
+    autoload :Webp, File.expand_path('exporters/webp', __dir__)
+    autoload :Mermaid, File.expand_path('exporters/mermaid', __dir__)
+    autoload :Dot, File.expand_path('exporters/dot', __dir__)
+    autoload :Plantuml, File.expand_path('exporters/plantuml', __dir__)
+  end
+end

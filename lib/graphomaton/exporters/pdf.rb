@@ -7,7 +7,8 @@ require_relative 'svg'
 class Graphomaton
   module Exporters
     class Pdf
-      class ConversionError < StandardError; end
+      include Graphomaton::ExporterIntrospection
+      class ConversionError < Graphomaton::ConversionError; end
 
       PDF_SIGNATURE = '%PDF-'
       DEFAULT_CONVERTER = :auto

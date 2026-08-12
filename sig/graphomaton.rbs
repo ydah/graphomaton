@@ -1,0 +1,59 @@
+class Graphomaton
+  VERSION: String
+
+  class Error < StandardError
+  end
+
+  class ValidationError < Error
+  end
+
+  class ExportError < Error
+  end
+
+  class State < Data
+    attr_reader id: untyped
+    attr_reader x: Numeric?
+    attr_reader y: Numeric?
+    attr_reader label: untyped
+    attr_reader style: Hash[untyped, untyped]?
+    attr_reader metadata: Hash[untyped, untyped]?
+    attr_reader shape: untyped
+  end
+
+  class Transition < Data
+    attr_reader id: Integer
+    attr_reader from: untyped
+    attr_reader to: untyped
+    attr_reader label: untyped
+  end
+
+  def initialize: (?validation: Symbol) -> void
+  def states: () -> Hash[untyped, Hash[Symbol, untyped]]
+  def transitions: () -> Array[Hash[Symbol, untyped]]
+  def initial_state: () -> untyped
+  def final_states: () -> Array[untyped]
+  def revision: () -> Integer
+  def add_state: (untyped name, ?Numeric? x, ?Numeric? y, **untyped) -> self
+  def upsert_state: (untyped name, ?Numeric? x, ?Numeric? y, **untyped) -> self
+  def update_state: (untyped name, **untyped) -> self
+  def remove_state: (untyped name, ?cascade: bool) -> self
+  def add_transition: (untyped from, untyped to, untyped label, **untyped) -> self
+  def update_transition: (untyped identifier, **untyped) -> self
+  def remove_transition: (untyped identifier) -> self
+  def set_initial: (untyped state) -> self
+  def clear_initial: () -> self
+  def add_final: (untyped state) -> self
+  def remove_final: (untyped state) -> self
+  def validation_errors: (?profile: Symbol | Array[Symbol]) -> Array[String]
+  def validate!: (?profile: Symbol | Array[Symbol]) -> true
+  def valid?: (?profile: Symbol | Array[Symbol]) -> bool
+  def to_h: () -> Hash[Symbol, untyped]
+  def to_json: (*untyped) -> String
+  def to_yaml: (**untyped) -> String
+  def render: (?format: Symbol | String, ?width: Numeric, ?height: Numeric, ?strict_semantics: bool, **untyped) -> String
+  def write: (_Writer io, ?format: Symbol | String, ?width: Numeric, ?height: Numeric, **untyped) -> Integer
+
+  def self.from_hash: (Hash[untyped, untyped] data, **untyped) -> Graphomaton
+  def self.from_json: (String | _Reader source, **untyped) -> Graphomaton
+  def self.from_yaml: (String | _Reader source, **untyped) -> Graphomaton
+end

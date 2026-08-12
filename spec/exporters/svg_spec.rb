@@ -530,7 +530,7 @@ RSpec.describe Graphomaton::Exporters::Svg do
       end
 
       it 'expands auto-sized content bounds for loop paths and long labels' do
-        automaton.transitions.clear
+        automaton.remove_transition(automaton.transition_records.first.id)
         automaton.add_transition('A', 'A', 'a very long self loop label')
 
         document = REXML::Document.new(svg_exporter.export(100, 100, auto_size: true))
@@ -672,7 +672,7 @@ RSpec.describe Graphomaton::Exporters::Svg do
         automaton.add_state('unsafe', metadata: { url: 'javascript:alert(1)' })
         expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG state URL/)
 
-        automaton.states['unsafe'][:metadata][:url] = 'file:///etc/passwd'
+        automaton.update_state('unsafe', metadata: { url: 'file:///etc/passwd' })
         expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG state URL/)
       end
 
@@ -680,7 +680,7 @@ RSpec.describe Graphomaton::Exporters::Svg do
         automaton.add_state('property', style: { background_image: 'url(https://example.com/x)' })
         expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG style property/)
 
-        automaton.states.delete('property')
+        automaton.remove_state('property')
         automaton.add_state('value', style: { fill: 'red; stroke: black' })
         expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG style value/)
       end
