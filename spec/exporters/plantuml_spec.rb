@@ -11,7 +11,7 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
       it 'generates valid PlantUML syntax' do
         plantuml_output = plantuml_exporter.export
         expect(plantuml_output).to start_with('@startuml')
-        expect(plantuml_output).to end_with('@enduml')
+        expect(plantuml_output).to end_with("@enduml\n")
       end
 
       it 'applies SVG theme colors when requested' do
@@ -205,7 +205,7 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
 
         # Should be wrapped in @startuml/@enduml
         expect(plantuml_output).to start_with('@startuml')
-        expect(plantuml_output).to end_with('@enduml')
+        expect(plantuml_output).to end_with("@enduml\n")
 
         # Should have initial state marker
         expect(plantuml_output).to include('[*] --> q0')

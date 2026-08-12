@@ -267,7 +267,7 @@ RSpec.describe Graphomaton::Exporters::Dot do
 
         # Should contain digraph wrapper
         expect(dot_output).to start_with('digraph')
-        expect(dot_output).to end_with('}')
+        expect(dot_output).to end_with("}\n")
 
         # Should contain all states in transitions
         expect(dot_output).to include('"q0"')

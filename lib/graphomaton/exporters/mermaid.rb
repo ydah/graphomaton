@@ -50,7 +50,7 @@ class Graphomaton
         lines.concat(state_note_lines) if @notes
         lines.concat(class_definition_lines) if @class_defs
 
-        lines.join("\n")
+        "#{lines.join("\n")}\n"
       end
 
       def export_html(theme: DEFAULT_THEME, cdn: DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil, lang: DEFAULT_LANG,

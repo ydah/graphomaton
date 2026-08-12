@@ -5,6 +5,7 @@ require 'open3'
 require 'shellwords'
 require 'yaml'
 
+require_relative 'graphomaton/atomic_file'
 require_relative 'graphomaton/identifier_allocator'
 require_relative 'graphomaton/process_runner'
 require_relative 'graphomaton/url_policy'
@@ -84,7 +85,7 @@ class Graphomaton
     end
 
     def self.save_gallery_html(filename, **options)
-      File.write(filename, gallery_html(**options))
+      AtomicFile.write(filename, gallery_html(**options))
     end
 
     def self.theme_card(name, theme)
@@ -1302,7 +1303,7 @@ class Graphomaton
     when :html
       save_html(filename, **options)
     when :mermaid
-      File.write(filename, to_mermaid(**options))
+      AtomicFile.write(filename, to_mermaid(**options))
     when :dot
       save_dot(filename, **options)
     when :plantuml
@@ -1487,7 +1488,7 @@ class Graphomaton
                preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
                fit: DEFAULT_FIT,
                title: nil, description: nil, svg_id: nil)
-    File.write(
+    AtomicFile.write(
       filename,
       to_svg(
         width,
@@ -1568,7 +1569,7 @@ class Graphomaton
 
   def save_png(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
                scale: Exporters::Png::DEFAULT_SCALE, converter: Exporters::Png::DEFAULT_CONVERTER, **svg_options)
-    File.binwrite(filename, to_png(width, height, theme: theme, scale: scale, converter: converter, **svg_options))
+    AtomicFile.write(filename, to_png(width, height, theme: theme, scale: scale, converter: converter, **svg_options), binary: true)
   end
 
   def to_pdf(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
@@ -1578,7 +1579,7 @@ class Graphomaton
 
   def save_pdf(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
                converter: Exporters::Pdf::DEFAULT_CONVERTER, **svg_options)
-    File.binwrite(filename, to_pdf(width, height, theme: theme, converter: converter, **svg_options))
+    AtomicFile.write(filename, to_pdf(width, height, theme: theme, converter: converter, **svg_options), binary: true)
   end
 
   def to_webp(width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
@@ -1588,7 +1589,7 @@ class Graphomaton
 
   def save_webp(filename, width = 800, height = 600, theme: Exporters::Svg::DEFAULT_THEME,
                 converter: Exporters::Webp::DEFAULT_CONVERTER, **svg_options)
-    File.binwrite(filename, to_webp(width, height, theme: theme, converter: converter, **svg_options))
+    AtomicFile.write(filename, to_webp(width, height, theme: theme, converter: converter, **svg_options), binary: true)
   end
 
   def to_mermaid(direction: Exporters::Mermaid::DEFAULT_DIRECTION, notes: Exporters::Mermaid::DEFAULT_NOTES,
@@ -1626,7 +1627,7 @@ class Graphomaton
                 mathjax_cdn: Exporters::Mermaid::DEFAULT_MATHJAX_CDN,
                 notes: Exporters::Mermaid::DEFAULT_NOTES,
                 class_defs: Exporters::Mermaid::DEFAULT_CLASS_DEFS)
-    File.write(
+    AtomicFile.write(
       filename,
       to_html(
         direction: direction,
@@ -1653,7 +1654,7 @@ class Graphomaton
 
   def save_dot(filename, direction: Exporters::Dot::DEFAULT_DIRECTION, theme: nil,
                rank_constraints: Exporters::Dot::DEFAULT_RANK_CONSTRAINTS)
-    File.write(filename, to_dot(direction: direction, theme: theme, rank_constraints: rank_constraints))
+    AtomicFile.write(filename, to_dot(direction: direction, theme: theme, rank_constraints: rank_constraints))
   end
 
   def to_plantuml(direction: Exporters::Plantuml::DEFAULT_DIRECTION, theme: nil,
@@ -1663,7 +1664,7 @@ class Graphomaton
 
   def save_plantuml(filename, direction: Exporters::Plantuml::DEFAULT_DIRECTION, theme: nil,
                     notes: Exporters::Plantuml::DEFAULT_NOTES)
-    File.write(filename, to_plantuml(direction: direction, theme: theme, notes: notes))
+    AtomicFile.write(filename, to_plantuml(direction: direction, theme: theme, notes: notes))
   end
 
   private

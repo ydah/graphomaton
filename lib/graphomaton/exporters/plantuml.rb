@@ -49,7 +49,7 @@ class Graphomaton
 
         lines << ''
         lines << '@enduml'
-        lines.join("\n")
+        "#{lines.join("\n")}\n"
       end
 
       private

@@ -20,6 +20,8 @@ RSpec.describe 'exporter semantic consistency' do
     mermaid = Graphomaton::Exporters::Mermaid.new(automaton).export
     plantuml = Graphomaton::Exporters::Plantuml.new(automaton).export
 
+    expect([dot, mermaid, plantuml]).to all(end_with("\n"))
+
     expect(dot).to include('"__start__" -> "q0"')
     expect(mermaid).to include('[*] --> q0')
     expect(plantuml).to include('[*] --> q0')

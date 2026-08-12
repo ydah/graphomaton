@@ -53,7 +53,7 @@ class Graphomaton
         end
 
         lines << '}'
-        lines.join("\n")
+        "#{lines.join("\n")}\n"
       end
 
       private
