@@ -166,6 +166,16 @@ RSpec.describe Graphomaton do
         described_class.theme_from_hash(stroke: '#000', surprise: '#fff')
       end.to raise_error(ArgumentError, /Unknown Graphomaton theme keys: surprise/)
     end
+
+    it 'rejects unsafe theme values and invalid opacity' do
+      expect do
+        described_class.theme_from_hash(stroke: 'red; } body { color: red')
+      end.to raise_error(Graphomaton::SecurityError, /Unsafe Graphomaton theme value/)
+
+      expect do
+        described_class.theme_from_hash(label_opacity: 2)
+      end.to raise_error(ArgumentError, /between 0 and 1/)
+    end
   end
 
   describe Graphomaton::Theme do
@@ -1793,7 +1803,7 @@ RSpec.describe Graphomaton do
       html_output = automaton.to_html(theme: :dark, offline: true, cdn: '/assets/mermaid.min.js', lang: 'en', title: 'Automaton')
       expect(html_output).to include('<html lang="en">')
       expect(html_output).to include('<title>Automaton</title>')
-      expect(html_output).to include('theme: \'dark\'')
+      expect(html_output).to include('theme: "dark"')
       expect(html_output).to include('<script src="/assets/mermaid.min.js"></script>')
     end
 

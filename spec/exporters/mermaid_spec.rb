@@ -262,7 +262,7 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
     it 'includes Mermaid.js CDN link' do
       html_output = mermaid_exporter.export_html
       expect(html_output).to include('mermaid')
-      expect(html_output).to include('cdn.jsdelivr.net')
+      expect(html_output).to include('mermaid@10.9.8')
     end
 
     it 'includes the diagram code' do
@@ -282,11 +282,12 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
     it 'includes mermaid initialization' do
       html_output = mermaid_exporter.export_html
       expect(html_output).to include('mermaid.initialize')
+      expect(html_output).to include("securityLevel: 'strict'")
     end
 
     it 'supports custom theme in HTML output' do
       html_output = mermaid_exporter.export_html(theme: :forest)
-      expect(html_output).to include("theme: 'forest'")
+      expect(html_output).to include('theme: "forest"')
     end
 
     it 'supports automatic dark mode theme in HTML output' do
@@ -299,6 +300,29 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
     it 'supports offline script source override' do
       html_output = mermaid_exporter.export_html(offline: true, cdn: '/assets/mermaid.min.js')
       expect(html_output).to include('<script src="/assets/mermaid.min.js"></script>')
+    end
+
+    it 'rejects executable and insecure asset URLs' do
+      expect do
+        mermaid_exporter.export_html(cdn: 'javascript:alert(1)')
+      end.to raise_error(Graphomaton::SecurityError, /Unsafe Mermaid asset URL/)
+
+      expect do
+        mermaid_exporter.export_html(cdn: 'http://example.com/mermaid.js')
+      end.to raise_error(Graphomaton::SecurityError, /Unsafe Mermaid asset URL/)
+
+      expect do
+        mermaid_exporter.export_html(mathjax: true, mathjax_cdn: 'data:text/javascript,alert(1)')
+      end.to raise_error(Graphomaton::SecurityError, /Unsafe MathJax asset URL/)
+    end
+
+    it 'escapes JavaScript string delimiters and script terminators in themes' do
+      payload = %q[dark'; </script><script>alert(1)</script>]
+      html_output = mermaid_exporter.export_html(theme: payload)
+
+      expect(html_output).not_to include(payload)
+      expect(html_output).to include('\\u003c/script\\u003e')
+      expect(html_output).to include(JSON.generate(payload).delete_prefix('"').split('<').first)
     end
 
     it 'supports custom page title and language' do

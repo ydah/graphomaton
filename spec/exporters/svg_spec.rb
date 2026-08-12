@@ -578,6 +578,33 @@ RSpec.describe Graphomaton::Exporters::Svg do
       end
     end
 
+    context 'with untrusted links and styles' do
+      it 'allows web, mail, relative, and fragment links' do
+        %w[https://example.com http://example.com mailto:test@example.com /docs ./docs #state].each_with_index do |url, index|
+          automaton.add_state("state#{index}", metadata: { url: url })
+        end
+
+        expect { REXML::Document.new(svg_exporter.export) }.not_to raise_error
+      end
+
+      it 'rejects executable and local-file URL schemes' do
+        automaton.add_state('unsafe', metadata: { url: 'javascript:alert(1)' })
+        expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG state URL/)
+
+        automaton.states['unsafe'][:metadata][:url] = 'file:///etc/passwd'
+        expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG state URL/)
+      end
+
+      it 'rejects unsafe CSS properties and values' do
+        automaton.add_state('property', style: { background_image: 'url(https://example.com/x)' })
+        expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG style property/)
+
+        automaton.states.delete('property')
+        automaton.add_state('value', style: { fill: 'red; stroke: black' })
+        expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG style value/)
+      end
+    end
+
     context 'with parallel transitions' do
       before do
         automaton.add_state('A')

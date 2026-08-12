@@ -6,6 +6,7 @@ require 'shellwords'
 require 'yaml'
 
 require_relative 'graphomaton/identifier_allocator'
+require_relative 'graphomaton/url_policy'
 require_relative 'graphomaton/exporters'
 require_relative 'graphomaton/version'
 
@@ -27,6 +28,10 @@ class Graphomaton
       normalized = theme.transform_keys { |key| key.to_sym }
       unknown = normalized.keys - default.keys
       raise ArgumentError, "Unknown #{context} keys: #{unknown.join(', ')}" unless unknown.empty?
+
+      normalized.each do |key, value|
+        validate_value(key, value, context: context)
+      end
 
       default.merge(normalized)
     end
@@ -136,6 +141,25 @@ class Graphomaton
            .gsub("'", '&#39;')
     end
     private_class_method :escape_html
+
+    def self.validate_value(key, value, context:)
+      string = value.to_s
+      if string.match?(/[\u0000-\u001f\u007f;{}]/) || string.match?(/url\s*\(/i)
+        raise Graphomaton::SecurityError, "Unsafe #{context} value for #{key}: #{value.inspect}"
+      end
+
+      return unless key == :label_opacity
+
+      opacity = Float(value)
+      return if opacity.finite? && opacity.between?(0.0, 1.0)
+
+      raise ArgumentError
+    rescue ArgumentError, TypeError
+      raise ArgumentError, "#{context} label_opacity must be between 0 and 1" if key == :label_opacity
+
+      raise
+    end
+    private_class_method :validate_value
   end
 
   STATE_RADIUS = 40

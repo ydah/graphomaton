@@ -72,6 +72,10 @@ class Graphomaton
       STATE_EFFECT_OPTIONS = %i[none shadow glow pulse].freeze
       ARROW_SHAPE_OPTIONS = %i[triangle vee stealth].freeze
       TRANSITION_LINE_STYLE_OPTIONS = %i[solid dashed dotted].freeze
+      SAFE_STYLE_PROPERTIES = %w[
+        color fill fill-opacity font-size font-style font-weight opacity stroke stroke-dasharray
+        stroke-linecap stroke-linejoin stroke-opacity stroke-width
+      ].freeze
       TEXT_UNIT_WIDTH = 14.0
       COMBINING_MARK_RANGES = [
         0x0300..0x036F,
@@ -2077,7 +2081,10 @@ class Graphomaton
         metadata = state[:metadata]
         return nil unless metadata.is_a?(Hash)
 
-        metadata[:url] || metadata['url'] || metadata[:href] || metadata['href']
+        url = metadata[:url] || metadata['url'] || metadata[:href] || metadata['href']
+        return nil unless url
+
+        UrlPolicy.validate(url, context: 'SVG state URL')
       end
 
       def state_tooltip(state, label)
@@ -2158,7 +2165,17 @@ class Graphomaton
         return '' unless style.is_a?(Hash)
 
         style.map do |key, value|
-          "#{key.to_s.tr('_', '-')}: #{value}"
+          property = key.to_s.tr('_', '-')
+          unless SAFE_STYLE_PROPERTIES.include?(property)
+            raise Graphomaton::SecurityError, "Unsafe SVG style property: #{property.inspect}"
+          end
+
+          css_value = value.to_s
+          if css_value.match?(/[\u0000-\u001f\u007f;{}]/) || css_value.match?(/url\s*\(/i)
+            raise Graphomaton::SecurityError, "Unsafe SVG style value for #{property}: #{value.inspect}"
+          end
+
+          "#{property}: #{css_value}"
         end.join('; ')
       end
 
@@ -2281,7 +2298,10 @@ class Graphomaton
         metadata = transition[:metadata]
         return nil unless metadata.is_a?(Hash)
 
-        metadata[:url] || metadata['url'] || metadata[:href] || metadata['href']
+        url = metadata[:url] || metadata['url'] || metadata[:href] || metadata['href']
+        return nil unless url
+
+        UrlPolicy.validate(url, context: 'SVG transition URL')
       end
 
       def transition_tooltip(transition)

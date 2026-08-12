@@ -186,7 +186,10 @@ class Graphomaton
         url = metadata_value(metadata, :url, :href)
         tooltip = metadata_value(metadata, :tooltip, :description)
 
-        attributes << "URL=\"#{escape_label(url)}\"" if url
+        if url
+          safe_url = UrlPolicy.validate(url, context: 'DOT metadata URL')
+          attributes << "URL=\"#{escape_label(safe_url)}\""
+        end
         attributes << "tooltip=\"#{escape_label(tooltip)}\"" if tooltip
       end
 

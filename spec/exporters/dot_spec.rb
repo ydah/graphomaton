@@ -65,6 +65,12 @@ RSpec.describe Graphomaton::Exporters::Dot do
         expect(dot_output).to include('"docs" [URL="https://example.com/state", tooltip="State docs"];')
       end
 
+      it 'rejects unsafe state URLs' do
+        automaton.add_state('unsafe', metadata: { url: 'javascript:alert(1)' })
+
+        expect { dot_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe DOT metadata URL/)
+      end
+
       it 'exports state metadata groups as DOT clusters' do
         automaton.add_state('grouped_a', metadata: { group: 'alpha' })
         automaton.add_state('grouped_b', metadata: { group: 'alpha' })

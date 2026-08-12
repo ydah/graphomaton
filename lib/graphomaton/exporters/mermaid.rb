@@ -5,7 +5,7 @@ class Graphomaton
     class Mermaid
       DEFAULT_DIRECTION = :lr
       DEFAULT_THEME = :default
-      DEFAULT_CDN = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs'
+      DEFAULT_CDN = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.8/dist/mermaid.esm.min.mjs'
       DEFAULT_MATHJAX = false
       DEFAULT_MATHJAX_CDN = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js'
       DEFAULT_LANG = 'ja'
@@ -128,25 +128,26 @@ class Graphomaton
       end
 
       def script_block(cdn:, theme:, inline_mermaid:, offline:)
-        escaped_theme = resolve_theme(theme)
-        escaped_cdn = escape_attribute(cdn)
-        theme_expression = mermaid_theme_expression(escaped_theme)
+        resolved_theme = resolve_theme(theme)
+        safe_cdn = UrlPolicy.validate_asset(cdn, context: 'Mermaid asset URL')
+        escaped_cdn = escape_attribute(safe_cdn)
+        theme_expression = mermaid_theme_expression(resolved_theme)
         if inline_mermaid
-          return mermaid_inline_script(escaped_cdn, escaped_theme)
+          return mermaid_inline_script(safe_cdn, resolved_theme)
         end
 
         if offline
           <<~SCRIPT
             <script src="#{escaped_cdn}"></script>
             <script>
-              mermaid.initialize({ startOnLoad: true, theme: #{theme_expression} });
+              mermaid.initialize({ startOnLoad: true, securityLevel: 'strict', theme: #{theme_expression} });
             </script>
           SCRIPT
         else
           <<~SCRIPT
             <script type="module">
-                import mermaid from '#{escaped_cdn}';
-                mermaid.initialize({ startOnLoad: true, theme: #{theme_expression} });
+                import mermaid from #{javascript_string(safe_cdn)};
+                mermaid.initialize({ startOnLoad: true, securityLevel: 'strict', theme: #{theme_expression} });
             </script>
           SCRIPT
         end
@@ -158,7 +159,7 @@ class Graphomaton
           <<~SCRIPT
             <script>
               #{File.read(path_or_url)}
-              mermaid.initialize({ startOnLoad: true, theme: #{theme_expression} });
+              mermaid.initialize({ startOnLoad: true, securityLevel: 'strict', theme: #{theme_expression} });
             </script>
           SCRIPT
         else
@@ -167,7 +168,7 @@ class Graphomaton
       end
 
       def mermaid_theme_expression(theme)
-        return "'#{theme}'" unless theme == 'auto'
+        return javascript_string(theme) unless theme == 'auto'
 
         "(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default')"
       end
@@ -175,7 +176,8 @@ class Graphomaton
       def mathjax_block(enabled:, cdn:)
         return '' unless enabled
 
-        escaped_cdn = escape_attribute(cdn)
+        safe_cdn = UrlPolicy.validate_asset(cdn, context: 'MathJax asset URL')
+        escaped_cdn = escape_attribute(safe_cdn)
         <<~SCRIPT
           <script>
             window.MathJax = {
@@ -330,7 +332,19 @@ class Graphomaton
       end
 
       def escape_attribute(text)
-        text.to_s.gsub('&', '&amp;').gsub('"', '&quot;')
+        text.to_s
+            .gsub('&', '&amp;')
+            .gsub('<', '&lt;')
+            .gsub('>', '&gt;')
+            .gsub('"', '&quot;')
+            .gsub("'", '&#39;')
+      end
+
+      def javascript_string(value)
+        JSON.generate(value.to_s)
+            .gsub('<', '\\u003c')
+            .gsub('>', '\\u003e')
+            .gsub('&', '\\u0026')
       end
 
       def escape_text(text)

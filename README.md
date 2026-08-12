@@ -328,6 +328,8 @@ Metadata behavior:
 - `label` changes the display name while preserving the state ID for transitions.
 - `tooltip` or `description` becomes SVG tooltip text.
 - `url` or `href` creates SVG links and DOT URL attributes.
+- Link URLs may use `https`, `http`, `mailto`, a relative path, or a fragment. Executable and local-file schemes such as `javascript:`, `data:`, and `file:` are rejected.
+- SVG `style` accepts `fill`, `stroke`, stroke settings, opacity settings, font settings, and `color`; raw CSS properties, `url(...)`, and declaration-breaking values are rejected.
 - `group` or `cluster` renders SVG background groups, Mermaid/PlantUML composite states, and DOT clusters.
 - `icon` renders a compact SVG icon label inside the state.
 - `bundle` routes native SVG edges through a shared control point and emits `data-bundle`.
@@ -359,6 +361,8 @@ Graphomaton.pdf_available?(converter: :auto)
 Graphomaton.webp_available?(converter: :auto)
 ```
 
+PNG `scale:` changes only output pixel density. The logical SVG viewBox, state size, and layout remain unchanged.
+
 ### HTML with Mermaid.js
 
 ```ruby
@@ -371,7 +375,7 @@ automaton.save_html('diagram.html', mathjax: true)
 automaton.save_html('diagram.html', notes: true, class_defs: true)
 ```
 
-By default, HTML output uses Mermaid.js from CDN. Use a local `cdn:` path with `inline_mermaid: true` for offline output.
+By default, HTML output uses the pinned Mermaid.js 10.9.8 module with Mermaid's strict security level. Remote asset URLs must use HTTPS; relative and absolute local paths are also accepted. `inline_mermaid: true` reads and embeds the complete file named by `cdn:`, so use it only with a trusted local JavaScript file.
 
 ### GraphViz DOT
 
