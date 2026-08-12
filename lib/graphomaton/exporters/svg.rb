@@ -1744,11 +1744,13 @@ class Graphomaton
       end
 
       def add_scc_state_groups(groups)
-        strongly_connected_components.each_with_index do |component, index|
+        group_index = 0
+        strongly_connected_components.each do |component|
           next if component.size < 2
           next if component.any? { |state| explicit_state_group?(state) }
 
-          group_name = "SCC #{index + 1}"
+          group_index += 1
+          group_name = "SCC #{group_index}"
           groups[group_name] ||= []
           component.each do |state|
             position = state_position(state)
@@ -1759,55 +1761,7 @@ class Graphomaton
       end
 
       def strongly_connected_components
-        index = 0
-        stack = []
-        indexes = {}
-        lowlinks = {}
-        on_stack = {}
-        components = []
-
-        @automaton.states.each_key do |state|
-          next if indexes.key?(state)
-
-          strong_connect(state, index, stack, indexes, lowlinks, on_stack, components)
-          index = indexes.size
-        end
-
-        components
-      end
-
-      def strong_connect(state, index, stack, indexes, lowlinks, on_stack, components)
-        indexes[state] = index
-        lowlinks[state] = index
-        stack << state
-        on_stack[state] = true
-
-        adjacent_states(state).each do |target|
-          next unless @automaton.states.key?(target)
-
-          unless indexes.key?(target)
-            strong_connect(target, indexes.size, stack, indexes, lowlinks, on_stack, components)
-            lowlinks[state] = [lowlinks[state], lowlinks[target]].min
-          end
-          lowlinks[state] = [lowlinks[state], indexes[target]].min if on_stack[target]
-        end
-
-        return unless lowlinks[state] == indexes[state]
-
-        component = []
-        loop do
-          member = stack.pop
-          on_stack[member] = false
-          component << member
-          break if member == state
-        end
-        components << component
-      end
-
-      def adjacent_states(state)
-        @automaton.transitions.filter_map do |transition|
-          transition[:to] if transition[:from] == state
-        end
+        @automaton.strongly_connected_components
       end
 
       def automatic_group_margin

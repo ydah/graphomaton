@@ -523,6 +523,62 @@ class Graphomaton
     end
   end
 
+  def strongly_connected_components
+    adjacency = @states.each_key.to_h { |state| [state, []] }
+    reverse_adjacency = @states.each_key.to_h { |state| [state, []] }
+    @transitions.each do |transition|
+      from = transition[:from]
+      to = transition[:to]
+      next unless adjacency.key?(from) && adjacency.key?(to)
+
+      adjacency[from] << to
+      reverse_adjacency[to] << from
+    end
+
+    visited = {}
+    finish_order = []
+    @states.each_key do |state|
+      next if visited[state]
+
+      visited[state] = true
+      stack = [[state, 0]]
+      until stack.empty?
+        current, next_index = stack.last
+        if next_index < adjacency[current].length
+          target = adjacency[current][next_index]
+          stack.last[1] += 1
+          next if visited[target]
+
+          visited[target] = true
+          stack << [target, 0]
+        else
+          finish_order << current
+          stack.pop
+        end
+      end
+    end
+
+    assigned = {}
+    finish_order.reverse_each.filter_map do |state|
+      next if assigned[state]
+
+      component = []
+      stack = [state]
+      assigned[state] = true
+      until stack.empty?
+        current = stack.pop
+        component << current
+        reverse_adjacency[current].reverse_each do |target|
+          next if assigned[target]
+
+          assigned[target] = true
+          stack << target
+        end
+      end
+      component
+    end
+  end
+
   def layout_warnings(width = 800, height = 600, layout: :linear, direction: :lr,
                       state_radius: DEFAULT_STATE_RADIUS, padding: DEFAULT_PADDING,
                       node_spacing: DEFAULT_NODE_SPACING, rank_spacing: DEFAULT_RANK_SPACING,

@@ -536,6 +536,29 @@ RSpec.describe Graphomaton do
     end
   end
 
+  describe '#strongly_connected_components' do
+    it 'finds cycles and isolated states while ignoring undefined endpoints' do
+      %w[a b isolated].each { |state| automaton.add_state(state) }
+      automaton.add_transition('a', 'b', 'forward')
+      automaton.add_transition('b', 'a', 'back')
+      automaton.add_transition('a', 'missing', 'invalid')
+
+      components = automaton.strongly_connected_components.map { |component| component.sort }
+
+      expect(components).to contain_exactly(%w[a b], ['isolated'])
+    end
+
+    it 'uses an iterative traversal for graphs at the default state limit' do
+      Graphomaton::DEFAULT_MAX_STATES.times do |index|
+        automaton.add_state(index)
+        automaton.add_transition(index - 1, index, 'next') if index.positive?
+      end
+      automaton.add_transition(Graphomaton::DEFAULT_MAX_STATES - 1, 0, 'back')
+
+      expect(automaton.strongly_connected_components.map(&:size)).to eq([Graphomaton::DEFAULT_MAX_STATES])
+    end
+  end
+
   describe '#layout_warnings' do
     it 'returns warnings for states that may be clipped by the canvas' do
       automaton.add_state('q0', 10, 10)
