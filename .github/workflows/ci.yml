@@ -82,7 +82,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Install renderer dependencies
-        run: sudo apt-get update && sudo apt-get install -y graphviz librsvg2-bin imagemagick
+        run: sudo apt-get update && sudo apt-get install -y graphviz librsvg2-bin imagemagick plantuml
+      - name: Install Mermaid renderer
+        run: npm install --global @mermaid-js/mermaid-cli@10.9.1
       - name: Set up Ruby
         uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
         with:
@@ -92,8 +94,12 @@ jobs:
         run: |
           printf 'states: [q0, q1]\ninitial: q0\nfinal: [q1]\ntransitions: [[q0, q1, a]]\n' > /tmp/machine.yml
           bundle exec ruby exe/graphomaton /tmp/machine.yml /tmp/machine.dot
+          bundle exec ruby exe/graphomaton /tmp/machine.yml /tmp/machine.mmd
+          bundle exec ruby exe/graphomaton /tmp/machine.yml /tmp/machine.puml
           dot -Tsvg /tmp/machine.dot -o /tmp/machine-dot.svg
+          mmdc -i /tmp/machine.mmd -o /tmp/machine-mermaid.svg
+          plantuml -failfast2 -tsvg /tmp/machine.puml
           bundle exec ruby exe/graphomaton /tmp/machine.yml /tmp/machine.png
           bundle exec ruby exe/graphomaton /tmp/machine.yml /tmp/machine.pdf
           bundle exec ruby exe/graphomaton /tmp/machine.yml /tmp/machine.webp
-          file /tmp/machine-dot.svg /tmp/machine.png /tmp/machine.pdf /tmp/machine.webp
+          file /tmp/machine-dot.svg /tmp/machine-mermaid.svg /tmp/machine.svg /tmp/machine.png /tmp/machine.pdf /tmp/machine.webp
