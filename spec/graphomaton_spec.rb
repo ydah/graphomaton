@@ -84,6 +84,42 @@ RSpec.describe Graphomaton do
       expect(automaton.final_states).to eq(['q1'])
     end
 
+    it 'builds states from the keyed Hash form' do
+      automaton = described_class.from_hash(
+        states: {
+          q0: { label: 'Start', initial: true },
+          q1: { final: true }
+        },
+        transitions: [[:q0, :q1, 'go']]
+      )
+
+      expect(automaton.states.keys).to eq(%i[q0 q1])
+      expect(automaton.states[:q0]).to include(label: 'Start')
+      expect(automaton.initial_state).to eq(:q0)
+      expect(automaton.final_states).to eq([:q1])
+    end
+
+    it 'rejects malformed transition tuples' do
+      expect do
+        described_class.from_hash(states: %w[q0 q1], transitions: [['q0', 'q1']])
+      end.to raise_error(ArgumentError, /exactly from, to, and label/)
+
+      expect do
+        described_class.from_hash(states: %w[q0 q1], transitions: [['q0', 'q1', nil]])
+      end.to raise_error(ArgumentError, /exactly from, to, and label/)
+    end
+
+    it 'disables YAML aliases unless explicitly enabled' do
+      yaml = <<~YAML
+        states: &states
+          - q0
+        copy: *states
+      YAML
+
+      expect { described_class.from_yaml(yaml) }.to raise_error(Psych::AliasesNotEnabled)
+      expect(described_class.from_yaml(yaml, aliases: true).states.keys).to eq(['q0'])
+    end
+
     it 'rejects malformed input' do
       expect do
         described_class.from_hash(states: [{ label: 'missing id' }])
@@ -146,6 +182,14 @@ RSpec.describe Graphomaton do
 
     it 'can resolve the automatic SVG theme to the default concrete theme' do
       expect(described_class.resolve(:auto, allow_auto: true)).to eq(Graphomaton::Exporters::Svg::THEMES.fetch(:light))
+    end
+
+    it 'does not allow built-in themes to be mutated' do
+      expect(Graphomaton::Exporters::Svg::THEMES[:light]).to be_frozen
+      expect(Graphomaton::Exporters::Svg::THEMES[:light][:stroke]).to be_frozen
+      expect do
+        Graphomaton::Exporters::Svg::THEMES[:light][:stroke].replace('red')
+      end.to raise_error(FrozenError)
     end
 
     it 'can generate a theme preview gallery' do
@@ -353,6 +397,14 @@ RSpec.describe Graphomaton do
 
       expect(automaton.reachable_states).to contain_exactly('q0', 'q1')
       expect(automaton.unreachable_states).to eq(['q2'])
+    end
+
+    it 'does not include undefined transition endpoints' do
+      automaton.add_state('q0')
+      automaton.set_initial('q0')
+      automaton.add_transition('q0', 'ghost', 'a')
+
+      expect(automaton.reachable_states).to eq(['q0'])
     end
   end
 
@@ -590,6 +642,20 @@ RSpec.describe Graphomaton do
         expect(values.map { |state| state[:x] }).to all(be_a(Numeric))
         expect(values.map { |state| state[:y] }).to all(be_a(Numeric))
         expect(values.map { |state| state[:x] }.uniq.size).to be > 1
+      end
+
+      it 'pulls connected states toward each other in force layout' do
+        local = described_class.new
+        local.add_state('left')
+        local.add_state('right')
+        local.add_transition('left', 'right', 'edge')
+
+        initial = local.layout_force_positions(%w[left right], 2000, 600, :lr, 40, 80, 120, 0)
+        resolved = local.layout_force_positions(%w[left right], 2000, 600, :lr, 40, 80, 120, 1)
+
+        initial_distance = initial['right'][:x] - initial['left'][:x]
+        resolved_distance = resolved['right'][:x] - resolved['left'][:x]
+        expect(resolved_distance).to be < initial_distance
       end
 
       it 'supports graphviz layout from dot plain coordinates' do

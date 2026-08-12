@@ -182,7 +182,9 @@ class Graphomaton
           label_background: '#0f172a',
           label_opacity: '0.9'
         }
-      }.freeze
+      }.transform_values do |theme|
+        theme.transform_values(&:freeze).freeze
+      end.freeze
 
       def initialize(automaton)
         @automaton = automaton

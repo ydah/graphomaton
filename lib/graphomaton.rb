@@ -177,7 +177,7 @@ class Graphomaton
     raise ArgumentError, 'Graphomaton input must be a Hash' unless data.is_a?(Hash)
 
     automaton = new
-    Array(input_value(data, :states)).each do |state|
+    state_inputs(input_value(data, :states)).each do |state|
       add_state_from_input(automaton, state)
     end
 
@@ -199,8 +199,8 @@ class Graphomaton
     from_hash(JSON.parse(source.respond_to?(:read) ? source.read : source.to_s))
   end
 
-  def self.from_yaml(source)
-    yaml = YAML.safe_load(source.respond_to?(:read) ? source.read : source.to_s, permitted_classes: [Symbol], aliases: true)
+  def self.from_yaml(source, aliases: false)
+    yaml = YAML.safe_load(source.respond_to?(:read) ? source.read : source.to_s, permitted_classes: [Symbol], aliases: aliases)
     from_hash(yaml || {})
   end
 
@@ -215,8 +215,8 @@ class Graphomaton
     theme_from_hash(JSON.parse(source.respond_to?(:read) ? source.read : source.to_s))
   end
 
-  def self.theme_from_yaml(source)
-    yaml = YAML.safe_load(source.respond_to?(:read) ? source.read : source.to_s, permitted_classes: [Symbol], aliases: true)
+  def self.theme_from_yaml(source, aliases: false)
+    yaml = YAML.safe_load(source.respond_to?(:read) ? source.read : source.to_s, permitted_classes: [Symbol], aliases: aliases)
     theme_from_hash(yaml || {})
   end
 
@@ -245,6 +245,10 @@ class Graphomaton
 
   def self.add_transition_from_input(automaton, input)
     if input.is_a?(Array)
+      unless input.length == 3 && input.none?(&:nil?)
+        raise ArgumentError, 'Transition Array input requires exactly from, to, and label'
+      end
+
       from, to, label = input
       automaton.add_transition(from, to, label)
       return
@@ -267,6 +271,19 @@ class Graphomaton
     )
   end
   private_class_method :add_transition_from_input
+
+  def self.state_inputs(input)
+    return [] if input.nil?
+    return Array(input) unless input.is_a?(Hash)
+
+    input.map do |name, attributes|
+      next name if attributes.nil?
+      raise ArgumentError, "State #{name.inspect} attributes must be a Hash" unless attributes.is_a?(Hash)
+
+      attributes.key?(:id) || attributes.key?('id') || attributes.key?(:name) || attributes.key?('name') ? attributes : attributes.merge(id: name)
+    end
+  end
+  private_class_method :state_inputs
 
   def self.input_value(hash, *keys)
     keys.each do |key|
@@ -499,7 +516,8 @@ class Graphomaton
                         resolved_padding,
                         resolved_node_spacing,
                         force_iterations,
-                        layout_seed
+                        layout_seed,
+                        fixed_positions: manual_positions
                       )
                     when :graphviz, :dot
                       layout_graphviz_positions(
@@ -872,6 +890,8 @@ class Graphomaton
 
     adjacency = Hash.new { |hash, key| hash[key] = [] }
     @transitions.each do |trans|
+      next unless @states.key?(trans[:from]) && @states.key?(trans[:to])
+
       adjacency[trans[:from]] << trans[:to]
     end
 
@@ -879,8 +899,10 @@ class Graphomaton
     queue = [@initial_state]
     distances[@initial_state] = 0
 
-    until queue.empty?
-      current = queue.shift
+    head = 0
+    while head < queue.length
+      current = queue[head]
+      head += 1
       adjacency[current].each do |next_state|
         next if distances.key?(next_state)
 
@@ -894,7 +916,7 @@ class Graphomaton
 
   def layout_force_positions(auto_states, width, height, direction, state_radius = DEFAULT_STATE_RADIUS,
                             padding = DEFAULT_PADDING, node_spacing = DEFAULT_NODE_SPACING,
-                            force_iterations = DEFAULT_FORCE_ITERATIONS, layout_seed = nil)
+                            force_iterations = DEFAULT_FORCE_ITERATIONS, layout_seed = nil, fixed_positions: {})
     return {} if auto_states.empty?
 
     iterations = [force_iterations.to_i, 0].max
@@ -948,9 +970,7 @@ class Graphomaton
       end
     end
 
-    manual_positions = @states.each_with_object({}) do |(name, state), hash|
-      hash[name] = { x: state[:x], y: state[:y] } if state[:x] && state[:y]
-    end
+    manual_positions = fixed_positions
 
     k = [node_spacing, 1.0].max
     attraction_coeff = 0.01
@@ -1022,13 +1042,13 @@ class Graphomaton
         ny = delta_y / distance
 
         if positions.key?(from)
-          forces[from][:x] -= nx * force * attraction_coeff
-          forces[from][:y] -= ny * force * attraction_coeff
+          forces[from][:x] += nx * force * attraction_coeff
+          forces[from][:y] += ny * force * attraction_coeff
         end
 
         if positions.key?(to)
-          forces[to][:x] += nx * force * attraction_coeff
-          forces[to][:y] += ny * force * attraction_coeff
+          forces[to][:x] -= nx * force * attraction_coeff
+          forces[to][:y] -= ny * force * attraction_coeff
         end
       end
 
@@ -1043,8 +1063,9 @@ class Graphomaton
         next_x = current[:x] + force[:x].clamp(-max_move, max_move)
         next_y = current[:y] + force[:y].clamp(-max_move, max_move)
 
-        next_x = [[next_x, padding].max, width - padding].min
-        next_y = [[next_y, padding].max, height - padding].min
+        boundary_margin = padding + state_radius
+        next_x = [[next_x, boundary_margin].max, width - boundary_margin].min
+        next_y = [[next_y, boundary_margin].max, height - boundary_margin].min
 
         current[:x] = next_x
         current[:y] = next_y
@@ -1655,7 +1676,7 @@ class Graphomaton
   end
 
   def resolve_format(format)
-    resolved = format.to_s.delete_prefix('.').to_sym
+    resolved = format.to_s.delete_prefix('.').downcase.to_sym
     resolved = FORMAT_ALIASES.fetch(resolved, resolved)
     return resolved if FORMAT_OPTIONS.include?(resolved)
 
