@@ -251,13 +251,13 @@ class Graphomaton
         source_automaton = @automaton
         @state_radius = resolve_state_radius(state_radius, auto_state_radius, min_state_radius, max_state_radius)
         @state_shape = resolve_state_shape(state_shape)
-        @state_stroke_width = [state_stroke_width.to_f, 0.1].max
-        @transition_stroke_width = [transition_stroke_width.to_f, 0.1].max
-        @arrow_size = [arrow_size.to_f, 1.0].max
+        @state_stroke_width = finite_number!(state_stroke_width, 'state_stroke_width', positive: true)
+        @transition_stroke_width = finite_number!(transition_stroke_width, 'transition_stroke_width', positive: true)
+        @arrow_size = finite_number!(arrow_size, 'arrow_size', positive: true)
         @arrow_shape = resolve_arrow_shape(arrow_shape)
-        @initial_arrow_length = [initial_arrow_length.to_f, 1.0].max
+        @initial_arrow_length = finite_number!(initial_arrow_length, 'initial_arrow_length', positive: true)
         @initial_arrow_label = initial_arrow_label
-        @final_arrow_length = [final_arrow_length.to_f, 1.0].max
+        @final_arrow_length = finite_number!(final_arrow_length, 'final_arrow_length', positive: true)
         @final_arrow_label = final_arrow_label
         @auto_dark_theme = false
         @theme = resolve_theme(theme)
@@ -270,8 +270,8 @@ class Graphomaton
         @merge_parallel_transitions = merge_parallel_transitions
         @label_background = label_background
         @label_border = label_border
-        @label_padding = [label_padding.to_f, 0].max
-        @label_radius = [label_radius.to_f, 0].max
+        @label_padding = finite_number!(label_padding, 'label_padding', nonnegative: true)
+        @label_radius = finite_number!(label_radius, 'label_radius', nonnegative: true)
         @rotate_labels = rotate_labels
         @highlight_unreachable = highlight_unreachable
         @highlight_dead_states = highlight_dead_states
@@ -283,15 +283,18 @@ class Graphomaton
         @unreachable_states = (@highlight_unreachable || @unreachable_zone != :none) ? @automaton.unreachable_states : []
         @dead_states = @highlight_dead_states ? @automaton.dead_states : []
         @trap_states = @highlight_dead_states ? @automaton.trap_states : []
-        @padding = padding
+        @padding = finite_number!(padding, 'padding', nonnegative: true)
         @node_spacing, @rank_spacing = density_adjusted_spacings(node_spacing, rank_spacing, auto_density_spacing)
+        unless force_iterations.is_a?(Integer) && force_iterations >= 0
+          raise ArgumentError, 'force_iterations must be a non-negative Integer'
+        end
         @force_iterations = force_iterations
         @layout_seed = layout_seed
         @wrap_labels = wrap
         @state_wrap = state_wrap
-        @max_state_label_width = max_state_label_width
+        @max_state_label_width = finite_number!(max_state_label_width, 'max_state_label_width', nonnegative: true)
         @scc_groups = scc_groups
-        @max_transition_label_width = max_transition_label_width
+        @max_transition_label_width = finite_number!(max_transition_label_width, 'max_transition_label_width', nonnegative: true)
         @sort_labels = sort_labels
         @label_tooltips = label_tooltips
         @html_tooltips = html_tooltips
@@ -481,8 +484,8 @@ class Graphomaton
       end
 
       def density_adjusted_spacings(node_spacing, rank_spacing, auto_density_spacing)
-        resolved_node_spacing = node_spacing.to_f
-        resolved_rank_spacing = rank_spacing.to_f
+        resolved_node_spacing = finite_number!(node_spacing, 'node_spacing', nonnegative: true)
+        resolved_rank_spacing = finite_number!(rank_spacing, 'rank_spacing', nonnegative: true)
         return [resolved_node_spacing, resolved_rank_spacing] unless auto_density_spacing
 
         state_count = @automaton.states.size
@@ -562,11 +565,12 @@ class Graphomaton
       end
 
       def resolve_state_radius(state_radius, auto_state_radius, min_state_radius, max_state_radius)
-        radius = [state_radius.to_f, 1.0].max
+        radius = finite_number!(state_radius, 'state_radius', positive: true)
+        min_radius = finite_number!(min_state_radius, 'min_state_radius', positive: true)
+        max_radius = finite_number!(max_state_radius, 'max_state_radius', positive: true)
+        raise ArgumentError, 'max_state_radius must be greater than or equal to min_state_radius' if max_radius < min_radius
         return radius unless auto_state_radius
 
-        min_radius = [min_state_radius.to_f, 1.0].max
-        max_radius = [max_state_radius.to_f, min_radius].max
         label_radius = state_label_radius
 
         [[radius, label_radius, min_radius].max, max_radius].min
@@ -579,6 +583,21 @@ class Graphomaton
         return DEFAULT_STATE_RADIUS if max_width_units <= 0
 
         ((max_width_units * 20) / 1.7).ceil
+      end
+
+      def finite_number!(value, name, positive: false, nonnegative: false)
+        finite = value.is_a?(Numeric) && value.real? && value.to_f.finite?
+        valid_range = if positive
+                        finite && value.positive?
+                      elsif nonnegative
+                        finite && value >= 0
+                      else
+                        finite
+                      end
+        return value.to_f if valid_range
+
+        qualifier = positive ? 'positive ' : (nonnegative ? 'non-negative ' : '')
+        raise ArgumentError, "#{name} must be a #{qualifier}finite number"
       end
 
       def calculate_text_width(text)

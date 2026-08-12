@@ -21,6 +21,32 @@ def load_theme_file(path)
   end
 end
 
+def validate_cli_numeric_options!(options)
+  positive = %i[
+    width height scale timeout max_output_bytes state_radius min_state_radius max_state_radius
+    state_stroke_width transition_stroke_width arrow_size initial_arrow_length final_arrow_length
+  ]
+  nonnegative = %i[
+    padding node_spacing rank_spacing force_iterations max_transition_label_width
+    max_state_label_width label_padding label_radius
+  ]
+
+  positive.each do |name|
+    value = options[name]
+    next if value.nil?
+
+    valid = value.is_a?(Numeric) && value.real? && value.to_f.finite? && value.positive?
+    raise OptionParser::InvalidArgument, "--#{name.to_s.tr('_', '-')} must be positive and finite" unless valid
+  end
+  nonnegative.each do |name|
+    value = options[name]
+    next if value.nil?
+
+    valid = value.is_a?(Numeric) && value.real? && value.to_f.finite? && value >= 0
+    raise OptionParser::InvalidArgument, "--#{name.to_s.tr('_', '-')} must be non-negative and finite" unless valid
+  end
+end
+
 options = {
   width: 800,
   height: 600,
@@ -137,6 +163,7 @@ end
 
 begin
   parser.parse!
+  validate_cli_numeric_options!(options)
 rescue OptionParser::ParseError => e
   warn e.message
   exit 2

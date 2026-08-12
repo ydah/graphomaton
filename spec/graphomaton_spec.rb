@@ -310,6 +310,15 @@ RSpec.describe Graphomaton do
       expect(automaton.states.size).to eq(3)
     end
 
+    it 'rejects incomplete and non-finite manual coordinates' do
+      expect { automaton.add_state('missing-y', 10, nil) }
+        .to raise_error(ArgumentError, /require both x and y/)
+      expect { automaton.add_state('nan', Float::NAN, 10) }
+        .to raise_error(ArgumentError, /x coordinate must be a finite number/)
+      expect { automaton.add_state('infinite', 10, Float::INFINITY) }
+        .to raise_error(ArgumentError, /y coordinate must be a finite number/)
+    end
+
     it 'supports optional display label, style, and metadata' do
       automaton.add_state('q0', label: 'Start', style: { fill: '#fee2e2' }, metadata: { role: 'entry' }, shape: :ellipse)
 
@@ -547,6 +556,17 @@ RSpec.describe Graphomaton do
       automaton.add_state('q0', -500, -500)
 
       expect(automaton.layout_warnings(200, 200, fit: :contain)).to be_empty
+    end
+
+    it 'rejects invalid numeric layout options' do
+      expect { automaton.layout_positions(-1, 200) }
+        .to raise_error(ArgumentError, /width must be a positive finite number/)
+      expect { automaton.layout_positions(200, Float::INFINITY) }
+        .to raise_error(ArgumentError, /height must be a positive finite number/)
+      expect { automaton.layout_positions(200, 200, padding: 'wide') }
+        .to raise_error(ArgumentError, /padding must be a non-negative finite number/)
+      expect { automaton.layout_positions(200, 200, force_iterations: 1.5) }
+        .to raise_error(ArgumentError, /force_iterations must be a non-negative Integer/)
     end
   end
 

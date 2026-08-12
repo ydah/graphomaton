@@ -397,6 +397,14 @@ class Graphomaton
   end
 
   def add_state(name, x = nil, y = nil, label: nil, style: nil, metadata: nil, shape: nil)
+    if x.nil? != y.nil?
+      raise ArgumentError, 'State coordinates require both x and y'
+    end
+    unless x.nil?
+      validate_finite_number!(x, 'state x coordinate')
+      validate_finite_number!(y, 'state y coordinate')
+    end
+
     @manual_states[name] = !x.nil? && !y.nil?
     state = { name: name, x: x, y: y }
     state[:label] = label unless label.nil?
@@ -552,6 +560,16 @@ class Graphomaton
                       initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                       preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
                       fit: DEFAULT_FIT)
+    validate_finite_number!(width, 'width', positive: true)
+    validate_finite_number!(height, 'height', positive: true)
+    validate_finite_number!(state_radius, 'state_radius', positive: true)
+    validate_finite_number!(padding, 'padding', nonnegative: true)
+    validate_finite_number!(node_spacing, 'node_spacing', nonnegative: true)
+    validate_finite_number!(rank_spacing, 'rank_spacing', nonnegative: true)
+    unless force_iterations.is_a?(Integer) && force_iterations >= 0
+      raise ArgumentError, 'force_iterations must be a non-negative Integer'
+    end
+
     return {} if @states.empty?
 
     resolved_layout = resolve_layout(layout)
@@ -571,6 +589,8 @@ class Graphomaton
     ordered_states.each do |name|
       state = @states[name]
       if effective_preserve_manual_positions && manual_position?(name)
+        validate_finite_number!(state[:x], "state #{name.inspect} x coordinate")
+        validate_finite_number!(state[:y], "state #{name.inspect} y coordinate")
         manual_positions[name] = { x: state[:x], y: state[:y] }
       else
         auto_states << name
@@ -1738,6 +1758,21 @@ class Graphomaton
   end
 
   private
+
+  def validate_finite_number!(value, name, positive: false, nonnegative: false)
+    finite = value.is_a?(Numeric) && value.real? && value.to_f.finite?
+    valid_range = if positive
+                    finite && value.positive?
+                  elsif nonnegative
+                    finite && value >= 0
+                  else
+                    finite
+                  end
+    return value if valid_range
+
+    qualifier = positive ? 'positive ' : (nonnegative ? 'non-negative ' : '')
+    raise ArgumentError, "#{name} must be a #{qualifier}finite number"
+  end
 
   def resolve_layout(layout)
     resolved = layout.to_sym

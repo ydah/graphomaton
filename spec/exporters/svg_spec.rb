@@ -234,6 +234,17 @@ RSpec.describe Graphomaton::Exporters::Svg do
         }.not_to raise_error
       end
 
+      it 'rejects invalid finite and range-sensitive SVG options' do
+        expect { svg_exporter.export(state_radius: Float::NAN) }
+          .to raise_error(ArgumentError, /state_radius must be a positive finite number/)
+        expect { svg_exporter.export(state_stroke_width: 'thick') }
+          .to raise_error(ArgumentError, /state_stroke_width must be a positive finite number/)
+        expect { svg_exporter.export(label_padding: -1) }
+          .to raise_error(ArgumentError, /label_padding must be a non-negative finite number/)
+        expect { svg_exporter.export(auto_state_radius: true, min_state_radius: 50, max_state_radius: 40) }
+          .to raise_error(ArgumentError, /max_state_radius must be greater/)
+      end
+
       it 'includes state labels' do
         svg_output = svg_exporter.export
         doc = REXML::Document.new(svg_output)

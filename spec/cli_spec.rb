@@ -219,6 +219,19 @@ RSpec.describe 'graphomaton CLI' do
     expect(stderr).to include('Unexpected arguments: unexpected')
   end
 
+  it 'rejects invalid numeric options without a backtrace' do
+    _stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      File.expand_path('../exe/graphomaton', __dir__),
+      '--width',
+      '-1'
+    )
+
+    expect(status.exitstatus).to eq(2)
+    expect(stderr).to include('--width must be positive and finite')
+    expect(stderr).not_to include('from ')
+  end
+
   it 'can print SVG layout warnings before rendering' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
