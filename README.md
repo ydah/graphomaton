@@ -74,6 +74,21 @@ Graphomaton.from_json(File.read('automaton.json'))
 Graphomaton.from_yaml(File.read('automaton.yml'))
 ```
 
+JSON and YAML parsing is bounded by default to 10 MiB, 10,000 states, and
+100,000 transitions. Lower or raise those limits explicitly for trusted input:
+
+```ruby
+Graphomaton.from_json(
+  File.open('automaton.json'),
+  max_input_bytes: 2 * 1024 * 1024,
+  max_states: 2_000,
+  max_transitions: 20_000
+)
+```
+
+YAML aliases are disabled by default. Only enable `aliases: true` for trusted
+documents that require them.
+
 ## Examples
 
 ### Styled SVG with metadata

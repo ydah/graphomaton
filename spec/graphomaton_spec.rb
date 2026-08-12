@@ -2,6 +2,7 @@
 
 require 'graphomaton'
 require 'fileutils'
+require 'stringio'
 
 RSpec.describe Graphomaton do
   let(:automaton) { described_class.new }
@@ -120,6 +121,38 @@ RSpec.describe Graphomaton do
       expect(described_class.from_yaml(yaml, aliases: true).states.keys).to eq(['q0'])
     end
 
+    it 'bounds serialized input size for strings and IO objects' do
+      oversized = JSON.generate(states: ['a' * 20])
+
+      expect do
+        described_class.from_json(oversized, max_input_bytes: oversized.bytesize - 1)
+      end.to raise_error(ArgumentError, /exceeds max_input_bytes/)
+      expect do
+        described_class.from_json(StringIO.new(oversized), max_input_bytes: oversized.bytesize - 1)
+      end.to raise_error(ArgumentError, /exceeds max_input_bytes/)
+    end
+
+    it 'bounds state and transition collection sizes' do
+      expect do
+        described_class.from_hash({ states: %w[q0 q1] }, max_states: 1)
+      end.to raise_error(ArgumentError, /exceeds max_states/)
+      expect do
+        described_class.from_hash(
+          { states: %w[q0 q1], transitions: [['q0', 'q1', 'a'], ['q1', 'q0', 'b']] },
+          max_transitions: 1
+        )
+      end.to raise_error(ArgumentError, /exceeds max_transitions/)
+    end
+
+    it 'rejects invalid resource limits and malformed transition collections' do
+      expect { described_class.from_json('{}', max_input_bytes: 0) }
+        .to raise_error(ArgumentError, /positive Integer/)
+      expect { described_class.from_hash({}, max_states: 1.5) }
+        .to raise_error(ArgumentError, /positive Integer/)
+      expect { described_class.from_hash(transitions: {}) }
+        .to raise_error(ArgumentError, /must be an Array/)
+    end
+
     it 'rejects malformed input' do
       expect do
         described_class.from_hash(states: [{ label: 'missing id' }])
@@ -173,6 +206,14 @@ RSpec.describe Graphomaton do
 
       expect(theme[:background]).to eq('#101010')
       expect(theme[:transition_label]).to eq('#b91c1c')
+    end
+
+    it 'bounds serialized theme input size' do
+      json = JSON.generate(theme: { stroke: '#2563eb' })
+
+      expect do
+        described_class.theme_from_json(StringIO.new(json), max_input_bytes: json.bytesize - 1)
+      end.to raise_error(ArgumentError, /exceeds max_input_bytes/)
     end
 
     it 'rejects unknown theme keys' do

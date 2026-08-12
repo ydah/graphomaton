@@ -186,6 +186,9 @@ class Graphomaton
   DEFAULT_INITIAL_POSITION = :auto
   DEFAULT_FINAL_POSITION = :auto
   DEFAULT_EPSILON_LABEL = "\u03b5"
+  DEFAULT_MAX_INPUT_BYTES = 10 * 1024 * 1024
+  DEFAULT_MAX_STATES = 10_000
+  DEFAULT_MAX_TRANSITIONS = 100_000
   attr_accessor :states, :transitions, :initial_state, :final_states
 
   def self.png_available?(converter: Exporters::Png::DEFAULT_CONVERTER)
@@ -200,11 +203,21 @@ class Graphomaton
     Exporters::Webp.available?(converter: converter)
   end
 
-  def self.from_hash(data)
+  def self.from_hash(data = nil, max_states: DEFAULT_MAX_STATES, max_transitions: DEFAULT_MAX_TRANSITIONS, **input)
+    if data.nil? && !input.empty?
+      data = input
+    elsif !input.empty?
+      raise ArgumentError, "Unknown input keywords: #{input.keys.join(', ')}"
+    end
     raise ArgumentError, 'Graphomaton input must be a Hash' unless data.is_a?(Hash)
 
     automaton = new
-    state_inputs(input_value(data, :states)).each do |state|
+    states = state_inputs(input_value(data, :states))
+    transitions = transition_inputs(input_value(data, :transitions))
+    enforce_collection_limit(states, max_states, 'states')
+    enforce_collection_limit(transitions, max_transitions, 'transitions')
+
+    states.each do |state|
       add_state_from_input(automaton, state)
     end
 
@@ -215,20 +228,20 @@ class Graphomaton
       automaton.add_final(state)
     end
 
-    Array(input_value(data, :transitions)).each do |transition|
+    transitions.each do |transition|
       add_transition_from_input(automaton, transition)
     end
 
     automaton
   end
 
-  def self.from_json(source)
-    from_hash(JSON.parse(source.respond_to?(:read) ? source.read : source.to_s))
+  def self.from_json(source, max_input_bytes: DEFAULT_MAX_INPUT_BYTES, **limits)
+    from_hash(JSON.parse(bounded_source(source, max_input_bytes)), **limits)
   end
 
-  def self.from_yaml(source, aliases: false)
-    yaml = YAML.safe_load(source.respond_to?(:read) ? source.read : source.to_s, permitted_classes: [Symbol], aliases: aliases)
-    from_hash(yaml || {})
+  def self.from_yaml(source, aliases: false, max_input_bytes: DEFAULT_MAX_INPUT_BYTES, **limits)
+    yaml = YAML.safe_load(bounded_source(source, max_input_bytes), permitted_classes: [Symbol], aliases: aliases)
+    from_hash(yaml || {}, **limits)
   end
 
   def self.theme_from_hash(data)
@@ -238,12 +251,12 @@ class Graphomaton
     Theme.normalize(theme, context: 'Graphomaton theme')
   end
 
-  def self.theme_from_json(source)
-    theme_from_hash(JSON.parse(source.respond_to?(:read) ? source.read : source.to_s))
+  def self.theme_from_json(source, max_input_bytes: DEFAULT_MAX_INPUT_BYTES)
+    theme_from_hash(JSON.parse(bounded_source(source, max_input_bytes)))
   end
 
-  def self.theme_from_yaml(source, aliases: false)
-    yaml = YAML.safe_load(source.respond_to?(:read) ? source.read : source.to_s, permitted_classes: [Symbol], aliases: aliases)
+  def self.theme_from_yaml(source, aliases: false, max_input_bytes: DEFAULT_MAX_INPUT_BYTES)
+    yaml = YAML.safe_load(bounded_source(source, max_input_bytes), permitted_classes: [Symbol], aliases: aliases)
     theme_from_hash(yaml || {})
   end
 
@@ -325,6 +338,44 @@ class Graphomaton
     end
   end
   private_class_method :state_inputs
+
+  def self.transition_inputs(input)
+    return [] if input.nil?
+    raise ArgumentError, 'Transitions input must be an Array' unless input.is_a?(Array)
+
+    input
+  end
+  private_class_method :transition_inputs
+
+  def self.bounded_source(source, max_input_bytes)
+    enforce_positive_limit(max_input_bytes, 'max_input_bytes')
+    text = if source.respond_to?(:read)
+             source.read(max_input_bytes + 1) || ''
+           else
+             source.to_s
+           end
+    if text.bytesize > max_input_bytes
+      raise ArgumentError, "Graphomaton input exceeds max_input_bytes (#{max_input_bytes})"
+    end
+
+    text
+  end
+  private_class_method :bounded_source
+
+  def self.enforce_collection_limit(collection, limit, name)
+    enforce_positive_limit(limit, "max_#{name}")
+    return if collection.size <= limit
+
+    raise ArgumentError, "Graphomaton input exceeds max_#{name} (#{limit})"
+  end
+  private_class_method :enforce_collection_limit
+
+  def self.enforce_positive_limit(limit, name)
+    return if limit.is_a?(Integer) && limit.positive?
+
+    raise ArgumentError, "#{name} must be a positive Integer"
+  end
+  private_class_method :enforce_positive_limit
 
   def self.input_value(hash, *keys)
     keys.each do |key|
@@ -425,15 +476,17 @@ class Graphomaton
       reverse_edges[to] << from
     end
 
-    reachable = {}
-    queue = defined_final_states.dup
-    until queue.empty?
-      state = queue.shift
-      next if reachable[state]
-
-      reachable[state] = true
+    reachable = defined_final_states.to_h { |state| [state, true] }
+    queue = reachable.keys
+    head = 0
+    while head < queue.length
+      state = queue[head]
+      head += 1
       reverse_edges[state].each do |previous|
-        queue << previous unless reachable[previous]
+        next if reachable[previous]
+
+        reachable[previous] = true
+        queue << previous
       end
     end
 
