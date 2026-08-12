@@ -282,6 +282,25 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(path.attributes['d']).to include(' C ')
       end
 
+      it 'keeps curved control points independent of transition insertion order' do
+        fan = Graphomaton.new
+        fan.add_state('source', 500, 500)
+        40.times do |index|
+          angle = (2 * Math::PI * index) / 40
+          name = "target-#{index}"
+          fan.add_state(name, 500 + (Math.cos(angle) * 300), 500 + (Math.sin(angle) * 300))
+          fan.add_transition('source', name, index.to_s)
+        end
+
+        svg_output = described_class.new(fan).export(1000, 1000, layout: :manual, edge_style: :curved)
+        document = REXML::Document.new(svg_output)
+        coordinates = REXML::XPath.match(document, '//path[@class="transition-line"]').flat_map do |path|
+          path.attributes['d'].scan(/-?\d+(?:\.\d+)?/).map(&:to_f)
+        end
+
+        expect(coordinates.map(&:abs).max).to be < 2_000
+      end
+
       it 'curves automatic edges that would cross another state' do
         local = Graphomaton.new
         local.add_state('A', 100, 100)

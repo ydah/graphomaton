@@ -841,7 +841,6 @@ class Graphomaton
 
       def add_transitions(svg)
         processed_pairs = {}
-        from_state_indices = {}
         self_loop_indices = Hash.new(0)
         @bundle_points = transition_bundle_points
 
@@ -860,11 +859,7 @@ class Graphomaton
               self_loop_indices[first[:from]] += 1
               add_self_loop(svg, from_state, transition, loop_index)
             else
-              from_state_indices[first[:from]] = 0 unless from_state_indices.key?(first[:from])
-              from_state_index = from_state_indices[first[:from]]
-              from_state_indices[first[:from]] += 1
-
-              add_transition(svg, from_state, to_state, transition, processed_pairs, from_state_index)
+              add_transition(svg, from_state, to_state, transition, processed_pairs)
             end
           else
             group.each do |transition|
@@ -1165,7 +1160,7 @@ class Graphomaton
         false
       end
 
-      def add_transition(svg, from_state, to_state, trans, processed_pairs, from_state_index)
+      def add_transition(svg, from_state, to_state, trans, processed_pairs)
         transition_node = svg.add_element('g', transition_group_attributes(trans))
         add_transition_tooltip(transition_node, trans)
         transition_content = transition_link_container(transition_node, trans)
@@ -1193,12 +1188,7 @@ class Graphomaton
         start_x, start_y = state_connection_point(trans[:from], from_state, to_state)
         end_x, end_y = state_connection_point(trans[:to], to_state, from_state)
 
-        state_names = @automaton.states.keys
-        from_index = state_names.index(trans[:from])
-        to_index = state_names.index(trans[:to])
-
-        is_adjacent = (to_index - from_index).abs == 1
-        states_between = (to_index - from_index).abs - 1
+        blocking_states = edge_blocking_state_count(trans, start_x, start_y, end_x, end_y)
 
         bundle = transition_bundle(trans)
         if bundle && @bundle_points[bundle]
@@ -1219,14 +1209,13 @@ class Graphomaton
             trans,
             parallel_count,
             pair_index,
-            states_between,
-            from_state_index
+            blocking_states
           )
         elsif @edge_style == :spline
           add_spline_line(transition_content, start_x, start_y, end_x, end_y, x1, y1, x2, y2, trans, pair_index)
         elsif @edge_style == :orthogonal
           add_orthogonal_line(transition_content, start_x, start_y, end_x, end_y, trans)
-        elsif is_adjacent && forward_direction?(x1, y1, x2, y2) && !edge_crosses_other_state?(trans, start_x, start_y, end_x, end_y)
+        elsif forward_direction?(x1, y1, x2, y2) && blocking_states.zero?
           add_straight_line(transition_content, start_x, start_y, end_x, end_y, trans)
         else
           add_curved_line(
@@ -1242,8 +1231,7 @@ class Graphomaton
             trans,
             parallel_count,
             pair_index,
-            states_between,
-            from_state_index
+            blocking_states
           )
         end
       end
@@ -1346,12 +1334,12 @@ class Graphomaton
         add_label(svg, label_x, label_y, trans[:label], angle: label_rotation_angle(start_x, start_y, end_x, end_y))
       end
 
-      def add_curved_line(svg, start_x, start_y, end_x, end_y, x1, y1, x2, y2, trans, parallel_count, pair_index, states_between, from_state_index)
+      def add_curved_line(svg, start_x, start_y, end_x, end_y, x1, y1, x2, y2, trans, parallel_count, pair_index, blocking_states)
         mid_x = (start_x + end_x) / 2
         mid_y = (start_y + end_y) / 2
 
-        base_offset = if states_between > 0
-                        (@state_radius * 1.5) + (states_between * 30) + (from_state_index * 120)
+        base_offset = if blocking_states.positive?
+                        (@state_radius * 1.5) + (blocking_states * 30)
                       else
                         @state_radius * 2
                       end
@@ -1419,8 +1407,8 @@ class Graphomaton
         add_label(svg, label_x, label_y, trans[:label], angle: label_rotation_angle(control1_x, control1_y, control2_x, control2_y))
       end
 
-      def edge_crosses_other_state?(transition, start_x, start_y, end_x, end_y)
-        @positions.any? do |name, position|
+      def edge_blocking_state_count(transition, start_x, start_y, end_x, end_y)
+        @positions.count do |name, position|
           next false if name == transition[:from] || name == transition[:to]
           next false unless position[:x] && position[:y]
 
