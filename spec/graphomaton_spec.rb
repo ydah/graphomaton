@@ -1265,6 +1265,20 @@ RSpec.describe Graphomaton do
       expect(svg_output).not_to include('internal')
     end
 
+    it 'does not retain folded state when an SVG exporter is reused' do
+      local = described_class.new
+      local.add_state('q0', 100, 100, metadata: { group: 'alpha' })
+      local.add_state('q1', 220, 100, metadata: { group: 'alpha' })
+      exporter = Graphomaton::Exporters::Svg.new(local)
+
+      exporter.export(layout: :manual, fold_groups: true)
+      expanded = REXML::Document.new(exporter.export(layout: :manual, fold_groups: false))
+
+      expect(REXML::XPath.match(expanded, '//*[@data-folded-group="alpha"]')).to be_empty
+      expect(REXML::XPath.match(expanded, '//*[@data-state="q0"]')).not_to be_empty
+      expect(REXML::XPath.match(expanded, '//*[@data-state="q1"]')).not_to be_empty
+    end
+
     it 'renders SVG SCC groups when requested' do
       local = described_class.new
       local.add_state('q0', 100, 100)

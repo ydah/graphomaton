@@ -243,6 +243,7 @@ class Graphomaton
                  preserve_manual_positions: Graphomaton::DEFAULT_PRESERVE_MANUAL_POSITIONS,
                  fit: Graphomaton::DEFAULT_FIT,
                  title: nil, description: nil, svg_id: nil)
+        source_automaton = @automaton
         @state_radius = resolve_state_radius(state_radius, auto_state_radius, min_state_radius, max_state_radius)
         @state_shape = resolve_state_shape(state_shape)
         @state_stroke_width = [state_stroke_width.to_f, 0.1].max
@@ -344,6 +345,8 @@ class Graphomaton
         return svg_output unless xml_declaration
 
         %(<?xml version="1.0" encoding="UTF-8"?>\n#{svg_output})
+      ensure
+        @automaton = source_automaton if source_automaton
       end
 
       private
@@ -832,7 +835,14 @@ class Graphomaton
       end
 
       def transition_key(transition)
-        [transition[:from], transition[:to]]
+        [
+          transition[:from],
+          transition[:to],
+          transition[:style],
+          transition[:line_style],
+          transition[:metadata],
+          highlighted_transition?(transition)
+        ]
       end
 
       def merged_label(group)
@@ -1115,7 +1125,7 @@ class Graphomaton
         x2 = to_state[:x]
         y2 = to_state[:y]
 
-        pair_key = [trans[:from].to_s, trans[:to].to_s].sort.join('-')
+        pair_key = undirected_transition_pair_key(trans[:from], trans[:to])
         processed_pairs[pair_key] = 0 unless processed_pairs[pair_key]
 
         pair_index = processed_pairs[pair_key]
@@ -1190,6 +1200,10 @@ class Graphomaton
             from_state_index
           )
         end
+      end
+
+      def undirected_transition_pair_key(from, to)
+        [from, to].sort_by { |endpoint| [endpoint.class.name, endpoint.to_s] }
       end
 
       def transition_bundle_points

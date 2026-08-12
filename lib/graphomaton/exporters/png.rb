@@ -40,13 +40,9 @@ class Graphomaton
         command = available_command(converter: converter)
         raise ConversionError, missing_converter_message(converter) unless command
 
-        resolved_scale = [scale.to_f, 0.1].max
-        svg = Svg.new(@automaton).export(
-          scaled_dimension(width, resolved_scale),
-          scaled_dimension(height, resolved_scale),
-          theme: theme,
-          **svg_options
-        )
+        resolved_scale = resolve_scale(scale)
+        svg = Svg.new(@automaton).export(width, height, theme: theme, **svg_options)
+        svg = scale_svg_dimensions(svg, width, height, resolved_scale)
         png, error, status = Open3.capture3(*command, stdin_data: svg, binmode: true)
         png = png.b
 
@@ -85,6 +81,21 @@ class Graphomaton
         return scaled.to_i if scaled == scaled.to_i
 
         scaled
+      end
+
+      def resolve_scale(scale)
+        unless scale.is_a?(Numeric) && scale.finite? && scale.positive?
+          raise ArgumentError, 'PNG scale must be a positive finite number'
+        end
+
+        scale.to_f
+      end
+
+      def scale_svg_dimensions(svg, width, height, scale)
+        document = REXML::Document.new(svg)
+        document.root.attributes['width'] = scaled_dimension(width, scale).to_s
+        document.root.attributes['height'] = scaled_dimension(height, scale).to_s
+        document.to_s
       end
 
       def self.paths

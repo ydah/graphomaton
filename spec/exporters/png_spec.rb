@@ -77,16 +77,39 @@ RSpec.describe Graphomaton::Exporters::Png do
       png_exporter.export(1000, 800)
     end
 
-    it 'scales SVG dimensions before PNG conversion' do
+    it 'scales pixel dimensions without changing the logical viewBox' do
       expect(Open3).to receive(:capture3) do |*args|
         options = args.last
-        expect(options[:stdin_data]).to include("width='2000'")
-        expect(options[:stdin_data]).to include("height='1600'")
+        document = REXML::Document.new(options[:stdin_data])
+        expect(document.root.attributes['width']).to eq('2000')
+        expect(document.root.attributes['height']).to eq('1600')
+        expect(document.root.attributes['viewBox']).to eq('0 0 1000 800')
 
         [png_data, '', successful_status]
       end
 
       png_exporter.export(1000, 800, scale: 2.0)
+    end
+
+    it 'keeps state geometry stable across output scales' do
+      rendered_documents = []
+      allow(Open3).to receive(:capture3) do |*args|
+        rendered_documents << REXML::Document.new(args.last[:stdin_data])
+        [png_data, '', successful_status]
+      end
+
+      png_exporter.export(1000, 800, scale: 1.0)
+      png_exporter.export(1000, 800, scale: 2.0)
+
+      circles = rendered_documents.map { |document| REXML::XPath.first(document, '//circle[@class="state-circle"]') }
+      expect(circles.map { |circle| circle.attributes['r'] }).to eq(%w[40.0 40.0])
+      expect(circles.map { |circle| circle.attributes['cx'] }).to eq([circles.first.attributes['cx']] * 2)
+    end
+
+    it 'rejects invalid scales instead of coercing them' do
+      expect { png_exporter.export(scale: 'large') }.to raise_error(ArgumentError, /positive finite number/)
+      expect { png_exporter.export(scale: Float::INFINITY) }.to raise_error(ArgumentError, /positive finite number/)
+      expect { png_exporter.export(scale: 0) }.to raise_error(ArgumentError, /positive finite number/)
     end
 
     it 'passes custom themes to the SVG renderer' do

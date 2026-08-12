@@ -609,6 +609,29 @@ RSpec.describe Graphomaton::Exporters::Svg do
 
         expect(control_points.uniq.size).to eq(control_points.size)
       end
+
+      it 'does not merge transitions with different presentation metadata' do
+        local = Graphomaton.new
+        local.add_state('A')
+        local.add_state('B')
+        local.add_transition('A', 'B', 'plain', style: { stroke: 'red' }, metadata: { tooltip: 'first' })
+        local.add_transition('A', 'B', 'linked', line_style: :dashed, metadata: { url: 'https://example.com', tooltip: 'second' })
+
+        document = REXML::Document.new(described_class.new(local).export)
+        transitions = REXML::XPath.match(document, '//g[@class="transition"]')
+
+        expect(transitions.size).to eq(2)
+        expect(REXML::XPath.match(document, '//g[@class="transition"]/title').map(&:text)).to contain_exactly('first', 'second')
+        expect(REXML::XPath.match(document, '//g[@class="transition"]/a').size).to eq(1)
+        expect(document.to_s).to include('stroke: red', 'stroke-dasharray: 8 5')
+      end
+
+      it 'uses tuple keys for endpoint pairs' do
+        first_key = svg_exporter.send(:undirected_transition_pair_key, 'a-b', 'c')
+        second_key = svg_exporter.send(:undirected_transition_pair_key, 'a', 'b-c')
+
+        expect(first_key).not_to eq(second_key)
+      end
     end
   end
 
