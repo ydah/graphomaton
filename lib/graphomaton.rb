@@ -624,7 +624,7 @@ class Graphomaton
       fit: fit
     ).each do |name, position|
       state = @states[name]
-      next if effective_preserve_manual_positions && manual_position?(name)
+      next if effective_preserve_manual_positions && manual_position?(name) && resolve_fit(fit) == :none
 
       state[:x] = position[:x]
       state[:y] = position[:y]
@@ -639,8 +639,8 @@ class Graphomaton
     available_x = [width - (2 * margin), 0].max.to_f
     available_y = [height - (2 * margin), 0].max.to_f
     count = auto_states.size
-    horizontal_step = count > 1 ? available_x / (count - 1) : 0
-    vertical_step = count > 1 ? available_y / (count - 1) : 0
+    horizontal_step = count > 1 ? [available_x / (count - 1), node_spacing].max : 0
+    vertical_step = count > 1 ? [available_y / (count - 1), node_spacing].max : 0
 
     positions = {}
     auto_states.each_with_index do |name, index|
@@ -669,7 +669,12 @@ class Graphomaton
     center_y = height / 2.0
     margin = [padding, state_radius + 20].max
     max_radius = [width, height].min / 2.0 - margin - state_radius
-    radius = [max_radius, state_radius + 20].max
+    minimum_radius = if count > 1
+                       (state_radius * 2.0) / (2.0 * Math.sin(Math::PI / count))
+                     else
+                       0.0
+                     end
+    radius = [max_radius, minimum_radius, state_radius + 20].max
     angle_start = case direction
                   when :tb then 0.0
                   when :bt then Math::PI
@@ -701,8 +706,8 @@ class Graphomaton
     margin = [padding, state_radius + 20].max
     available_x = [width - (2 * margin), 0].max.to_f
     available_y = [height - (2 * margin), 0].max.to_f
-    horizontal_step = columns > 1 ? [available_x / (columns - 1), node_spacing].min : 0
-    vertical_step = rows > 1 ? [available_y / (rows - 1), node_spacing].min : 0
+    horizontal_step = columns > 1 ? [available_x / (columns - 1), node_spacing].max : 0
+    vertical_step = rows > 1 ? [available_y / (rows - 1), node_spacing].max : 0
 
     positions = {}
     auto_states.each_with_index do |name, index|
@@ -764,9 +769,7 @@ class Graphomaton
               width / 2.0
             end
         x = width - margin - ((rank_spacing * layer_index)) if direction == :rl && layer_count > 1
-        x = [x, width - margin].min if direction == :rl
-        x = [margin, x].max
-        y_step = state_count > 1 ? [available_y / (state_count + 1), node_spacing].min : 0
+        y_step = state_count > 1 ? [available_y / (state_count + 1), node_spacing].max : 0
 
         states.each_with_index do |name, state_index|
           y = if state_count > 1
@@ -783,9 +786,7 @@ class Graphomaton
               height / 2.0
             end
         y = height - margin - (rank_spacing * layer_index) if direction == :bt && layer_count > 1
-        y = [y, height - margin].min if direction == :bt
-        y = [margin, y].max
-        x_step = state_count > 1 ? [available_x / (state_count + 1), node_spacing].min : 0
+        x_step = state_count > 1 ? [available_x / (state_count + 1), node_spacing].max : 0
 
         states.each_with_index do |name, state_index|
           x = if state_count > 1

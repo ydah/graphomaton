@@ -582,8 +582,12 @@ class Graphomaton
       end
 
       def calculate_text_width(text)
-        width = (text_display_width_units(text) * TEXT_UNIT_WIDTH) + (@label_padding * 2)
+        width = measure_text_width(text) + (@label_padding * 2)
         [width.ceil, 60].max
+      end
+
+      def measure_text_width(text)
+        text_display_width_units(text) * TEXT_UNIT_WIDTH
       end
 
       def calculate_state_font_size(name)
@@ -917,26 +921,13 @@ class Graphomaton
 
         transition_content.add_element('path', transition_line_attributes(trans, 'd' => path_d))
 
-        text_width = calculate_text_width(trans[:label])
         label_y_shift = loop_offset * (loop_index.odd? ? -1 : 1)
-        if @label_background
-          transition_content.add_element('rect', {
-                                           'class' => 'label-bg',
-                                           'x' => (cx + loop_specs[:label_offset][:x] - (text_width / 2)).to_s,
-                                           'y' => (cy + loop_specs[:label_offset][:y] - 5 + label_y_shift).to_s,
-                                           'width' => text_width.to_s,
-                                           'height' => '20',
-                                           'rx' => @label_radius.to_s
-                                         })
-        end
-
-        label = transition_content.add_element('text', {
-                                                'class' => 'transition-label',
-                                                'x' => (cx + loop_specs[:label_offset][:x]).to_s,
-                                                'y' => (cy + loop_specs[:label_offset][:y] + 10 + label_y_shift).to_s,
-                                                'text-anchor' => 'middle'
-                                              })
-        label.text = trans[:label]
+        add_label(
+          transition_content,
+          cx + loop_specs[:label_offset][:x],
+          cy + loop_specs[:label_offset][:y] + label_y_shift,
+          trans[:label]
+        )
       end
 
       def self_loop_placement(loop_index)
@@ -1010,21 +1001,26 @@ class Graphomaton
 
       def wrapped_lines(value, max_width)
         text = value.to_s
-        return [text] if max_width.nil? || max_width <= 0
+        paragraphs = text.split("\n", -1)
+        return paragraphs if max_width.nil? || max_width <= 0
 
         max_width = max_width.to_f
-        return [text] if max_width <= 0
+        return paragraphs if max_width <= 0
 
+        paragraphs.flat_map { |paragraph| wrap_paragraph(paragraph, max_width) }
+      end
+
+      def wrap_paragraph(text, max_width)
         lines = []
         current = +''
         words = text.split(/\s+/)
         words.each do |word|
-          if calculate_text_width(word) > max_width
+          if text_exceeds_width?(word, max_width)
             lines << current unless current.empty?
             split_words = split_long_word(word, max_width)
             split_words.each do |split_word|
               candidate = current.empty? ? split_word : "#{current} #{split_word}"
-              if calculate_text_width(candidate) > max_width && !current.empty?
+              if text_exceeds_width?(candidate, max_width) && !current.empty?
                 lines << current
                 current = split_word
               else
@@ -1037,7 +1033,7 @@ class Graphomaton
           end
 
           candidate = current.empty? ? word : "#{current} #{word}"
-          if calculate_text_width(candidate) > max_width && !current.empty?
+          if text_exceeds_width?(candidate, max_width) && !current.empty?
             lines << current
             current = word
           else
@@ -1055,11 +1051,11 @@ class Graphomaton
 
         chunks = []
         current = +''
-        word.each_char do |char|
-          candidate = current.empty? ? char : "#{current}#{char}"
-          if calculate_text_width(candidate) > max_width && !current.empty?
+        word.scan(/\X/).each do |grapheme|
+          candidate = current.empty? ? grapheme : "#{current}#{grapheme}"
+          if text_exceeds_width?(candidate, max_width) && !current.empty?
             chunks << current
-            current = char
+            current = grapheme
           else
             current = candidate
           end
@@ -1067,6 +1063,11 @@ class Graphomaton
 
         chunks << current unless current.empty?
         chunks
+      end
+
+      def text_exceeds_width?(text, max_width)
+        available_width = [max_width.to_f - (@label_padding * 2), 1.0].max
+        measure_text_width(text) > available_width
       end
 
       def transition_label_box_lines_width(lines)

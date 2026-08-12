@@ -830,6 +830,36 @@ RSpec.describe Graphomaton::Exporters::Svg do
       expect(has_wrapped_label).to be true
     end
 
+    it 'preserves explicit line breaks without enabling automatic wrapping' do
+      local = Graphomaton.new
+      local.add_state('A')
+      local.add_state('B')
+      local.add_transition('A', 'B', "first\nsecond")
+
+      document = REXML::Document.new(described_class.new(local).export)
+      lines = REXML::XPath.match(document, '//text[@class="transition-label"]/tspan').map(&:text)
+
+      expect(lines).to eq(%w[first second])
+    end
+
+    it 'does not split emoji grapheme clusters' do
+      family = "👨‍👩‍👧‍👦"
+      chunks = svg_exporter.send(:split_long_word, "#{family}A", 10)
+
+      expect(chunks).to eq([family, 'A'])
+    end
+
+    it 'uses the shared wrapping path for self-loop labels' do
+      local = Graphomaton.new
+      local.add_state('A')
+      local.add_transition('A', 'A', 'self loop label wraps')
+
+      document = REXML::Document.new(described_class.new(local).export(wrap: true, max_transition_label_width: 60))
+      label = REXML::XPath.first(document, '//text[@class="transition-label"]')
+
+      expect(label.get_elements('tspan').size).to be > 1
+    end
+
     it 'can rotate transition labels along edges' do
       rotated = Graphomaton.new
       rotated.add_state('A', 100, 100)

@@ -567,6 +567,13 @@ RSpec.describe Graphomaton do
         expect(automaton.states['q2'][:x]).to be >= 700
       end
 
+      it 'preserves minimum linear spacing on a narrow canvas' do
+        positions = automaton.layout_positions(200, 200, layout: :linear, node_spacing: 120)
+
+        distances = positions.values.each_cons(2).map { |left, right| right[:x] - left[:x] }
+        expect(distances).to all(be >= 120)
+      end
+
       it 'supports directional layout' do
         automaton.auto_layout(800, 600, direction: :tb)
 
@@ -592,6 +599,14 @@ RSpec.describe Graphomaton do
         expect(y_values.uniq.size).to be > 1
       end
 
+      it 'preserves minimum grid spacing on a narrow canvas' do
+        automaton.add_state('q3')
+        positions = automaton.layout_positions(200, 200, layout: :grid, node_spacing: 120)
+
+        expect(positions.values.map { |position| position[:x] }.uniq.sort.each_cons(2).first.reduce(:-).abs).to be >= 120
+        expect(positions.values.map { |position| position[:y] }.uniq.sort.each_cons(2).first.reduce(:-).abs).to be >= 120
+      end
+
       it 'supports layered layout' do
         automaton.add_transition('q0', 'q1', 'a')
         automaton.auto_layout(800, 600, layout: :layered)
@@ -608,6 +623,18 @@ RSpec.describe Graphomaton do
 
         expect(automaton.states['q0'][:x]).to be < automaton.states['q1'][:x]
         expect(automaton.states['q1'][:x]).to be < automaton.states['q2'][:x]
+      end
+
+      it 'does not clamp later layered ranks onto the same boundary' do
+        automaton.add_state('q3')
+        automaton.set_initial('q0')
+        automaton.add_transition('q0', 'q1', 'a')
+        automaton.add_transition('q1', 'q2', 'b')
+        automaton.add_transition('q2', 'q3', 'c')
+
+        positions = automaton.layout_positions(200, 200, layout: :layered, rank_spacing: 120)
+
+        expect(positions.values.map { |position| position[:x] }.uniq.size).to eq(4)
       end
 
       it 'supports manual layout when every state has explicit coordinates' do
@@ -816,6 +843,17 @@ RSpec.describe Graphomaton do
         expect(positions['right'][:x]).to be <= 160
         expect(positions['left'][:y]).to eq(100.0)
         expect(positions['right'][:y]).to eq(100.0)
+      end
+
+      it 'writes fitted manual coordinates back during auto layout' do
+        automaton = described_class.new
+        automaton.add_state('left', -1000, 0)
+        automaton.add_state('right', 1000, 0)
+
+        automaton.auto_layout(200, 200, layout: :manual, fit: :contain)
+
+        expect(automaton.states['left']).to include(x: 80.0, y: 100.0)
+        expect(automaton.states['right']).to include(x: 120.0, y: 100.0)
       end
 
       it 'can cover the requested canvas by stretching resolved positions' do
