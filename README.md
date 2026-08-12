@@ -365,7 +365,7 @@ Metadata behavior:
 | SVG | `save_svg` | Native renderer. |
 | PNG | `save_png` | Converts native SVG. Requires `rsvg-convert`, `magick`, or `convert`. |
 | PDF | `save_pdf` | Converts native SVG. Requires `rsvg-convert`, `magick`, or `convert`. |
-| WebP | `save_webp` | Converts native SVG. Requires ImageMagick `magick` or `convert`. |
+| WebP | `save_webp` | Converts native SVG. Uses librsvg plus ImageMagick when available, or ImageMagick directly. |
 | HTML | `save_html` | Mermaid.js state diagram in an HTML page. |
 | DOT | `save_dot` | GraphViz DOT source. |
 | PlantUML | `save_plantuml` | PlantUML state diagram source. |
@@ -376,6 +376,7 @@ Metadata behavior:
 automaton.save_png('diagram.png', 800, 600, scale: 2.0, converter: :magick)
 automaton.save_pdf('diagram.pdf', 800, 600, converter: :magick, timeout: 15, max_output_bytes: 32 * 1024 * 1024)
 automaton.save_webp('diagram.webp', 800, 600, converter: :magick)
+automaton.save_webp('diagram.webp', 800, 600, converter: :rsvg_magick)
 
 Graphomaton.png_available?(converter: :auto)
 Graphomaton.pdf_available?(converter: :auto)

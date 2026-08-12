@@ -7,6 +7,13 @@ RSpec.describe Graphomaton::Exporters::Webp do
   let(:webp_exporter) { described_class.new(automaton) }
   let(:command) { ['magick', 'svg:-', 'webp:-'] }
   let(:convert_command) { ['convert', 'svg:-', 'webp:-'] }
+  let(:pipeline_command) do
+    [
+      ['rsvg-convert', '--format', 'png', '-'],
+      ['magick', 'png:-', 'webp:-']
+    ]
+  end
+  let(:png_data) { "\x89PNG\r\n\x1A\npng-data".b }
   let(:webp_data) { "RIFF\x00\x00\x00\x00WEBPwebp-data".b }
   let(:successful_status) { instance_double(Process::Status, success?: true) }
   let(:failed_status) { instance_double(Process::Status, success?: false) }
@@ -51,6 +58,18 @@ RSpec.describe Graphomaton::Exporters::Webp do
         .and_return([webp_data, '', successful_status])
 
       expect(webp_exporter.export(converter: :convert)).to eq(webp_data)
+    end
+
+    it 'supports a bounded librsvg and ImageMagick pipeline' do
+      expect(webp_exporter).to receive(:available_command).with(converter: :rsvg_magick).and_return(pipeline_command)
+      expect(Graphomaton::ProcessRunner).to receive(:capture3)
+        .with(*pipeline_command[0], stdin_data: a_string_including('<svg'), binmode: true, timeout: 2, max_stdout_bytes: 4096)
+        .and_return([png_data, '', successful_status])
+      expect(Graphomaton::ProcessRunner).to receive(:capture3)
+        .with(*pipeline_command[1], stdin_data: png_data, binmode: true, timeout: 2, max_stdout_bytes: 4096)
+        .and_return([webp_data, '', successful_status])
+
+      expect(webp_exporter.export(converter: :rsvg_magick, timeout: 2, max_output_bytes: 4096)).to eq(webp_data)
     end
 
     it 'raises a conversion error when no converter is available' do
