@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.authors = ['Yudai Takada']
   spec.email = ['t.yudai92@gmail.com']
 
-  spec.summary = 'A tiny Ruby library for generating finite state machine (automaton) diagrams.'
-  spec.description = 'Graphomaton is a lightweight Ruby library for creating and visualizing finite state machines. It supports multiple output formats including SVG, PNG, PDF, WebP, Mermaid.js, GraphViz DOT, and PlantUML, making it easy to generate professional automaton diagrams.'
+  spec.summary = 'Generate and analyze finite state machine diagrams in multiple formats.'
+  spec.description = 'Graphomaton creates, analyzes, lays out, and exports finite state machines as SVG, PNG, PDF, WebP, Mermaid.js, GraphViz DOT, PlantUML, and standalone HTML.'
   spec.homepage = 'https://github.com/ydah/graphomaton'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.2.0'
@@ -17,14 +17,14 @@ Gem::Specification.new do |spec|
   spec.metadata['homepage_uri'] = spec.homepage
   spec.metadata['source_code_uri'] = spec.homepage
   spec.metadata['changelog_uri'] = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata['documentation_uri'] = spec.homepage
+  spec.metadata['bug_tracker_uri'] = "#{spec.homepage}/issues"
   spec.metadata['rubygems_mfa_required'] = 'true'
 
-  gemspec = File.basename(__FILE__)
-  spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
-    ls.readlines("\x0", chomp: true).reject do |f|
-      (f == gemspec) ||
-        f.start_with?(*%w[bin/ Gemfile .gitignore .github/])
-    end
+  spec.files = Dir.chdir(__dir__) do
+    Dir['lib/**/*', 'exe/*', 'README.md', 'CHANGELOG.md', 'LICENSE.txt']
+      .select { |path| File.file?(path) }
+      .sort
   end
   spec.bindir = 'exe'
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }

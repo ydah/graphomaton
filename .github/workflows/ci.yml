@@ -1,28 +1,57 @@
 name: CI
+permissions:
+  contents: read
 on:
   push:
     branches:
       - main
   pull_request:
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
     name: Ruby ${{ matrix.ruby }}
+    timeout-minutes: 15
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
+      fail-fast: false
       matrix:
-        ruby:
-          - '3.2'
-          - '3.3'
-          - '3.4'
-          - 'head'
+        include:
+          - ruby: '3.2'
+            experimental: false
+          - ruby: '3.3'
+            experimental: false
+          - ruby: '3.4'
+            experimental: false
+          - ruby: 'head'
+            experimental: true
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
       - name: Run the default task
         run: bundle exec rake
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+      - name: Build and install gem
+        run: |
+          gem build graphomaton.gemspec --output graphomaton.gem
+          gem install --local graphomaton.gem --no-document
+          graphomaton --version
