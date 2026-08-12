@@ -649,6 +649,18 @@ class Graphomaton
                       raise ArgumentError, "Unknown SVG layout: #{layout.inspect}. Available layouts: #{LAYOUT_OPTIONS.join(', ')}"
                     end
 
+    if resolved_layout != :force
+      auto_positions = avoid_fixed_position_collisions(
+        auto_positions,
+        manual_positions,
+        width,
+        height,
+        state_radius,
+        resolved_padding,
+        resolved_node_spacing,
+        resolved_direction
+      )
+    end
     positions = manual_positions.merge(auto_positions)
     positions = fit_positions(positions, width, height, state_radius, resolved_padding, resolved_fit) unless resolved_fit == :none
     @state_positions = positions
@@ -1979,6 +1991,54 @@ class Graphomaton
     non_final_states = ordered.reject { |name| @final_states.include?(name) }
     final_states = ordered.select { |name| @final_states.include?(name) }
     non_final_states + final_states
+  end
+
+  def avoid_fixed_position_collisions(auto_positions, fixed_positions, width, height, state_radius, padding, spacing, direction)
+    return auto_positions if fixed_positions.empty? || auto_positions.empty?
+
+    minimum_distance = [spacing.to_f, state_radius.to_f * 2.5].max
+    occupied = fixed_positions.values.map(&:dup)
+    auto_positions.each_with_object({}) do |(name, position), adjusted|
+      candidate = position.dup
+      if position_collides?(candidate, occupied, minimum_distance)
+        offsets = collision_avoidance_offsets(occupied.size + auto_positions.size + 1, minimum_distance, direction)
+        candidates = offsets.map { |offset_x, offset_y| { x: position[:x] + offset_x, y: position[:y] + offset_y } }
+        candidate = candidates.find do |item|
+          position_inside_canvas?(item, width, height, state_radius, padding) &&
+            !position_collides?(item, occupied, minimum_distance)
+        end
+        candidate ||= candidates.find { |item| !position_collides?(item, occupied, minimum_distance) }
+        candidate ||= position
+      end
+
+      adjusted[name] = candidate
+      occupied << candidate
+    end
+  end
+
+  def collision_avoidance_offsets(rings, spacing, direction)
+    (1..rings).flat_map do |ring|
+      distance = spacing * ring
+      if %i[lr rl].include?(direction)
+        [[0, -distance], [0, distance], [-distance, 0], [distance, 0],
+         [-distance, -distance], [distance, -distance], [-distance, distance], [distance, distance]]
+      else
+        [[-distance, 0], [distance, 0], [0, -distance], [0, distance],
+         [-distance, -distance], [-distance, distance], [distance, -distance], [distance, distance]]
+      end
+    end
+  end
+
+  def position_collides?(position, occupied, minimum_distance)
+    occupied.any? do |other|
+      Math.hypot(position[:x] - other[:x], position[:y] - other[:y]) < minimum_distance
+    end
+  end
+
+  def position_inside_canvas?(position, width, height, state_radius, padding)
+    margin = [state_radius.to_f, padding.to_f].max
+    position[:x] >= margin && position[:x] <= width.to_f - margin &&
+      position[:y] >= margin && position[:y] <= height.to_f - margin
   end
 
   def manual_position?(state)

@@ -605,6 +605,18 @@ RSpec.describe Graphomaton do
         expect(automaton.states['q3'][:y]).to eq(400)
       end
 
+      it 'keeps automatically placed states away from manual positions' do
+        automaton.add_state('manual', 400, 300)
+
+        positions = automaton.layout_positions(800, 600, node_spacing: 120)
+        manual_position = positions.fetch('manual')
+        automatic_positions = positions.reject { |name, _position| name == 'manual' }.values
+
+        expect(automatic_positions).to all(
+          satisfy { |position| Math.hypot(position[:x] - manual_position[:x], position[:y] - manual_position[:y]) >= 120 }
+        )
+      end
+
       it 'can include manual coordinates in automatic layout when requested' do
         automaton.add_state('q3', 500, 400)
 
