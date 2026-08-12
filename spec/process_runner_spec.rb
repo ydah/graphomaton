@@ -20,9 +20,11 @@ RSpec.describe Graphomaton::ProcessRunner do
   it 'terminates processes that exceed the timeout' do
     started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-    expect do
-      described_class.capture3(RbConfig.ruby, '-e', 'sleep 5', timeout: 0.1)
-    end.to raise_error(described_class::TimeoutError, /timed out/)
+    3.times do
+      expect do
+        described_class.capture3(RbConfig.ruby, '-e', 'sleep 5', timeout: 0.1)
+      end.to raise_error(described_class::TimeoutError, /timed out/)
+    end
 
     elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
     expect(elapsed).to be < 1.0

@@ -83,7 +83,7 @@ class Graphomaton
             end
             output << chunk
           end
-        rescue EOFError
+        rescue EOFError, IOError
           output
         ensure
           stream.close unless stream.closed?
