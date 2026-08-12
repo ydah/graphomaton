@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'digest'
+
 class Graphomaton
   module Exporters
     class Mermaid
@@ -86,7 +88,8 @@ class Graphomaton
       def export_html(theme: DEFAULT_THEME, cdn: DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil, lang: DEFAULT_LANG,
                       show_source: DEFAULT_SHOW_SOURCE, pan_zoom: DEFAULT_PAN_ZOOM,
                       mathjax: DEFAULT_MATHJAX, mathjax_cdn: DEFAULT_MATHJAX_CDN,
-                      inline_mathjax: false, self_contained: false, nonce: nil, csp: false)
+                      inline_mathjax: false, self_contained: false, nonce: nil, csp: false,
+                      mermaid_sha256: nil, mathjax_sha256: nil)
         if self_contained
           inline_mermaid = true
           offline = true
@@ -107,8 +110,8 @@ class Graphomaton
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
               #{csp_meta(csp, resolved_nonce)}
               <title>#{escape_text(title_text)}</title>
-              #{script_block(cdn: cdn, theme: theme, inline_mermaid: inline_mermaid, offline: offline, nonce: resolved_nonce)}
-              #{mathjax_block(enabled: mathjax, cdn: mathjax_cdn, inline: inline_mathjax, nonce: resolved_nonce)}
+              #{script_block(cdn: cdn, theme: theme, inline_mermaid: inline_mermaid, offline: offline, nonce: resolved_nonce, sha256: mermaid_sha256)}
+              #{mathjax_block(enabled: mathjax, cdn: mathjax_cdn, inline: inline_mathjax, nonce: resolved_nonce, sha256: mathjax_sha256)}
               <style#{nonce_attribute(resolved_nonce)}>
                   body {
                       font-family: Arial, sans-serif;
@@ -174,7 +177,7 @@ class Graphomaton
         theme.to_s.delete_prefix(':')
       end
 
-      def script_block(cdn:, theme:, inline_mermaid:, offline:, nonce:)
+      def script_block(cdn:, theme:, inline_mermaid:, offline:, nonce:, sha256:)
         resolved_theme = resolve_theme(theme)
         if offline && cdn == DEFAULT_CDN
           raise ArgumentError, 'Offline HTML export requires cdn: to name a local classic Mermaid .js asset'
@@ -186,8 +189,9 @@ class Graphomaton
         escaped_cdn = escape_attribute(safe_cdn)
         theme_expression = mermaid_theme_expression(resolved_theme)
         if inline_mermaid
-          return mermaid_inline_script(safe_cdn, resolved_theme, nonce: nonce)
+          return mermaid_inline_script(safe_cdn, resolved_theme, nonce: nonce, sha256: sha256)
         end
+        raise ArgumentError, 'mermaid_sha256 requires inline_mermaid or self_contained' if sha256
 
         if offline
           <<~SCRIPT
@@ -210,13 +214,13 @@ class Graphomaton
         end
       end
 
-      def mermaid_inline_script(path_or_url, theme, nonce:)
+      def mermaid_inline_script(path_or_url, theme, nonce:, sha256:)
         theme_expression = mermaid_theme_expression(theme)
         if File.file?(path_or_url)
           <<~SCRIPT
             #{mermaid_render_helper(nonce: nonce)}
             <script#{nonce_attribute(nonce)}>
-              #{trusted_script_contents(path_or_url, context: 'Mermaid')}
+              #{trusted_script_contents(path_or_url, context: 'Mermaid', sha256: sha256)}
               mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: #{theme_expression} });
               window.graphomatonMermaidReady = renderGraphomatonMermaid(mermaid);
             </script>
@@ -252,7 +256,7 @@ class Graphomaton
         "(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default')"
       end
 
-      def mathjax_block(enabled:, cdn:, inline:, nonce:)
+      def mathjax_block(enabled:, cdn:, inline:, nonce:, sha256:)
         return '' unless enabled
 
         safe_cdn = UrlPolicy.validate_asset(cdn, context: 'MathJax asset URL')
@@ -262,10 +266,12 @@ class Graphomaton
 
                    <<~SCRIPT
                      <script#{nonce_attribute(nonce)}>
-                       #{trusted_script_contents(safe_cdn, context: 'MathJax')}
+                       #{trusted_script_contents(safe_cdn, context: 'MathJax', sha256: sha256)}
                      </script>
                    SCRIPT
                  else
+                   raise ArgumentError, 'mathjax_sha256 requires inline_mathjax or self_contained' if sha256
+
                    %(<script defer#{nonce_attribute(nonce)} src="#{escaped_cdn}"></script>)
                  end
         <<~SCRIPT
@@ -493,12 +499,20 @@ class Graphomaton
         %(<meta http-equiv="Content-Security-Policy" content="#{escape_attribute(policy)}">)
       end
 
-      def trusted_script_contents(path, context:)
+      def trusted_script_contents(path, context:, sha256: nil)
         raise ArgumentError, "Unable to inline #{context} script from: #{path}" unless File.file?(path)
         raise ArgumentError, "#{context} script exceeds 20 MiB" if File.size(path) > 20 * 1024 * 1024
 
         contents = File.binread(path).force_encoding(Encoding::UTF_8)
         InputPolicy.text!(contents, context: "#{context} script")
+        if sha256
+          expected = sha256.to_s.downcase
+          unless expected.match?(/\A[0-9a-f]{64}\z/)
+            raise ArgumentError, "#{context} SHA-256 must be 64 hexadecimal characters"
+          end
+          actual = Digest::SHA256.hexdigest(contents)
+          raise SecurityError, "#{context} script SHA-256 mismatch" unless actual == expected
+        end
         contents.gsub(%r{</script}i, '<\\/script')
       end
 

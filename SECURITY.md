@@ -36,6 +36,8 @@ the contexts into which they are emitted:
   it never downloads them. `nonce:` and `csp: true` nonce every generated script
   and style and emit a restrictive policy. Applications serving HTTP should
   prefer an equivalent CSP response header.
+- `mermaid_sha256:` and `mathjax_sha256:` can pin trusted inlined asset contents
+  and fail before output if a local file changed.
 - Graphviz, librsvg, and ImageMagick are external native programs. Calls have
   process-group timeouts and bounded output, but deployments should still patch
   those programs and run untrusted conversions with OS-level isolation.

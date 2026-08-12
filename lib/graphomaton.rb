@@ -2275,6 +2275,7 @@ class Graphomaton
               mathjax: Exporters::Mermaid::DEFAULT_MATHJAX,
               mathjax_cdn: Exporters::Mermaid::DEFAULT_MATHJAX_CDN,
               inline_mathjax: false, self_contained: false, nonce: nil, csp: false,
+              mermaid_sha256: nil, mathjax_sha256: nil,
               notes: Exporters::Mermaid::DEFAULT_NOTES,
               class_defs: Exporters::Mermaid::DEFAULT_CLASS_DEFS)
     Exporters::Mermaid.new(self, direction: direction, notes: notes, class_defs: class_defs).export_html(
@@ -2291,7 +2292,9 @@ class Graphomaton
       inline_mathjax: inline_mathjax,
       self_contained: self_contained,
       nonce: nonce,
-      csp: csp
+      csp: csp,
+      mermaid_sha256: mermaid_sha256,
+      mathjax_sha256: mathjax_sha256
     )
   end
 
@@ -2302,6 +2305,7 @@ class Graphomaton
                 mathjax: Exporters::Mermaid::DEFAULT_MATHJAX,
                 mathjax_cdn: Exporters::Mermaid::DEFAULT_MATHJAX_CDN,
                 inline_mathjax: false, self_contained: false, nonce: nil, csp: false,
+                mermaid_sha256: nil, mathjax_sha256: nil,
                 notes: Exporters::Mermaid::DEFAULT_NOTES,
                 class_defs: Exporters::Mermaid::DEFAULT_CLASS_DEFS)
     AtomicFile.write(
@@ -2322,6 +2326,8 @@ class Graphomaton
         self_contained: self_contained,
         nonce: nonce,
         csp: csp,
+        mermaid_sha256: mermaid_sha256,
+        mathjax_sha256: mathjax_sha256,
         notes: notes,
         class_defs: class_defs
       )

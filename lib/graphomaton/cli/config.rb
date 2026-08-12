@@ -25,7 +25,8 @@ class Graphomaton
         highlight_unreachable unreachable_zone highlight_dead_states highlight_initial_state
         highlight_final_states loop_position merge_parallel_transitions title description cdn offline
         inline_mermaid lang show_source pan_zoom mathjax mathjax_cdn notes class_defs rank_constraints
-        inline_mathjax self_contained nonce csp fail_on_warning diagnostics strict_semantics
+        inline_mathjax self_contained nonce csp mermaid_sha256 mathjax_sha256
+        fail_on_warning diagnostics strict_semantics
       ].freeze
       LABEL_KEYS = {
         wrap: :wrap,

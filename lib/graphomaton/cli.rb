@@ -23,7 +23,7 @@ class Graphomaton
       --node-spacing --rank-spacing --force-iterations --layout-seed --graphviz-command
       --responsive --state-radius --state-shape --edge-style --wrap-labels --title
       --description --cdn --offline --inline-mermaid --inline-mathjax --self-contained
-      --nonce --csp --csp-policy --version --help
+      --nonce --csp --csp-policy --mermaid-sha256 --mathjax-sha256 --version --help
     ].freeze
 
     def initialize(stdin: $stdin, stdout: $stdout, stderr: $stderr)
@@ -169,7 +169,7 @@ def validate_format_options!(options, format)
   support[:scale] = [:png]
   %i[
     cdn offline inline_mermaid lang show_source pan_zoom mathjax mathjax_cdn inline_mathjax
-    self_contained nonce csp
+    self_contained nonce csp mermaid_sha256 mathjax_sha256
   ].each { |name| support[name] = [:html] }
   support[:notes] = %i[html mermaid plantuml]
   support[:class_defs] = %i[html mermaid]
@@ -504,6 +504,8 @@ parser = OptionParser.new do |opts|
   opts.on('--nonce NONCE', 'Add a CSP nonce to generated HTML scripts and styles') { |value| options[:nonce] = value }
   opts.on('--csp', 'Add a strict Content Security Policy meta tag (requires --nonce)') { options[:csp] = true }
   opts.on('--csp-policy POLICY', 'Add a custom Content Security Policy meta tag') { |value| options[:csp] = value }
+  opts.on('--mermaid-sha256 HEX', 'Verify an inlined Mermaid asset') { |value| options[:mermaid_sha256] = value }
+  opts.on('--mathjax-sha256 HEX', 'Verify an inlined MathJax asset') { |value| options[:mathjax_sha256] = value }
   opts.on('--title TITLE', 'HTML page or accessible SVG title') { |value| options[:title] = value }
   opts.on('--description TEXT', 'Accessible SVG description') { |value| options[:description] = value }
   opts.on('--lang LANG', 'HTML language code') { |value| options[:lang] = value }
@@ -728,6 +730,8 @@ if resolved_output_format == :html
   save_options[:self_contained] = options[:self_contained] if options.key?(:self_contained)
   save_options[:nonce] = options[:nonce] if options[:nonce]
   save_options[:csp] = options[:csp] if options.key?(:csp)
+  save_options[:mermaid_sha256] = options[:mermaid_sha256] if options[:mermaid_sha256]
+  save_options[:mathjax_sha256] = options[:mathjax_sha256] if options[:mathjax_sha256]
   save_options[:title] = options[:title] if options[:title]
   save_options[:lang] = options[:lang] if options[:lang]
   save_options[:show_source] = options[:show_source] if options.key?(:show_source)

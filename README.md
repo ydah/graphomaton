@@ -268,13 +268,16 @@ For a self-contained HTML file, provide trusted local classic-script assets:
 ```bash
 graphomaton render automaton.yml diagram.html \
   --cdn ./vendor/mermaid.min.js \
-  --self-contained --nonce generated-nonce-123 --csp
+  --self-contained --mermaid-sha256 HEX_DIGEST \
+  --nonce generated-nonce-123 --csp
 ```
 
 `--self-contained` does not download assets. It embeds the local files named by
 `--cdn` and, when MathJax is enabled, `--mathjax-cdn`. These files execute with the
 document's authority and must be trusted. `--nonce` plus `--csp` applies the nonce
-to every generated script and style and emits a CSP meta tag.
+to every generated script and style and emits a CSP meta tag. The optional
+`--mermaid-sha256` and `--mathjax-sha256` values detect local asset replacement
+before inlining.
 
 ## Themes
 

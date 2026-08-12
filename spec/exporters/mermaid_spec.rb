@@ -361,7 +361,9 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
           mathjax_cdn: mathjax,
           self_contained: true,
           nonce: 'fixed-nonce-123',
-          csp: true
+          csp: true,
+          mermaid_sha256: Digest::SHA256.file(mermaid).hexdigest,
+          mathjax_sha256: Digest::SHA256.file(mathjax).hexdigest
         )
 
         expect(html_output).to include('http-equiv="Content-Security-Policy"')
@@ -370,6 +372,21 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
         expect(html_output).not_to include(' src=')
         expect(html_output).not_to include('</script><script id=attack>')
         expect(html_output).to include('<\\/script><script id=attack>')
+      end
+    end
+
+    it 'rejects an inlined asset whose digest changed' do
+      Dir.mktmpdir do |directory|
+        mermaid = File.join(directory, 'mermaid.js')
+        File.write(mermaid, 'window.mermaid = {};')
+
+        expect do
+          mermaid_exporter.export_html(
+            cdn: mermaid,
+            inline_mermaid: true,
+            mermaid_sha256: '0' * 64
+          )
+        end.to raise_error(Graphomaton::SecurityError, /SHA-256 mismatch/)
       end
     end
 
