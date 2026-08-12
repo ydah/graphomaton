@@ -45,7 +45,7 @@ class Graphomaton
 
         resolved_scale = resolve_scale(scale)
         svg = Svg.new(@automaton).export(width, height, theme: theme, **svg_options)
-        svg = scale_svg_dimensions(svg, width, height, resolved_scale)
+        svg = scale_svg_dimensions(svg, resolved_scale)
         png, error, status = ProcessRunner.capture3(
           *command,
           stdin_data: svg,
@@ -102,11 +102,22 @@ class Graphomaton
         scale.to_f
       end
 
-      def scale_svg_dimensions(svg, width, height, scale)
+      def scale_svg_dimensions(svg, scale)
         document = REXML::Document.new(svg)
-        document.root.attributes['width'] = scaled_dimension(width, scale).to_s
-        document.root.attributes['height'] = scaled_dimension(height, scale).to_s
+        root = document.root
+        view_box = root.attributes['viewBox'].to_s.split.map(&:to_f)
+        logical_width = numeric_svg_dimension(root.attributes['width'], view_box[2])
+        logical_height = numeric_svg_dimension(root.attributes['height'], view_box[3])
+        root.attributes['width'] = scaled_dimension(logical_width, scale).to_s
+        root.attributes['height'] = scaled_dimension(logical_height, scale).to_s
         document.to_s
+      end
+
+      def numeric_svg_dimension(value, fallback)
+        dimension = Float(value)
+        dimension.positive? ? dimension : fallback
+      rescue ArgumentError, TypeError
+        fallback
       end
 
       def self.paths

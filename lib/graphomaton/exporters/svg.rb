@@ -348,6 +348,7 @@ class Graphomaton
         add_final_arrows(transition_group) if @show_final_arrows
         add_state_groups(state_group)
         add_states(state_group)
+        apply_auto_content_bounds(svg, responsive: responsive) if auto_size
 
         svg_output = serialize_document(doc, pretty: pretty, minify: minify)
         return svg_output unless xml_declaration
@@ -525,6 +526,157 @@ class Graphomaton
         width = (max_x - min_x) + (horizontal_margin * 2)
         height = (max_y - min_y) + (vertical_margin * 2)
         [width.to_f, height.to_f]
+      end
+
+      def apply_auto_content_bounds(svg, responsive:)
+        bounds = rendered_content_bounds(svg)
+        return unless bounds
+
+        margin = [@arrow_size, @state_stroke_width, @transition_stroke_width, 12.0].max
+        view_x = bounds[:min_x] - margin
+        view_y = bounds[:min_y] - margin
+        view_width = (bounds[:max_x] - bounds[:min_x]) + (margin * 2)
+        view_height = (bounds[:max_y] - bounds[:min_y]) + (margin * 2)
+        svg.attributes['viewBox'] = "#{view_x} #{view_y} #{view_width} #{view_height}"
+        unless responsive
+          svg.attributes['width'] = view_width.to_s
+          svg.attributes['height'] = view_height.to_s
+        end
+
+        background = REXML::XPath.first(svg, './/rect[@class="diagram-background"]')
+        return unless background
+
+        background.attributes['x'] = view_x.to_s
+        background.attributes['y'] = view_y.to_s
+        background.attributes['width'] = view_width.to_s
+        background.attributes['height'] = view_height.to_s
+      end
+
+      def rendered_content_bounds(svg)
+        bounds = nil
+        REXML::XPath.each(svg, './/*') do |element|
+          next if element_in_defs?(element)
+
+          element_bounds = rendered_element_bounds(element)
+          bounds = merge_bounds(bounds, element_bounds) if element_bounds
+        end
+        bounds
+      end
+
+      def rendered_element_bounds(element)
+        case element.name
+        when 'circle'
+          centered_bounds(element, 'r', 'r')
+        when 'ellipse'
+          centered_bounds(element, 'rx', 'ry')
+        when 'rect'
+          return nil if element.attributes['class'] == 'diagram-background'
+
+          rectangular_bounds(element)
+        when 'line'
+          coordinate_bounds([
+                              [numeric_attribute(element, 'x1'), numeric_attribute(element, 'y1')],
+                              [numeric_attribute(element, 'x2'), numeric_attribute(element, 'y2')]
+                            ], element.attributes['transform'])
+        when 'polygon', 'polyline'
+          points = element.attributes['points'].to_s.scan(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/i).map(&:to_f).each_slice(2).to_a
+          coordinate_bounds(points, element.attributes['transform'])
+        when 'path'
+          points = element.attributes['d'].to_s.scan(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/i).map(&:to_f).each_slice(2).to_a
+          coordinate_bounds(points, element.attributes['transform'])
+        when 'text'
+          text_bounds(element)
+        end
+      end
+
+      def centered_bounds(element, radius_x_name, radius_y_name)
+        center_x = numeric_attribute(element, 'cx')
+        center_y = numeric_attribute(element, 'cy')
+        radius_x = numeric_attribute(element, radius_x_name)
+        radius_y = numeric_attribute(element, radius_y_name)
+        coordinate_bounds(
+          [[center_x - radius_x, center_y - radius_y], [center_x + radius_x, center_y + radius_y]],
+          element.attributes['transform']
+        )
+      end
+
+      def rectangular_bounds(element)
+        x = numeric_attribute(element, 'x')
+        y = numeric_attribute(element, 'y')
+        width = numeric_attribute(element, 'width')
+        height = numeric_attribute(element, 'height')
+        coordinate_bounds(
+          [[x, y], [x + width, y], [x + width, y + height], [x, y + height]],
+          element.attributes['transform']
+        )
+      end
+
+      def text_bounds(element)
+        x = numeric_attribute(element, 'x')
+        y = numeric_attribute(element, 'y')
+        lines = element.get_elements('tspan').map { |line| line.text.to_s }
+        lines = [element.text.to_s] if lines.empty?
+        width = lines.map { |line| measure_text_width(line) }.max || 0
+        height = [lines.size, 1].max * label_line_height
+        anchor = element.attributes['text-anchor']
+        left = anchor == 'middle' ? x - (width / 2.0) : (anchor == 'end' ? x - width : x)
+        coordinate_bounds(
+          [[left, y - height], [left + width, y + (height * 0.25)]],
+          element.attributes['transform']
+        )
+      end
+
+      def coordinate_bounds(points, transform = nil)
+        return nil if points.empty? || points.any? { |point| point.length < 2 }
+
+        transformed = rotate_points(points, transform)
+        xs = transformed.map(&:first)
+        ys = transformed.map(&:last)
+        { min_x: xs.min, min_y: ys.min, max_x: xs.max, max_y: ys.max }
+      end
+
+      def rotate_points(points, transform)
+        match = transform.to_s.match(/rotate\((-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\)/)
+        return points unless match
+
+        angle = match[1].to_f * Math::PI / 180.0
+        center_x = match[2].to_f
+        center_y = match[3].to_f
+        points.map do |x, y|
+          delta_x = x - center_x
+          delta_y = y - center_y
+          [
+            center_x + (delta_x * Math.cos(angle)) - (delta_y * Math.sin(angle)),
+            center_y + (delta_x * Math.sin(angle)) + (delta_y * Math.cos(angle))
+          ]
+        end
+      end
+
+      def numeric_attribute(element, name)
+        Float(element.attributes[name])
+      rescue ArgumentError, TypeError
+        0.0
+      end
+
+      def element_in_defs?(element)
+        parent = element.parent
+        until parent.nil?
+          return true if parent.respond_to?(:name) && parent.name == 'defs'
+
+          parent = parent.parent
+        end
+        false
+      end
+
+      def merge_bounds(left, right)
+        return right unless left
+
+        {
+          min_x: [left[:min_x], right[:min_x]].min,
+          min_y: [left[:min_y], right[:min_y]].min,
+          max_x: [left[:max_x], right[:max_x]].max,
+          max_y: [left[:max_y], right[:max_y]].max
+        }
       end
 
       def svg_root_attributes(width, height, responsive:)

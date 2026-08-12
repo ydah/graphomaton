@@ -528,6 +528,21 @@ RSpec.describe Graphomaton::Exporters::Svg do
         label = REXML::XPath.first(doc, '//text[@class="transition-label" and text()="loop"]')
         expect(label).not_to be_nil
       end
+
+      it 'expands auto-sized content bounds for loop paths and long labels' do
+        automaton.transitions.clear
+        automaton.add_transition('A', 'A', 'a very long self loop label')
+
+        document = REXML::Document.new(svg_exporter.export(100, 100, auto_size: true))
+        view_x, view_y, view_width, view_height = document.root.attributes['viewBox'].split.map(&:to_f)
+        label = REXML::XPath.first(document, '//rect[@class="label-bg"]')
+        label_left = label.attributes['x'].to_f
+        label_right = label_left + label.attributes['width'].to_f
+
+        expect(label_left).to be >= view_x
+        expect(label_right).to be <= view_x + view_width
+        expect(view_height).to be > 160
+      end
     end
 
     context 'with multiple self-loops' do

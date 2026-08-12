@@ -122,6 +122,21 @@ RSpec.describe Graphomaton::Exporters::Png do
       expect(circles.map { |circle| circle.attributes['cx'] }).to eq([circles.first.attributes['cx']] * 2)
     end
 
+    it 'scales dimensions resolved by SVG auto sizing' do
+      automaton.add_transition('A', 'A', 'a very long self loop label')
+
+      expect(Graphomaton::ProcessRunner).to receive(:capture3) do |*args|
+        document = REXML::Document.new(args.last[:stdin_data])
+        view_box = document.root.attributes['viewBox'].split.map(&:to_f)
+
+        expect(document.root.attributes['width'].to_f).to be_within(0.001).of(view_box[2] * 2)
+        expect(document.root.attributes['height'].to_f).to be_within(0.001).of(view_box[3] * 2)
+        [png_data, '', successful_status]
+      end
+
+      png_exporter.export(100, 100, auto_size: true, scale: 2)
+    end
+
     it 'rejects invalid scales instead of coercing them' do
       expect { png_exporter.export(scale: 'large') }.to raise_error(ArgumentError, /positive finite number/)
       expect { png_exporter.export(scale: Float::INFINITY) }.to raise_error(ArgumentError, /positive finite number/)
