@@ -7,6 +7,7 @@ require 'yaml'
 
 require_relative 'graphomaton/atomic_file'
 require_relative 'graphomaton/identifier_allocator'
+require_relative 'graphomaton/input_policy'
 require_relative 'graphomaton/process_runner'
 require_relative 'graphomaton/url_policy'
 require_relative 'graphomaton/exporters'
@@ -189,6 +190,10 @@ class Graphomaton
   DEFAULT_MAX_INPUT_BYTES = 10 * 1024 * 1024
   DEFAULT_MAX_STATES = 10_000
   DEFAULT_MAX_TRANSITIONS = 100_000
+  DEFAULT_MAX_METADATA_DEPTH = 64
+  DEFAULT_MAX_LABEL_LENGTH = 64 * 1024
+  DEFAULT_MAX_GROUP_DEPTH = 64
+  DEFAULT_MAX_CANVAS_AREA = 100_000_000
   attr_accessor :states, :transitions, :initial_state, :final_states
 
   def self.png_available?(converter: Exporters::Png::DEFAULT_CONVERTER)
@@ -203,13 +208,23 @@ class Graphomaton
     Exporters::Webp.available?(converter: converter)
   end
 
-  def self.from_hash(data = nil, max_states: DEFAULT_MAX_STATES, max_transitions: DEFAULT_MAX_TRANSITIONS, **input)
+  def self.from_hash(data = nil, max_states: DEFAULT_MAX_STATES, max_transitions: DEFAULT_MAX_TRANSITIONS,
+                     max_metadata_depth: DEFAULT_MAX_METADATA_DEPTH, max_label_length: DEFAULT_MAX_LABEL_LENGTH,
+                     max_group_depth: DEFAULT_MAX_GROUP_DEPTH, strict_schema: true, **input)
     if data.nil? && !input.empty?
       data = input
     elsif !input.empty?
       raise ArgumentError, "Unknown input keywords: #{input.keys.join(', ')}"
     end
     raise ArgumentError, 'Graphomaton input must be a Hash' unless data.is_a?(Hash)
+
+    enforce_positive_limit(max_metadata_depth, 'max_metadata_depth')
+    enforce_positive_limit(max_label_length, 'max_label_length')
+    enforce_positive_limit(max_group_depth, 'max_group_depth')
+
+    InputPolicy.known_keys!(data, InputPolicy::TOP_LEVEL_KEYS, context: 'top-level', strict: strict_schema)
+    version = input_value(data, :version)
+    raise ArgumentError, "Unsupported Graphomaton schema version: #{version.inspect}" unless version.nil? || version == 1
 
     automaton = new
     states = state_inputs(input_value(data, :states))
@@ -218,7 +233,13 @@ class Graphomaton
     enforce_collection_limit(transitions, max_transitions, 'transitions')
 
     states.each do |state|
-      add_state_from_input(automaton, state)
+      add_state_from_input(
+        automaton,
+        state,
+        max_metadata_depth: max_metadata_depth,
+        max_label_length: max_label_length,
+        strict_schema: strict_schema
+      )
     end
 
     initial_state = input_value(data, :initial, :initial_state)
@@ -229,8 +250,16 @@ class Graphomaton
     end
 
     transitions.each do |transition|
-      add_transition_from_input(automaton, transition)
+      add_transition_from_input(
+        automaton,
+        transition,
+        max_metadata_depth: max_metadata_depth,
+        max_label_length: max_label_length,
+        strict_schema: strict_schema
+      )
     end
+
+    enforce_group_depth(automaton, max_group_depth)
 
     automaton
   end
@@ -260,19 +289,23 @@ class Graphomaton
     theme_from_hash(yaml || {})
   end
 
-  def self.add_state_from_input(automaton, input)
+  def self.add_state_from_input(automaton, input, max_metadata_depth:, max_label_length:, strict_schema:)
     unless input.is_a?(Hash)
       raise ArgumentError, 'State input requires a non-nil id' if input.nil?
       raise ArgumentError, "Duplicate state id: #{input.inspect}" if automaton.states.key?(input)
 
-      automaton.add_state(input)
+      automaton.add_state(input, max_metadata_depth: max_metadata_depth, max_label_length: max_label_length)
       return
     end
+
+    InputPolicy.known_keys!(input, InputPolicy::STATE_KEYS, context: 'state', strict: strict_schema)
 
     name = input_value(input, :id, :name)
     raise ArgumentError, 'State input requires id or name' if name.nil?
     raise ArgumentError, "Duplicate state id: #{name.inspect}" if automaton.states.key?(name)
 
+    InputPolicy.boolean!(input_value(input, :initial), context: "State #{name.inspect} initial")
+    InputPolicy.boolean!(input_value(input, :final, :accepting), context: "State #{name.inspect} final")
     automaton.add_state(
       name,
       input_value(input, :x),
@@ -280,7 +313,9 @@ class Graphomaton
       label: input_value(input, :label),
       style: input_value(input, :style),
       metadata: input_value(input, :metadata),
-      shape: input_value(input, :shape)
+      shape: input_value(input, :shape),
+      max_metadata_depth: max_metadata_depth,
+      max_label_length: max_label_length
     )
     assign_initial_from_input(automaton, name) if input_value(input, :initial)
     automaton.add_final(name) if input_value(input, :final, :accepting)
@@ -297,18 +332,20 @@ class Graphomaton
   end
   private_class_method :assign_initial_from_input
 
-  def self.add_transition_from_input(automaton, input)
+  def self.add_transition_from_input(automaton, input, max_metadata_depth:, max_label_length:, strict_schema:)
     if input.is_a?(Array)
       unless input.length == 3 && input.none?(&:nil?)
         raise ArgumentError, 'Transition Array input requires exactly from, to, and label'
       end
 
       from, to, label = input
-      automaton.add_transition(from, to, label)
+      automaton.add_transition(from, to, label, max_metadata_depth: max_metadata_depth, max_label_length: max_label_length)
       return
     end
 
     raise ArgumentError, 'Transition input must be a Hash or Array' unless input.is_a?(Hash)
+
+    InputPolicy.known_keys!(input, InputPolicy::TRANSITION_KEYS, context: 'transition', strict: strict_schema)
 
     from = input_value(input, :from)
     to = input_value(input, :to)
@@ -321,7 +358,9 @@ class Graphomaton
       label,
       style: input_value(input, :style),
       metadata: input_value(input, :metadata),
-      line_style: input_value(input, :line_style)
+      line_style: input_value(input, :line_style),
+      max_metadata_depth: max_metadata_depth,
+      max_label_length: max_label_length
     )
   end
   private_class_method :add_transition_from_input
@@ -349,11 +388,7 @@ class Graphomaton
 
   def self.bounded_source(source, max_input_bytes)
     enforce_positive_limit(max_input_bytes, 'max_input_bytes')
-    text = if source.respond_to?(:read)
-             source.read(max_input_bytes + 1) || ''
-           else
-             source.to_s
-           end
+    text = source.respond_to?(:read) ? read_bounded_io(source, max_input_bytes) : source.to_s
     if text.bytesize > max_input_bytes
       raise ArgumentError, "Graphomaton input exceeds max_input_bytes (#{max_input_bytes})"
     end
@@ -361,6 +396,37 @@ class Graphomaton
     text
   end
   private_class_method :bounded_source
+
+  def self.read_bounded_io(source, max_input_bytes)
+    output = String.new(encoding: Encoding::BINARY)
+    while output.bytesize <= max_input_bytes
+      chunk = source.read([16 * 1024, max_input_bytes + 1 - output.bytesize].min)
+      break if chunk.nil? || chunk.empty?
+
+      output << chunk
+    end
+    output
+  end
+  private_class_method :read_bounded_io
+
+  def self.enforce_group_depth(automaton, maximum)
+    enforce_positive_limit(maximum, 'max_group_depth')
+    automaton.states.each_key do |state|
+      depth = 0
+      current = state
+      seen = {}
+      while current
+        break if seen[current]
+
+        seen[current] = true
+        metadata = automaton.states[current]&.fetch(:metadata, nil)
+        current = metadata.is_a?(Hash) ? input_value(metadata, :parent) : nil
+        depth += 1 if current
+        raise ArgumentError, "State hierarchy exceeds max_group_depth (#{maximum})" if depth > maximum
+      end
+    end
+  end
+  private_class_method :enforce_group_depth
 
   def self.enforce_collection_limit(collection, limit, name)
     enforce_positive_limit(limit, "max_#{name}")
@@ -396,7 +462,19 @@ class Graphomaton
     @manual_states = {}
   end
 
-  def add_state(name, x = nil, y = nil, label: nil, style: nil, metadata: nil, shape: nil)
+  def add_state(name, x = nil, y = nil, label: nil, style: nil, metadata: nil, shape: nil,
+                max_metadata_depth: DEFAULT_MAX_METADATA_DEPTH, max_label_length: DEFAULT_MAX_LABEL_LENGTH)
+    InputPolicy.identifier!(name, context: 'State id')
+    InputPolicy.text!(label, context: "State #{name.inspect} label", max_bytes: max_label_length)
+    if metadata
+      InputPolicy.nested_depth!(
+        metadata,
+        maximum: max_metadata_depth,
+        context: "State #{name.inspect} metadata",
+        max_string_bytes: max_label_length
+      )
+    end
+    raise ArgumentError, "Duplicate state id: #{name.inspect}" if @states.key?(name)
     if x.nil? != y.nil?
       raise ArgumentError, 'State coordinates require both x and y'
     end
@@ -416,7 +494,21 @@ class Graphomaton
   end
 
   def add_transition(from, to, label, style: nil, metadata: nil, line_style: nil,
-                     epsilon_label: DEFAULT_EPSILON_LABEL, sort_labels: false)
+                     epsilon_label: DEFAULT_EPSILON_LABEL, sort_labels: false,
+                     max_metadata_depth: DEFAULT_MAX_METADATA_DEPTH, max_label_length: DEFAULT_MAX_LABEL_LENGTH)
+    InputPolicy.identifier!(from, context: 'Transition source')
+    InputPolicy.identifier!(to, context: 'Transition target')
+    raise ArgumentError, 'Transition label cannot be nil' if label.nil?
+    labels = label.is_a?(Array) ? label : [label]
+    labels.each { |item| InputPolicy.text!(item, context: 'Transition label', max_bytes: max_label_length) }
+    if metadata
+      InputPolicy.nested_depth!(
+        metadata,
+        maximum: max_metadata_depth,
+        context: 'Transition metadata',
+        max_string_bytes: max_label_length
+      )
+    end
     transition = { from: from, to: to, label: normalize_transition_label(label, epsilon_label: epsilon_label, sort_labels: sort_labels) }
     transition[:style] = deep_copy(style) unless style.nil?
     transition[:metadata] = deep_copy(metadata) unless metadata.nil?
@@ -429,6 +521,7 @@ class Graphomaton
   end
 
   def add_final(state)
+    InputPolicy.identifier!(state, context: 'Final state id')
     @final_states << state unless @final_states.include?(state)
   end
 
@@ -618,6 +711,9 @@ class Graphomaton
                       fit: DEFAULT_FIT)
     validate_finite_number!(width, 'width', positive: true)
     validate_finite_number!(height, 'height', positive: true)
+    if width.to_f * height.to_f > DEFAULT_MAX_CANVAS_AREA
+      raise ArgumentError, "canvas area exceeds max_canvas_area (#{DEFAULT_MAX_CANVAS_AREA})"
+    end
     validate_finite_number!(state_radius, 'state_radius', positive: true)
     validate_finite_number!(padding, 'padding', nonnegative: true)
     validate_finite_number!(node_spacing, 'node_spacing', nonnegative: true)

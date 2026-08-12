@@ -118,7 +118,8 @@ RSpec.describe Graphomaton do
       YAML
 
       expect { described_class.from_yaml(yaml) }.to raise_error(Psych::AliasesNotEnabled)
-      expect(described_class.from_yaml(yaml, aliases: true).states.keys).to eq(['q0'])
+      expect { described_class.from_yaml(yaml, aliases: true) }.to raise_error(ArgumentError, /Unknown top-level keys: copy/)
+      expect(described_class.from_yaml(yaml, aliases: true, strict_schema: false).states.keys).to eq(['q0'])
     end
 
     it 'bounds serialized input size for strings and IO objects' do
@@ -157,6 +158,67 @@ RSpec.describe Graphomaton do
       expect do
         described_class.from_hash(states: [{ label: 'missing id' }])
       end.to raise_error(ArgumentError, /requires id or name/)
+    end
+
+    it 'rejects unknown schema keys and invalid flag types' do
+      expect { described_class.from_hash(statse: ['q0']) }
+        .to raise_error(ArgumentError, /Unknown top-level keys: statse/)
+      expect { described_class.from_hash(states: [{ id: 'q0', initial: 'false' }]) }
+        .to raise_error(ArgumentError, /initial must be true or false/)
+      expect { described_class.from_hash(states: [{ id: 'q0', final: 0 }]) }
+        .to raise_error(ArgumentError, /final must be true or false/)
+      expect(described_class.from_hash({ statse: ['q0'] }, strict_schema: false).states).to be_empty
+    end
+
+    it 'supports version 1 and rejects unknown schema versions' do
+      expect(described_class.from_hash(version: 1, states: ['q0']).states).to have_key('q0')
+      expect { described_class.from_hash(version: 2, states: ['q0']) }
+        .to raise_error(ArgumentError, /Unsupported Graphomaton schema version/)
+    end
+
+    it 'continues reading short IO chunks until enforcing the byte limit' do
+      source = Class.new do
+        def initialize
+          @chunks = ['{}', 'overflow']
+        end
+
+        def read(_length)
+          @chunks.shift
+        end
+      end.new
+
+      expect { described_class.from_json(source, max_input_bytes: 5) }
+        .to raise_error(ArgumentError, /exceeds max_input_bytes/)
+    end
+
+    it 'bounds metadata depth, labels, hierarchy depth, and canvas area' do
+      metadata = { one: { two: { three: true } } }
+      expect do
+        described_class.from_hash(states: [{ id: 'q0', metadata: metadata }], max_metadata_depth: 2)
+      end.to raise_error(ArgumentError, /exceeds max_metadata_depth/)
+      expect do
+        described_class.from_hash(states: [{ id: 'q0', label: 'long' }], max_label_length: 3)
+      end.to raise_error(ArgumentError, /exceeds max_label_length/)
+      expect do
+        described_class.from_hash(
+          states: [{ id: 'a' }, { id: 'b', metadata: { parent: 'a' } }, { id: 'c', metadata: { parent: 'b' } }],
+          max_group_depth: 1
+        )
+      end.to raise_error(ArgumentError, /exceeds max_group_depth/)
+
+      graph = described_class.new
+      graph.add_state('q0')
+      expect { graph.layout_positions(Float::MAX, 100) }
+        .to raise_error(ArgumentError, /exceeds max_canvas_area/)
+    end
+
+    it 'rejects nil identifiers and XML-incompatible text at the model boundary' do
+      expect { described_class.new.add_state(nil) }.to raise_error(ArgumentError, /cannot be nil/)
+      expect { described_class.new.add_transition('a', 'b', nil) }.to raise_error(ArgumentError, /cannot be nil/)
+      expect { described_class.new.add_state('q0', label: "bad\u0000label") }
+        .to raise_error(ArgumentError, /invalid in XML/)
+      expect { described_class.new.add_state('q0', label: "bad\xFF".b) }
+        .to raise_error(ArgumentError, /valid UTF-8/)
     end
 
     it 'rejects duplicate state IDs and conflicting initial declarations' do

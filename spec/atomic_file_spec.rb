@@ -26,4 +26,16 @@ RSpec.describe Graphomaton::AtomicFile do
       expect(File.read(path)).to eq('previous')
     end
   end
+
+  it 'preserves the mode of an existing destination' do
+    Dir.mktmpdir do |directory|
+      path = File.join(directory, 'diagram.svg')
+      File.write(path, 'previous')
+      File.chmod(0o644, path)
+
+      described_class.write(path, 'replacement')
+
+      expect(File.stat(path).mode & 0o7777).to eq(0o644)
+    end
+  end
 end
