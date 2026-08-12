@@ -239,7 +239,7 @@ svg:
     wrap: true
 ```
 
-The CLI validates state references and hierarchy by default. `--no-validate` is available for intentionally deferred or partial diagrams. Standard input auto-detects JSON documents that start with `{` or `[`, otherwise YAML is assumed; use `--input-format` to override it. `--format` is required when `--output -` is used. Input limits can be lowered with `--max-input-bytes`, `--max-states`, and `--max-transitions`. Use `--no-clobber` to protect an existing output (and `--force` to opt back into replacement). Usage, parse, validation, conversion, and security failures use distinct exit statuses and are reported without backtraces.
+The CLI validates state references and hierarchy by default. `--no-validate` is available for intentionally deferred or partial diagrams. Standard input auto-detects JSON documents that start with `{` or `[`, otherwise YAML is assumed; use `--input-format` to override it. `--format` is required when `--output -` is used. Input limits can be lowered with `--max-input-bytes`, `--max-states`, `--max-transitions`, `--max-metadata-depth`, `--max-label-length`, and `--max-group-depth`. Use `--no-clobber` to protect an existing output (and `--force` to opt back into replacement). Usage, parse, validation, conversion, and security failures use distinct exit statuses and are reported without backtraces.
 
 Common SVG options:
 
