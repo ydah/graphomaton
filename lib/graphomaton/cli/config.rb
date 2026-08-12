@@ -12,7 +12,8 @@ class Graphomaton
       ].freeze
       OPTION_KEYS = %i[
         input input_format output format validate no_clobber width height scale converter timeout
-        max_output_bytes max_input_bytes max_states max_transitions theme theme_file layout_warnings
+        max_output_bytes max_input_bytes max_states max_transitions max_metadata_depth max_label_length
+        max_group_depth theme theme_file layout_warnings
         layout direction fit padding node_spacing rank_spacing force_iterations layout_seed
         graphviz_command auto_density_spacing initial_position final_position responsive state_radius
         auto_state_radius min_state_radius max_state_radius state_stroke_width transition_stroke_width

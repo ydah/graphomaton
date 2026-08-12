@@ -504,6 +504,8 @@ class Graphomaton
         raise ArgumentError, "#{context} script exceeds 20 MiB" if File.size(path) > 20 * 1024 * 1024
 
         contents = File.binread(path).force_encoding(Encoding::UTF_8)
+        raise ArgumentError, "#{context} script exceeds 20 MiB" if contents.bytesize > 20 * 1024 * 1024
+
         InputPolicy.text!(contents, context: "#{context} script")
         if sha256
           expected = sha256.to_s.downcase
@@ -530,6 +532,8 @@ class Graphomaton
             .gsub('<', '\\u003c')
             .gsub('>', '\\u003e')
             .gsub('&', '\\u0026')
+            .gsub("\u2028", '\\u2028')
+            .gsub("\u2029", '\\u2029')
       end
 
       def escape_text(text)

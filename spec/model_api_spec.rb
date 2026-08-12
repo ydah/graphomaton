@@ -237,6 +237,8 @@ RSpec.describe 'Graphomaton model API' do
     graph = Graphomaton.new
 
     expect(graph).not_to respond_to(:layout_force_positions)
+    expect(graph).not_to respond_to(:graphviz_layout_dot)
+    expect(graph).not_to respond_to(:layered_distances)
     expect(graph).to respond_to(:layout_positions)
   end
 end

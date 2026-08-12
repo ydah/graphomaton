@@ -127,6 +127,23 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
+  it 'lets a command-line output extension override a configured format' do
+    Dir.mktmpdir do |dir|
+      config = File.join(dir, 'config.yml')
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.dot')
+      File.write(config, "format: svg\n")
+      File.write(input, "states: [q0]\n")
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby, executable, 'render', '--config', config, input, output
+      )
+
+      expect(status).to be_success, stderr
+      expect(File.read(output)).to start_with('digraph')
+    end
+  end
+
   it 'applies no-clobber to theme galleries' do
     Dir.mktmpdir do |dir|
       output = File.join(dir, 'themes.html')
@@ -272,6 +289,19 @@ RSpec.describe 'graphomaton CLI' do
 
     expect(status.exitstatus).to eq(3)
     expect(stderr).to include('exceeds max_input_bytes')
+
+    _stdout, label_errors, label_status = Open3.capture3(
+      RbConfig.ruby,
+      File.expand_path('../exe/graphomaton', __dir__),
+      '-i', '-',
+      '-o', '-',
+      '-f', 'svg',
+      '--max-label-length', '3',
+      stdin_data: "states:\n  - id: q0\n    label: long\n"
+    )
+
+    expect(label_status.exitstatus).to eq(3)
+    expect(label_errors).to include('exceeds max_label_length')
   end
 
   it 'writes a theme gallery without an input automaton' do
@@ -470,6 +500,26 @@ RSpec.describe 'graphomaton CLI' do
     expect(status.exitstatus).to eq(2)
     expect(stderr).to include('--layout not supported for dot output')
     expect(stderr).not_to include('from ')
+  end
+
+  it 'rejects SVG theme mappings for HTML instead of silently ignoring them' do
+    Dir.mktmpdir do |dir|
+      theme = File.join(dir, 'theme.yml')
+      File.write(theme, "stroke: '#ef4444'\n")
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        executable,
+        '-i', '-',
+        '-o', '-',
+        '-f', 'html',
+        '--theme-file', theme,
+        stdin_data: "states: [q0]\n"
+      )
+
+      expect(status.exitstatus).to eq(Graphomaton::CLI::EXIT_USAGE)
+      expect(stderr).to include('--theme-file not supported for html output')
+    end
   end
 
   it 'reports semantic loss and can reject it in strict mode' do

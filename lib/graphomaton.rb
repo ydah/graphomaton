@@ -2450,7 +2450,19 @@ class Graphomaton
           :layout_layered_positions,
           :layout_layered_groups,
           :layout_force_positions,
-          :layout_graphviz_positions
+          :layout_graphviz_positions,
+          :ordered_state_names,
+          :crossing_reduced_layer_groups,
+          :order_layer_by_neighbor_barycenter,
+          :layer_neighbor_positions,
+          :weak_components,
+          :layered_distances,
+          :graphviz_layout_state_ids,
+          :graphviz_layout_dot,
+          :graphviz_command_args,
+          :graphviz_rankdir,
+          :parse_graphviz_plain_positions,
+          :normalize_graphviz_positions
 
   private
 

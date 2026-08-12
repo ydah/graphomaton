@@ -21,6 +21,7 @@ class Graphomaton
       --no-validate --diagnostics --fail-on-warning --strict-semantics --layout-warnings
       --width --height --theme --theme-file --layout --direction --fit --padding
       --node-spacing --rank-spacing --force-iterations --layout-seed --graphviz-command
+      --max-metadata-depth --max-label-length --max-group-depth
       --responsive --state-radius --state-shape --edge-style --wrap-labels --title
       --description --cdn --offline --inline-mermaid --inline-mathjax --self-contained
       --nonce --csp --csp-policy --mermaid-sha256 --mathjax-sha256 --version --help
@@ -120,6 +121,7 @@ end
 def validate_cli_numeric_options!(options)
   positive = %i[
     width height scale timeout max_output_bytes max_input_bytes max_states max_transitions
+    max_metadata_depth max_label_length max_group_depth
     state_radius min_state_radius max_state_radius
     state_stroke_width transition_stroke_width arrow_size initial_arrow_length final_arrow_length
   ]
@@ -162,7 +164,7 @@ def validate_format_options!(options, format)
     highlight_final_states highlight_transitions loop_position merge_parallel_transitions description
   ].each { |name| support[name] = svg_backed }
   support[:theme] = svg_backed + %i[html dot plantuml]
-  support[:theme_file] = support[:theme]
+  support[:theme_file] = svg_backed + %i[dot plantuml]
   support[:direction] = svg_backed + %i[html mermaid dot plantuml]
   support[:title] = svg_backed + [:html]
   %i[converter timeout max_output_bytes].each { |name| support[name] = converted }
@@ -176,10 +178,13 @@ def validate_format_options!(options, format)
   support[:rank_constraints] = [:dot]
 
   unsupported = support.each_key.select { |name| options.key?(name) && !support.fetch(name).include?(format) }
-  return if unsupported.empty?
-
-  flags = unsupported.map { |name| "--#{name.to_s.tr('_', '-')}" }.join(', ')
-  raise OptionParser::InvalidArgument, "#{flags} not supported for #{format} output"
+  unless unsupported.empty?
+    flags = unsupported.map { |name| "--#{name.to_s.tr('_', '-')}" }.join(', ')
+    raise OptionParser::InvalidArgument, "#{flags} not supported for #{format} output"
+  end
+  if format == :html && options[:theme].is_a?(Hash)
+    raise OptionParser::InvalidArgument, 'custom theme mappings are not supported for html output'
+  end
 end
 
 def extract_command(arguments)
@@ -397,7 +402,8 @@ end
 
 selected_config_path, config_required = config_path(arguments)
 environment = environment_options
-selected_format = format_hint(arguments) || environment[:format]
+argument_format = format_hint(arguments)
+selected_format = argument_format || environment[:format]
 configured_options = Config.load(
   selected_config_path,
   format: selected_format,
@@ -418,8 +424,12 @@ options = {
   max_input_bytes: Graphomaton::DEFAULT_MAX_INPUT_BYTES,
   max_states: Graphomaton::DEFAULT_MAX_STATES,
   max_transitions: Graphomaton::DEFAULT_MAX_TRANSITIONS,
+  max_metadata_depth: Graphomaton::DEFAULT_MAX_METADATA_DEPTH,
+  max_label_length: Graphomaton::DEFAULT_MAX_LABEL_LENGTH,
+  max_group_depth: Graphomaton::DEFAULT_MAX_GROUP_DEPTH,
   validate: true
 }.merge(configured_options).merge(environment)
+options[:format] = argument_format if argument_format
 
 parser = OptionParser.new do |opts|
   opts.banner = 'Usage: graphomaton [render] --input automaton.yml --output diagram.svg [options]'
@@ -450,6 +460,9 @@ parser = OptionParser.new do |opts|
   opts.on('--max-input-bytes BYTES', Integer, 'Maximum JSON or YAML input size') { |value| options[:max_input_bytes] = value }
   opts.on('--max-states COUNT', Integer, 'Maximum parsed state count') { |value| options[:max_states] = value }
   opts.on('--max-transitions COUNT', Integer, 'Maximum parsed transition count') { |value| options[:max_transitions] = value }
+  opts.on('--max-metadata-depth DEPTH', Integer, 'Maximum nested metadata depth') { |value| options[:max_metadata_depth] = value }
+  opts.on('--max-label-length BYTES', Integer, 'Maximum label size in bytes') { |value| options[:max_label_length] = value }
+  opts.on('--max-group-depth DEPTH', Integer, 'Maximum state hierarchy depth') { |value| options[:max_group_depth] = value }
   opts.on('--theme THEME', 'Theme name') { |value| options[:theme] = value.to_sym }
   opts.on('--theme-file PATH', 'Theme JSON or YAML file') { |value| options[:theme_file] = value }
   opts.on('--theme-gallery', 'Write a standalone HTML gallery of built-in themes') { options[:theme_gallery] = true }
@@ -625,7 +638,10 @@ begin
     limits: {
       max_input_bytes: options[:max_input_bytes],
       max_states: options[:max_states],
-      max_transitions: options[:max_transitions]
+      max_transitions: options[:max_transitions],
+      max_metadata_depth: options[:max_metadata_depth],
+      max_label_length: options[:max_label_length],
+      max_group_depth: options[:max_group_depth]
     }
   )
 rescue JSON::ParserError, Psych::Exception, ArgumentError, SystemCallError => e

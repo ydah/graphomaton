@@ -420,6 +420,14 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
       expect(html_output).to include(JSON.generate(payload).delete_prefix('"').split('<').first)
     end
 
+    it 'escapes JavaScript line separator characters in themes' do
+      html_output = mermaid_exporter.export_html(theme: "dark\u2028light\u2029end")
+
+      expect(html_output).to include('dark\\u2028light\\u2029end')
+      expect(html_output).not_to include("\u2028")
+      expect(html_output).not_to include("\u2029")
+    end
+
     it 'supports custom page title and language' do
       html_output = mermaid_exporter.export_html(title: 'Automaton Viewer', lang: 'en')
       expect(html_output).to include('<title>Automaton Viewer</title>')

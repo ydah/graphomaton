@@ -33,6 +33,7 @@
 - Reject ignored schema value types and preserve coordinates across partial state upserts.
 - Use collision-free Graphviz layout IDs and cross-platform executable discovery.
 - Normalize CR/LF label boundaries before emitting renderer syntax.
+- Expose parser depth and label budgets in the CLI and tighten JavaScript asset boundaries.
 
 ## 1.0.0 (2025-12-23)
 

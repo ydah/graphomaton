@@ -19,5 +19,9 @@ Exit statuses are stable: 0 success, 2 usage, 3 input, 4 validation, 5 layout, 6
 export/conversion, and 7 security policy. Normal failures omit backtraces; pass
 `--debug` while investigating.
 
+Input budgets can be lowered with `--max-input-bytes`, `--max-states`,
+`--max-transitions`, `--max-metadata-depth`, `--max-label-length`, and
+`--max-group-depth`.
+
 Generate integration files with `graphomaton completion bash|zsh|fish` and
 `graphomaton man`.
