@@ -85,11 +85,19 @@ class Graphomaton
 
       def export_html(theme: DEFAULT_THEME, cdn: DEFAULT_CDN, inline_mermaid: false, offline: false, title: nil, lang: DEFAULT_LANG,
                       show_source: DEFAULT_SHOW_SOURCE, pan_zoom: DEFAULT_PAN_ZOOM,
-                      mathjax: DEFAULT_MATHJAX, mathjax_cdn: DEFAULT_MATHJAX_CDN)
+                      mathjax: DEFAULT_MATHJAX, mathjax_cdn: DEFAULT_MATHJAX_CDN,
+                      inline_mathjax: false, self_contained: false, nonce: nil, csp: false)
+        if self_contained
+          inline_mermaid = true
+          offline = true
+          inline_mathjax = true if mathjax
+        end
+        resolved_nonce = resolve_nonce(nonce)
         mermaid_code = export
         language = resolve_language(lang)
         ui = UI_TEXT.fetch(language)
         title_text = title || ui[:default_title]
+        InputPolicy.text!(title_text.to_s, context: 'HTML title', max_bytes: Graphomaton::DEFAULT_MAX_LABEL_LENGTH)
 
         <<~HTML
           <!DOCTYPE html>
@@ -97,10 +105,11 @@ class Graphomaton
           <head>
               <meta charset="UTF-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              #{csp_meta(csp, resolved_nonce)}
               <title>#{escape_text(title_text)}</title>
-              #{script_block(cdn: cdn, theme: theme, inline_mermaid: inline_mermaid, offline: offline)}
-              #{mathjax_block(enabled: mathjax, cdn: mathjax_cdn)}
-              <style>
+              #{script_block(cdn: cdn, theme: theme, inline_mermaid: inline_mermaid, offline: offline, nonce: resolved_nonce)}
+              #{mathjax_block(enabled: mathjax, cdn: mathjax_cdn, inline: inline_mathjax, nonce: resolved_nonce)}
+              <style#{nonce_attribute(resolved_nonce)}>
                   body {
                       font-family: Arial, sans-serif;
                       max-width: 1200px;
@@ -146,7 +155,7 @@ class Graphomaton
           #{escape_text(mermaid_code)}
               </div>
               #{source_block(mermaid_code, show_source: show_source)}
-              #{pan_zoom_script(pan_zoom)}
+              #{pan_zoom_script(pan_zoom, nonce: resolved_nonce)}
           </body>
           </html>
         HTML
@@ -165,7 +174,7 @@ class Graphomaton
         theme.to_s.delete_prefix(':')
       end
 
-      def script_block(cdn:, theme:, inline_mermaid:, offline:)
+      def script_block(cdn:, theme:, inline_mermaid:, offline:, nonce:)
         resolved_theme = resolve_theme(theme)
         if offline && cdn == DEFAULT_CDN
           raise ArgumentError, 'Offline HTML export requires cdn: to name a local classic Mermaid .js asset'
@@ -177,22 +186,22 @@ class Graphomaton
         escaped_cdn = escape_attribute(safe_cdn)
         theme_expression = mermaid_theme_expression(resolved_theme)
         if inline_mermaid
-          return mermaid_inline_script(safe_cdn, resolved_theme)
+          return mermaid_inline_script(safe_cdn, resolved_theme, nonce: nonce)
         end
 
         if offline
           <<~SCRIPT
-            #{mermaid_render_helper}
-            <script src="#{escaped_cdn}"></script>
-            <script>
+            #{mermaid_render_helper(nonce: nonce)}
+            <script#{nonce_attribute(nonce)} src="#{escaped_cdn}"></script>
+            <script#{nonce_attribute(nonce)}>
               mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: #{theme_expression} });
               window.graphomatonMermaidReady = renderGraphomatonMermaid(mermaid);
             </script>
           SCRIPT
         else
           <<~SCRIPT
-            #{mermaid_render_helper}
-            <script type="module">
+            #{mermaid_render_helper(nonce: nonce)}
+            <script#{nonce_attribute(nonce)} type="module">
                 import mermaid from #{javascript_string(safe_cdn)};
                 mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: #{theme_expression} });
                 window.graphomatonMermaidReady = renderGraphomatonMermaid(mermaid);
@@ -201,13 +210,13 @@ class Graphomaton
         end
       end
 
-      def mermaid_inline_script(path_or_url, theme)
+      def mermaid_inline_script(path_or_url, theme, nonce:)
         theme_expression = mermaid_theme_expression(theme)
         if File.file?(path_or_url)
           <<~SCRIPT
-            #{mermaid_render_helper}
-            <script>
-              #{File.read(path_or_url)}
+            #{mermaid_render_helper(nonce: nonce)}
+            <script#{nonce_attribute(nonce)}>
+              #{trusted_script_contents(path_or_url, context: 'Mermaid')}
               mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: #{theme_expression} });
               window.graphomatonMermaidReady = renderGraphomatonMermaid(mermaid);
             </script>
@@ -221,9 +230,9 @@ class Graphomaton
         path.to_s.split(/[?#]/, 2).first.end_with?('.mjs')
       end
 
-      def mermaid_render_helper
+      def mermaid_render_helper(nonce:)
         <<~SCRIPT
-          <script>
+          <script#{nonce_attribute(nonce)}>
             window.renderGraphomatonMermaid = (instance) => {
               const render = () => instance.run({ querySelector: '.mermaid' });
               if (document.readyState === 'loading') {
@@ -243,13 +252,24 @@ class Graphomaton
         "(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default')"
       end
 
-      def mathjax_block(enabled:, cdn:)
+      def mathjax_block(enabled:, cdn:, inline:, nonce:)
         return '' unless enabled
 
         safe_cdn = UrlPolicy.validate_asset(cdn, context: 'MathJax asset URL')
         escaped_cdn = escape_attribute(safe_cdn)
+        loader = if inline
+                   raise ArgumentError, "Unable to inline MathJax script from: #{safe_cdn}" unless File.file?(safe_cdn)
+
+                   <<~SCRIPT
+                     <script#{nonce_attribute(nonce)}>
+                       #{trusted_script_contents(safe_cdn, context: 'MathJax')}
+                     </script>
+                   SCRIPT
+                 else
+                   %(<script defer#{nonce_attribute(nonce)} src="#{escaped_cdn}"></script>)
+                 end
         <<~SCRIPT
-          <script>
+          <script#{nonce_attribute(nonce)}>
             window.MathJax = {
               tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']] },
               svg: { fontCache: 'global' }
@@ -261,7 +281,7 @@ class Graphomaton
                 .catch((error) => console.error('Unable to typeset diagram labels', error));
             });
           </script>
-          <script defer src="#{escaped_cdn}"></script>
+          #{loader}
         SCRIPT
       end
 
@@ -350,11 +370,11 @@ class Graphomaton
         HTML
       end
 
-      def pan_zoom_script(enabled)
+      def pan_zoom_script(enabled, nonce:)
         return '' unless enabled
 
         <<~HTML
-              <script>
+              <script#{nonce_attribute(nonce)}>
                 (() => {
                   const viewer = document.querySelector('[data-pan-zoom-viewer]');
                   if (!viewer) return;
@@ -440,6 +460,46 @@ class Graphomaton
                 })();
               </script>
         HTML
+      end
+
+      def resolve_nonce(nonce)
+        return nil if nonce.nil?
+
+        value = nonce.to_s
+        unless value.bytesize.between?(8, 256) && value.match?(/\A[A-Za-z0-9+\/_=-]+\z/)
+          raise ArgumentError, 'HTML nonce must be 8-256 base64-compatible characters'
+        end
+        value
+      end
+
+      def nonce_attribute(nonce)
+        nonce ? %( nonce="#{escape_attribute(nonce)}") : ''
+      end
+
+      def csp_meta(csp, nonce)
+        return '' unless csp
+
+        policy = if csp == true
+                   raise ArgumentError, 'csp: true requires an explicit nonce' unless nonce
+
+                   "default-src 'none'; base-uri 'none'; form-action 'none'; " \
+                     "script-src 'nonce-#{nonce}' 'self' https:; style-src 'nonce-#{nonce}'; " \
+                     "img-src data:; font-src data: https:; connect-src https:"
+                 elsif csp.is_a?(String)
+                   InputPolicy.text!(csp, context: 'Content Security Policy', max_bytes: 4096)
+                 else
+                   raise ArgumentError, 'csp must be true, false, or a policy String'
+                 end
+        %(<meta http-equiv="Content-Security-Policy" content="#{escape_attribute(policy)}">)
+      end
+
+      def trusted_script_contents(path, context:)
+        raise ArgumentError, "Unable to inline #{context} script from: #{path}" unless File.file?(path)
+        raise ArgumentError, "#{context} script exceeds 20 MiB" if File.size(path) > 20 * 1024 * 1024
+
+        contents = File.binread(path).force_encoding(Encoding::UTF_8)
+        InputPolicy.text!(contents, context: "#{context} script")
+        contents.gsub(%r{</script}i, '<\\/script')
       end
 
       def escape_attribute(text)

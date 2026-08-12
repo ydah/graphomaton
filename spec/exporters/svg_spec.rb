@@ -999,6 +999,13 @@ RSpec.describe Graphomaton::Exporters::Svg do
       expect(css).to include('stroke: #f87171')
     end
 
+    it 'rejects invalid XML characters supplied as render options' do
+      expect { svg_exporter.export(title: "bad\u0000title") }
+        .to raise_error(ArgumentError, /SVG title contains characters that are invalid in XML/)
+      expect { svg_exporter.export(initial_arrow_label: "bad\u0001label") }
+        .to raise_error(ArgumentError, /initial_arrow_label contains characters that are invalid in XML/)
+    end
+
     it 'can rotate transition labels along edges' do
       rotated = Graphomaton.new
       rotated.add_state('A', 100, 100)

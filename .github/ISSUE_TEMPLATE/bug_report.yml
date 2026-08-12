@@ -1,0 +1,30 @@
+name: Bug report
+description: Report a reproducible Graphomaton defect
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Graphomaton and Ruby versions
+      placeholder: "Graphomaton 1.1.0, Ruby 3.2.8"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Remove secrets and include input, command or Ruby code, and output format.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Doctor output
+      description: Paste `graphomaton doctor` when converters or Graphviz are involved.

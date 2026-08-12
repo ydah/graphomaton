@@ -72,6 +72,18 @@ RSpec.describe 'graphomaton CLI' do
     expect(doctor).to include("graphomaton: #{Graphomaton::VERSION}", 'graphviz:')
   end
 
+  it 'generates shell completion and a man page' do
+    completion, completion_errors, completion_status = Open3.capture3(
+      RbConfig.ruby, executable, 'completion', 'zsh'
+    )
+    manpage, man_errors, man_status = Open3.capture3(RbConfig.ruby, executable, 'man')
+
+    expect(completion_status).to be_success, completion_errors
+    expect(completion).to include('#compdef graphomaton', '--fail-on-warning')
+    expect(man_status).to be_success, man_errors
+    expect(manpage).to include('.TH GRAPHOMATON 1', '.SH EXIT STATUS')
+  end
+
   it 'loads format configuration while preserving CLI precedence' do
     Dir.mktmpdir do |dir|
       config = File.join(dir, 'config.yml')

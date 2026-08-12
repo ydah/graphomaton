@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'graphomaton'
+require 'tmpdir'
 
 RSpec.describe Graphomaton::Exporters::Mermaid do
   let(:automaton) { Graphomaton.new }
@@ -345,6 +346,38 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
         .to raise_error(ArgumentError, /requires cdn: to name a local classic/)
       expect { mermaid_exporter.export_html(offline: true, cdn: '/assets/mermaid.mjs') }
         .to raise_error(ArgumentError, /must use a classic .js build/)
+    end
+
+    it 'can generate a nonce-protected self-contained document' do
+      Dir.mktmpdir do |directory|
+        mermaid = File.join(directory, 'mermaid.js')
+        mathjax = File.join(directory, 'mathjax.js')
+        File.write(mermaid, 'window.mermaid = {}; const payload = "</script><script id=attack>";')
+        File.write(mathjax, 'window.MathJax = window.MathJax || {};')
+
+        html_output = mermaid_exporter.export_html(
+          cdn: mermaid,
+          mathjax: true,
+          mathjax_cdn: mathjax,
+          self_contained: true,
+          nonce: 'fixed-nonce-123',
+          csp: true
+        )
+
+        expect(html_output).to include('http-equiv="Content-Security-Policy"')
+        expect(html_output).to include('fixed-nonce-123')
+        expect(html_output.scan('<script nonce="fixed-nonce-123">').size).to eq(html_output.scan('</script>').size)
+        expect(html_output).not_to include(' src=')
+        expect(html_output).not_to include('</script><script id=attack>')
+        expect(html_output).to include('<\\/script><script id=attack>')
+      end
+    end
+
+    it 'requires a valid explicit nonce for generated CSP' do
+      expect { mermaid_exporter.export_html(csp: true) }
+        .to raise_error(ArgumentError, /requires an explicit nonce/)
+      expect { mermaid_exporter.export_html(nonce: 'short', csp: true) }
+        .to raise_error(ArgumentError, /8-256 base64-compatible/)
     end
 
     it 'rejects executable and insecure asset URLs' do

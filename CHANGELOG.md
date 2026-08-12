@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.0 (2026-08-12)
+
 - Fix force-layout attraction direction, boundary clamping, and undefined endpoint analysis.
 - Declare isolated states and allocate collision-free identifiers in DOT, Mermaid, and PlantUML.
 - Preserve SVG transition presentation metadata and connect edges to shape-aware boundaries.
@@ -20,6 +22,11 @@
 - Route curved and orthogonal edges from geometry rather than insertion order.
 - Size SVG viewBoxes from rendered paths, shapes, rotated labels, and text content.
 - Add deterministic force-layout separation and convergence detection.
+- Add immutable model records, update/remove APIs, graph revision caches, structured labels, diagnostics, and validation profiles.
+- Add exporter capabilities, semantic-loss reporting, render results, IO output, and RBS signatures.
+- Add obstacle-aware curves, adaptive self-loops, spatial label indexing, and Barnes-Hut force approximation.
+- Add CLI commands for validation, discovery, diagnostics, health checks, config files, completions, and man-page output.
+- Add nonce-based CSP support and trusted local asset inlining for self-contained HTML.
 
 ## 1.0.0 (2025-12-23)
 

@@ -32,6 +32,10 @@ the contexts into which they are emitted:
   require HTTPS. Offline mode requires a local classic `.js` asset.
 - `inline_mermaid: true` embeds a complete local JavaScript file. Treat that file
   as executable code and enable the option only for a trusted asset.
+- `self_contained: true` embeds trusted local Mermaid and optional MathJax assets;
+  it never downloads them. `nonce:` and `csp: true` nonce every generated script
+  and style and emit a restrictive policy. Applications serving HTTP should
+  prefer an equivalent CSP response header.
 - Graphviz, librsvg, and ImageMagick are external native programs. Calls have
   process-group timeouts and bounded output, but deployments should still patch
   those programs and run untrusted conversions with OS-level isolation.

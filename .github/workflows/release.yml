@@ -1,0 +1,32 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+      - name: Verify tag and version
+        run: test "${GITHUB_REF_NAME}" = "v$(bundle exec ruby -Ilib -rgraphomaton/version -e 'print Graphomaton::VERSION')"
+      - name: Test and build
+        run: |
+          bundle exec rake
+          gem build graphomaton.gemspec --output graphomaton.gem
+          gem install --local graphomaton.gem --no-document
+          graphomaton --version
+      - name: Publish through RubyGems trusted publishing
+        uses: rubygems/release-gem@052cc82692552de3ef2b81fd670e41d13cba8092 # v1.4.0

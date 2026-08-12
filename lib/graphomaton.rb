@@ -2274,6 +2274,7 @@ class Graphomaton
               pan_zoom: Exporters::Mermaid::DEFAULT_PAN_ZOOM,
               mathjax: Exporters::Mermaid::DEFAULT_MATHJAX,
               mathjax_cdn: Exporters::Mermaid::DEFAULT_MATHJAX_CDN,
+              inline_mathjax: false, self_contained: false, nonce: nil, csp: false,
               notes: Exporters::Mermaid::DEFAULT_NOTES,
               class_defs: Exporters::Mermaid::DEFAULT_CLASS_DEFS)
     Exporters::Mermaid.new(self, direction: direction, notes: notes, class_defs: class_defs).export_html(
@@ -2286,7 +2287,11 @@ class Graphomaton
       show_source: show_source,
       pan_zoom: pan_zoom,
       mathjax: mathjax,
-      mathjax_cdn: mathjax_cdn
+      mathjax_cdn: mathjax_cdn,
+      inline_mathjax: inline_mathjax,
+      self_contained: self_contained,
+      nonce: nonce,
+      csp: csp
     )
   end
 
@@ -2296,6 +2301,7 @@ class Graphomaton
                 pan_zoom: Exporters::Mermaid::DEFAULT_PAN_ZOOM,
                 mathjax: Exporters::Mermaid::DEFAULT_MATHJAX,
                 mathjax_cdn: Exporters::Mermaid::DEFAULT_MATHJAX_CDN,
+                inline_mathjax: false, self_contained: false, nonce: nil, csp: false,
                 notes: Exporters::Mermaid::DEFAULT_NOTES,
                 class_defs: Exporters::Mermaid::DEFAULT_CLASS_DEFS)
     AtomicFile.write(
@@ -2312,6 +2318,10 @@ class Graphomaton
         pan_zoom: pan_zoom,
         mathjax: mathjax,
         mathjax_cdn: mathjax_cdn,
+        inline_mathjax: inline_mathjax,
+        self_contained: self_contained,
+        nonce: nonce,
+        csp: csp,
         notes: notes,
         class_defs: class_defs
       )

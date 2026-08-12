@@ -1,6 +1,6 @@
 # Graphomaton [![Gem Version](https://badge.fury.io/rb/graphomaton.svg?icon=si%3Arubygems)](https://badge.fury.io/rb/graphomaton) [![CI](https://github.com/ydah/graphomaton/actions/workflows/ci.yml/badge.svg)](https://github.com/ydah/graphomaton/actions/workflows/ci.yml)
 
-A small Ruby library for generating finite state machine and automaton diagrams as SVG, PNG, PDF, WebP, HTML with Mermaid.js, GraphViz DOT, and PlantUML.
+A Ruby toolkit for validating, analyzing, laying out, and exporting finite state machines as SVG, PNG, PDF, WebP, Mermaid.js HTML, GraphViz DOT, and PlantUML.
 
 ![Image](https://github.com/user-attachments/assets/6907869c-1077-4a73-8394-4117f25adc17)
 
@@ -215,6 +215,30 @@ cat automaton.yml | graphomaton --input - --output - --format svg > diagram.svg
 graphomaton --version
 ```
 
+The command interface also supports structured workflows:
+
+```bash
+graphomaton render automaton.yml diagram.svg
+graphomaton validate automaton.yml --diagnostics json
+graphomaton validate automaton.yml --fail-on-warning
+graphomaton list formats
+graphomaton list layouts
+graphomaton doctor
+graphomaton completion zsh > _graphomaton
+graphomaton man > graphomaton.1
+```
+
+Project defaults may be stored in `.graphomaton.yml`; command-line options override
+environment variables, which override the config file:
+
+```yaml
+svg:
+  theme: dark
+  layout: layered
+  labels:
+    wrap: true
+```
+
 The CLI validates state references and hierarchy by default. `--no-validate` is available for intentionally deferred or partial diagrams. Standard input auto-detects JSON documents that start with `{` or `[`, otherwise YAML is assumed; use `--input-format` to override it. `--format` is required when `--output -` is used. Input limits can be lowered with `--max-input-bytes`, `--max-states`, and `--max-transitions`. Use `--no-clobber` to protect an existing output (and `--force` to opt back into replacement). Usage, parse, validation, conversion, and security failures use distinct exit statuses and are reported without backtraces.
 
 Common SVG options:
@@ -238,6 +262,19 @@ graphomaton --list-themes
 graphomaton --theme-gallery --output theme_gallery.html
 graphomaton --theme-gallery --theme-gallery-animated --theme-file theme.yml --output theme_gallery.html
 ```
+
+For a self-contained HTML file, provide trusted local classic-script assets:
+
+```bash
+graphomaton render automaton.yml diagram.html \
+  --cdn ./vendor/mermaid.min.js \
+  --self-contained --nonce generated-nonce-123 --csp
+```
+
+`--self-contained` does not download assets. It embeds the local files named by
+`--cdn` and, when MathJax is enabled, `--mathjax-cdn`. These files execute with the
+document's authority and must be trusted. `--nonce` plus `--csp` applies the nonce
+to every generated script and style and emits a CSP meta tag.
 
 ## Themes
 

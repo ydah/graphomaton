@@ -320,9 +320,9 @@ class Graphomaton
         @arrow_size = finite_number!(arrow_size, 'arrow_size', positive: true)
         @arrow_shape = resolve_arrow_shape(arrow_shape)
         @initial_arrow_length = finite_number!(initial_arrow_length, 'initial_arrow_length', positive: true)
-        @initial_arrow_label = initial_arrow_label
+        @initial_arrow_label = validated_output_text(initial_arrow_label, 'initial_arrow_label')
         @final_arrow_length = finite_number!(final_arrow_length, 'final_arrow_length', positive: true)
-        @final_arrow_label = final_arrow_label
+        @final_arrow_label = validated_output_text(final_arrow_label, 'final_arrow_label')
         @auto_dark_theme = false
         @theme = resolve_theme(theme)
         @layout = resolve_layout(layout)
@@ -406,8 +406,8 @@ class Graphomaton
           }
           @state_spatial_index.insert(bounds, state)
         end
-        @title_text = title
-        @description_text = description
+        @title_text = validated_output_text(title, 'SVG title')
+        @description_text = validated_output_text(description, 'SVG description')
         @svg_id = svg_id ? svg_id_component(svg_id) : default_svg_id(width, height)
         @arrowhead_id = "#{@svg_id}-arrowhead"
         @element_id_counts = Hash.new(0)
@@ -452,6 +452,12 @@ class Graphomaton
       end
 
       private
+
+      def validated_output_text(value, context)
+        return nil if value.nil?
+
+        InputPolicy.text!(value.to_s, context: context, max_bytes: Graphomaton::DEFAULT_MAX_LABEL_LENGTH)
+      end
 
       def serialize_document(doc, pretty:, minify:)
         raise ArgumentError, 'SVG pretty and minify options cannot both be true' if pretty && minify

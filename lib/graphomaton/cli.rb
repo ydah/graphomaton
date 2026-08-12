@@ -13,7 +13,18 @@ class Graphomaton
     EXIT_LAYOUT = 5
     EXIT_EXPORT = 6
     EXIT_SECURITY = 7
-    COMMANDS = %w[render validate themes list doctor].freeze
+    COMMANDS = %w[render validate themes list doctor completion man].freeze
+    COMPLETION_SHELLS = %w[bash zsh fish].freeze
+    COMPLETION_WORDS = %w[
+      render validate themes list doctor completion man formats layouts converters
+      --input --input-format --output --format --config --no-clobber --force --validate
+      --no-validate --diagnostics --fail-on-warning --strict-semantics --layout-warnings
+      --width --height --theme --theme-file --layout --direction --fit --padding
+      --node-spacing --rank-spacing --force-iterations --layout-seed --graphviz-command
+      --responsive --state-radius --state-shape --edge-style --wrap-labels --title
+      --description --cdn --offline --inline-mermaid --inline-mathjax --self-contained
+      --nonce --csp --csp-policy --version --help
+    ].freeze
 
     def initialize(stdin: $stdin, stdout: $stdout, stderr: $stderr)
       @stdin = stdin
@@ -156,7 +167,10 @@ def validate_format_options!(options, format)
   support[:title] = svg_backed + [:html]
   %i[converter timeout max_output_bytes].each { |name| support[name] = converted }
   support[:scale] = [:png]
-  %i[cdn offline inline_mermaid lang show_source pan_zoom mathjax mathjax_cdn].each { |name| support[name] = [:html] }
+  %i[
+    cdn offline inline_mermaid lang show_source pan_zoom mathjax mathjax_cdn inline_mathjax
+    self_contained nonce csp
+  ].each { |name| support[name] = [:html] }
   support[:notes] = %i[html mermaid plantuml]
   support[:class_defs] = %i[html mermaid]
   support[:rank_constraints] = [:dot]
@@ -261,6 +275,61 @@ def execute_doctor(arguments)
   checks.each { |name, value| puts "#{name}: #{value}" }
 end
 
+def execute_completion(arguments)
+  shell = arguments.shift
+  unless COMPLETION_SHELLS.include?(shell) && arguments.empty?
+    warn "Usage: graphomaton completion #{COMPLETION_SHELLS.join('|')}"
+    halt(EXIT_USAGE)
+  end
+
+  words = COMPLETION_WORDS.join(' ')
+  output = case shell
+           when 'bash'
+             <<~BASH
+               _graphomaton_completion() {
+                 COMPREPLY=( $(compgen -W '#{words}' -- "${COMP_WORDS[COMP_CWORD]}") )
+               }
+               complete -F _graphomaton_completion graphomaton
+             BASH
+           when 'zsh'
+             <<~ZSH
+               #compdef graphomaton
+               _arguments '*:graphomaton command or option:(#{words})'
+             ZSH
+           when 'fish'
+             COMPLETION_WORDS.map { |word| "complete -c graphomaton -f -a '#{word}'" }.join("\n") + "\n"
+           end
+  @stdout.write(output)
+end
+
+def execute_man(arguments)
+  unless arguments.empty?
+    warn "Unexpected arguments: #{arguments.join(' ')}"
+    halt(EXIT_USAGE)
+  end
+
+  @stdout.write <<~MANPAGE
+    .TH GRAPHOMATON 1 "2026-08-12" "Graphomaton #{Graphomaton::VERSION}" "User Commands"
+    .SH NAME
+    graphomaton \- validate, analyze, and render finite-state machines
+    .SH SYNOPSIS
+    .B graphomaton
+    [render] -i INPUT -o OUTPUT [options]
+    .br
+    .B graphomaton validate
+    INPUT [--diagnostics text|json]
+    .SH COMMANDS
+    render, validate, themes, list, doctor, completion, and man.
+    .SH EXIT STATUS
+    0 success; 2 usage; 3 input; 4 validation; 5 layout; 6 export; 7 security.
+    .SH FILES
+    .I .graphomaton.yml
+    supplies defaults overridden by environment variables and command-line options.
+    .SH SEE ALSO
+    https://github.com/ydah/graphomaton
+  MANPAGE
+end
+
 def executable_available?(command)
   ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |directory|
     path = File.join(directory, command)
@@ -293,6 +362,8 @@ def execute(arguments)
 command = extract_command(arguments)
 return execute_list(arguments) if command == :list
 return execute_doctor(arguments) if command == :doctor
+return execute_completion(arguments) if command == :completion
+return execute_man(arguments) if command == :man
 return puts(Graphomaton::Theme.available_names.join("\n")) if command == :themes
 if arguments.include?('--version')
   puts Graphomaton::VERSION
@@ -428,6 +499,11 @@ parser = OptionParser.new do |opts|
   opts.on('--cdn URL_OR_PATH', 'Mermaid CDN URL or local script path for HTML output') { |value| options[:cdn] = value }
   opts.on('--offline', 'Use a non-module Mermaid script tag for HTML output') { options[:offline] = true }
   opts.on('--inline-mermaid', 'Inline Mermaid script from --cdn path in HTML output') { options[:inline_mermaid] = true }
+  opts.on('--inline-mathjax', 'Inline MathJax script from --mathjax-cdn path') { options[:inline_mathjax] = true }
+  opts.on('--self-contained', 'Inline all configured local HTML assets') { options[:self_contained] = true }
+  opts.on('--nonce NONCE', 'Add a CSP nonce to generated HTML scripts and styles') { |value| options[:nonce] = value }
+  opts.on('--csp', 'Add a strict Content Security Policy meta tag (requires --nonce)') { options[:csp] = true }
+  opts.on('--csp-policy POLICY', 'Add a custom Content Security Policy meta tag') { |value| options[:csp] = value }
   opts.on('--title TITLE', 'HTML page or accessible SVG title') { |value| options[:title] = value }
   opts.on('--description TEXT', 'Accessible SVG description') { |value| options[:description] = value }
   opts.on('--lang LANG', 'HTML language code') { |value| options[:lang] = value }
@@ -648,6 +724,10 @@ if resolved_output_format == :html
   save_options[:cdn] = options[:cdn] if options[:cdn]
   save_options[:offline] = options[:offline] if options.key?(:offline)
   save_options[:inline_mermaid] = options[:inline_mermaid] if options.key?(:inline_mermaid)
+  save_options[:inline_mathjax] = options[:inline_mathjax] if options.key?(:inline_mathjax)
+  save_options[:self_contained] = options[:self_contained] if options.key?(:self_contained)
+  save_options[:nonce] = options[:nonce] if options[:nonce]
+  save_options[:csp] = options[:csp] if options.key?(:csp)
   save_options[:title] = options[:title] if options[:title]
   save_options[:lang] = options[:lang] if options[:lang]
   save_options[:show_source] = options[:show_source] if options.key?(:show_source)

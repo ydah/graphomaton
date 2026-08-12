@@ -7,7 +7,59 @@ class Graphomaton
   class ValidationError < Error
   end
 
+  class ParseError < Error
+  end
+
+  class LayoutError < Error
+  end
+
   class ExportError < Error
+  end
+
+  class ConversionError < ExportError
+  end
+
+  class SecurityError < Error
+  end
+
+  class Label < Data
+    attr_reader kind: Symbol
+    attr_reader value: untyped
+    def self.text: (untyped value) -> Label
+    def self.symbols: (*untyped values) -> Label
+    def self.epsilon: () -> Label
+    def self.uml: (event: untyped, ?guard: untyped, ?action: untyped) -> Label
+    def to_s: () -> String
+    def to_h: () -> Hash[Symbol, untyped]
+  end
+
+  class Diagnostic < Data
+    attr_reader code: String
+    attr_reader severity: Symbol
+    attr_reader path: Array[untyped]
+    attr_reader message: String
+    attr_reader hint: String?
+    def to_h: () -> Hash[Symbol, untyped]
+  end
+
+  class RenderOptions < Data
+    attr_reader format: Symbol
+    attr_reader width: Numeric
+    attr_reader height: Numeric
+    attr_reader options: Hash[Symbol, untyped]
+  end
+
+  class SvgOptions < Data
+    attr_reader width: Numeric
+    attr_reader height: Numeric
+    attr_reader options: Hash[Symbol, untyped]
+  end
+
+  class RenderResult < Data
+    attr_reader output: String
+    attr_reader diagnostics: Array[Diagnostic]
+    attr_reader bounds: Hash[Symbol, Numeric]?
+    attr_reader layout: Hash[untyped, Hash[Symbol, Numeric]]?
   end
 
   class State < Data
@@ -25,6 +77,9 @@ class Graphomaton
     attr_reader from: untyped
     attr_reader to: untyped
     attr_reader label: untyped
+    attr_reader style: Hash[untyped, untyped]?
+    attr_reader metadata: Hash[untyped, untyped]?
+    attr_reader line_style: untyped
   end
 
   def initialize: (?validation: Symbol) -> void
@@ -45,12 +100,22 @@ class Graphomaton
   def add_final: (untyped state) -> self
   def remove_final: (untyped state) -> self
   def validation_errors: (?profile: Symbol | Array[Symbol]) -> Array[String]
+  def validation_diagnostics: (?profile: Symbol | Array[Symbol]) -> Array[Diagnostic]
   def validate!: (?profile: Symbol | Array[Symbol]) -> true
   def valid?: (?profile: Symbol | Array[Symbol]) -> bool
   def to_h: () -> Hash[Symbol, untyped]
   def to_json: (*untyped) -> String
   def to_yaml: (**untyped) -> String
   def render: (?format: Symbol | String, ?width: Numeric, ?height: Numeric, ?strict_semantics: bool, **untyped) -> String
+  def render_result: (?format: Symbol | String, ?width: Numeric, ?height: Numeric, ?strict_semantics: bool, **untyped) -> RenderResult
+  def render_with: (RenderOptions options) -> String
+  def reachable_states: () -> Array[untyped]
+  def reachable_from: (untyped state) -> Array[untyped]
+  def graph_roots: () -> Array[untyped]
+  def weakly_connected_components: () -> Array[Array[untyped]]
+  def sink_states: () -> Array[untyped]
+  def self_loop_traps: () -> Array[untyped]
+  def bottom_sccs: () -> Array[Array[untyped]]
   def write: (_Writer io, ?format: Symbol | String, ?width: Numeric, ?height: Numeric, **untyped) -> Integer
 
   def self.from_hash: (Hash[untyped, untyped] data, **untyped) -> Graphomaton
