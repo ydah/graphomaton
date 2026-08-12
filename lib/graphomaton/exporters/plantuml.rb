@@ -7,13 +7,15 @@ class Graphomaton
       DEFAULT_NOTES = false
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
       PSEUDOSTATE_TYPES = %i[choice fork join].freeze
+      RESERVED_IDENTIFIERS = %w[state note skinparam hide left right top bottom direction as of].freeze
 
       def initialize(automaton, direction: DEFAULT_DIRECTION, theme: nil, notes: DEFAULT_NOTES)
         @automaton = automaton
         @direction = resolve_direction(direction)
         @theme = resolve_theme(theme)
         @notes = notes
-        @state_names = unique_state_names
+        @identifiers = IdentifierAllocator.new(reserved: RESERVED_IDENTIFIERS)
+        @state_names = allocate_state_names
       end
 
       def export
@@ -24,6 +26,7 @@ class Graphomaton
         lines.concat(theme_lines) if @theme
         lines.concat(state_alias_lines)
         lines.concat(pseudostate_lines)
+        lines.concat(composite_state_lines)
         lines.concat(state_group_lines)
         lines << ''
 
@@ -90,35 +93,21 @@ class Graphomaton
         end
       end
 
-      def sanitize_state_name(name)
-        sanitized = name.to_s.gsub(/[\s-]/, '_')
-        if sanitized =~ /[^\x00-\x7F]/
-          "\"#{sanitized}\""
-        else
-          sanitized
+      def allocate_state_names
+        @automaton.states.each_key.to_h do |name|
+          preferred = name.to_s if valid_identifier?(name)
+          [name, @identifiers.allocate([:state, name], preferred: preferred, prefix: 'state')]
         end
       end
 
-      def unique_state_names
-        counts = Hash.new(0)
-        @automaton.states.each_key.each_with_object({}) do |name, state_names|
-          sanitized = sanitize_state_name(name)
-          if quoted_state_name?(sanitized)
-            state_names[name] = sanitized
-            next
-          end
-
-          counts[sanitized] += 1
-          state_names[name] = counts[sanitized] == 1 ? sanitized : "#{sanitized}_#{counts[sanitized]}"
-        end
-      end
-
-      def quoted_state_name?(state_name)
-        state_name.start_with?('"') && state_name.end_with?('"')
+      def valid_identifier?(name)
+        name.to_s.match?(/\A[A-Za-z_][A-Za-z0-9_]*\z/) && !RESERVED_IDENTIFIERS.include?(name.to_s)
       end
 
       def state_name(name)
-        @state_names.fetch(name) { sanitize_state_name(name) }
+        @state_names.fetch(name) do
+          @identifiers.allocate([:external_state, name], prefix: 'state')
+        end
       end
 
       def escape_label(label)
@@ -129,14 +118,11 @@ class Graphomaton
 
       def state_alias_lines
         @automaton.states.filter_map do |name, state|
+          next if valid_state_parent(state)
           next if state_group_name(state)
           next if pseudostate_type(state)
 
-          label = state[:label]
-          state_identifier = state_name(name)
-          next if (label.nil? || label.to_s == name.to_s) && state_identifier == sanitize_state_name(name)
-
-          "state \"#{escape_state_label(label || name)}\" as #{state_identifier}"
+          state_declaration_line(name, state)
         end
       end
 
@@ -144,7 +130,7 @@ class Graphomaton
         @automaton.states.filter_map do |name, state|
           type = pseudostate_type(state)
           next unless type
-          next if state_group_name(state)
+          next if valid_state_parent(state) || state_group_name(state)
 
           "state #{state_name(name)} <<#{type}>>"
         end
@@ -184,6 +170,7 @@ class Graphomaton
         groups = @automaton.states.each_with_object({}) do |(name, state), grouped_states|
           group = state_group_name(state)
           next unless group
+          next if valid_state_parent(state)
 
           grouped_states[group] ||= []
           grouped_states[group] << [name, state]
@@ -191,7 +178,8 @@ class Graphomaton
         return [] if groups.empty?
 
         groups.flat_map do |group, states|
-          lines = ["state \"#{escape_state_label(group)}\" as #{state_name("group_#{group}")} {"]
+          group_name = @identifiers.allocate([:group, group], prefix: 'group')
+          lines = ["state \"#{escape_state_label(group)}\" as #{group_name} {"]
           states.each do |name, state|
             lines << "  #{state_declaration_line(name, state)}"
           end
@@ -202,9 +190,42 @@ class Graphomaton
       def state_declaration_line(name, state)
         label = state[:label]
         state_identifier = state_name(name)
-        return "state #{state_identifier}" if label.nil? || label.to_s == name.to_s
+        type = pseudostate_type(state)
+        stereotype = type ? " <<#{type}>>" : ''
 
-        "state \"#{escape_state_label(label)}\" as #{state_identifier}"
+        "state \"#{escape_state_label(label || name)}\" as #{state_identifier}#{stereotype}"
+      end
+
+      def composite_state_lines
+        children_by_parent = @automaton.states.each_with_object({}) do |(name, state), groups|
+          parent = valid_state_parent(state)
+          next unless parent
+
+          groups[parent] ||= []
+          groups[parent] << [name, state]
+        end
+
+        children_by_parent.flat_map do |parent, children|
+          parent_state = @automaton.states.fetch(parent)
+          label = parent_state[:label] || parent
+          lines = ["state \"#{escape_state_label(label)}\" as #{state_name(parent)} {"]
+          children.each { |name, state| lines << "  #{state_declaration_line(name, state)}" }
+          lines << '}'
+        end
+      end
+
+      def state_parent(state)
+        metadata = state[:metadata]
+        return nil unless metadata.is_a?(Hash)
+
+        metadata[:parent] || metadata['parent']
+      end
+
+      def valid_state_parent(state)
+        parent = state_parent(state)
+        return nil unless parent && @automaton.states.key?(parent)
+
+        parent
       end
 
       def state_group_name(state)

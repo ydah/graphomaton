@@ -20,11 +20,11 @@ RSpec.describe 'exporter semantic consistency' do
     mermaid = Graphomaton::Exporters::Mermaid.new(automaton).export
     plantuml = Graphomaton::Exporters::Plantuml.new(automaton).export
 
-    expect(dot).to include('__start__ -> "q0"')
+    expect(dot).to include('"__start__" -> "q0"')
     expect(mermaid).to include('[*] --> q0')
     expect(plantuml).to include('[*] --> q0')
 
-    expect(dot).to match(/node\s+\[shape\s+=\s+doublecircle\];\s+"q2"/)
+    expect(dot).to include('"q2" [shape="doublecircle", label="Accept"]')
     expect(mermaid).to match(/q2\s+-->\s+\[\*\]/)
     expect(plantuml).to match(/q2\s+-->\s+\[\*\]/)
 

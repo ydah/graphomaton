@@ -37,6 +37,12 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
         expect(plantuml_output).to include('B')
       end
 
+      it 'declares states that do not participate in transitions' do
+        plantuml_output = plantuml_exporter.export
+
+        expect(plantuml_output).to include('state "C" as C')
+      end
+
       it 'uses explicit state labels when provided' do
         automaton.add_state('q_named', label: 'Named State')
 
@@ -59,8 +65,8 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
 
         plantuml_output = plantuml_exporter.export
 
-        expect(plantuml_output).to include('state "alpha" as group_alpha {')
-        expect(plantuml_output).to include('state grouped_a')
+        expect(plantuml_output).to match(/state "alpha" as group_\d+ \{/)
+        expect(plantuml_output).to include('state "grouped_a" as grouped_a')
         expect(plantuml_output).to include('state "Grouped B" as grouped_b')
       end
 
@@ -131,8 +137,8 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
 
       it 'handles spaces in state names' do
         plantuml_output = plantuml_exporter.export
-        expect(plantuml_output).to include('State_1')
-        expect(plantuml_output).to include('State_2')
+        expect(plantuml_output).to include('state "State 1" as state_1')
+        expect(plantuml_output).to include('state "State-2" as state_2')
       end
 
       it 'handles special characters in labels' do
@@ -157,9 +163,28 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
 
         plantuml_output = described_class.new(local).export
 
-        expect(plantuml_output).to include('state "State-1" as State_1_2')
-        expect(plantuml_output).to include('State_1 --> State_1_2 : a')
-        expect(plantuml_output).to include('State_1_2 --> State_1 : b')
+        expect(plantuml_output).to include('state "State-1" as state_2')
+        expect(plantuml_output).to include('state_1 --> state_2 : a')
+        expect(plantuml_output).to include('state_2 --> state_1 : b')
+      end
+
+      it 'allocates safe IDs for reserved words, syntax characters, and leading digits' do
+        local = Graphomaton.new
+        ['state', '[*]', 'A:B', '123start'].each { |name| local.add_state(name) }
+
+        plantuml_output = described_class.new(local).export
+
+        expect(plantuml_output.scan(/as state_\d+/).size).to eq(4)
+        expect(plantuml_output).to include('state "state" as state_1')
+      end
+
+      it 'preserves pseudostates inside groups' do
+        local = Graphomaton.new
+        local.add_state('decision', metadata: { group: 'flow', plantuml_type: 'choice' })
+
+        plantuml_output = described_class.new(local).export
+
+        expect(plantuml_output).to include('state "decision" as decision <<choice>>')
       end
     end
 

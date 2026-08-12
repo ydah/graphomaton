@@ -18,6 +18,11 @@ class Graphomaton
         @direction = resolve_direction(direction)
         @theme = resolve_theme(theme)
         @rank_constraints = rank_constraints
+        @identifiers = IdentifierAllocator.new
+        @state_names = @automaton.states.each_key.to_h do |name|
+          [name, @identifiers.allocate([:state, name], preferred: name, prefix: 'state')]
+        end
+        @start_name = @identifiers.allocate(:start, preferred: '__start__', prefix: '__graphomaton_start')
       end
 
       def export
@@ -34,15 +39,8 @@ class Graphomaton
         lines << '' if state_clusters.any?
 
         if @automaton.initial_state
-          lines << '    __start__ [shape=point];'
-          lines << "    __start__ -> \"#{escape_label(@automaton.initial_state)}\";"
-          lines << ''
-        end
-
-        unless @automaton.final_states.empty?
-          final_states_str = @automaton.final_states.map { |s| "\"#{escape_label(s)}\"" }.join(' ')
-          lines << "    node [#{node_attributes('doublecircle')}]; #{final_states_str};"
-          lines << "    node [#{node_attributes('circle')}];"
+          lines << "    #{quoted_id(@start_name)} [shape=point];"
+          lines << "    #{quoted_id(@start_name)} -> #{quoted_state_id(@automaton.initial_state)};"
           lines << ''
         end
 
@@ -51,9 +49,7 @@ class Graphomaton
         lines << '' if rank_constraints.any?
 
         @automaton.transitions.each do |trans|
-          from = escape_label(trans[:from])
-          to = escape_label(trans[:to])
-          lines << "    \"#{from}\" -> \"#{to}\" [#{edge_attributes(trans)}];"
+          lines << "    #{quoted_state_id(trans[:from])} -> #{quoted_state_id(trans[:to])} [#{edge_attributes(trans)}];"
         end
 
         lines << '}'
@@ -100,20 +96,20 @@ class Graphomaton
       end
 
       def state_attribute_lines
-        @state_attribute_lines ||= @automaton.states.filter_map do |name, state|
+        @state_attribute_lines ||= @automaton.states.map do |name, state|
           attributes = state_attributes(name, state)
-          next if attributes.empty?
-
-          "    \"#{escape_label(name)}\" [#{attributes.join(', ')}];"
+          suffix = attributes.empty? ? '' : " [#{attributes.join(', ')}]"
+          "    #{quoted_state_id(name)}#{suffix};"
         end
       end
 
       def state_attributes(name, state)
         attributes = []
         label = state[:label]
-        pseudostate_shape = pseudostate_shape(state)
+        identifier = state_name(name)
+        pseudostate_shape = @automaton.final_states.include?(name) ? 'doublecircle' : pseudostate_shape(state)
         attributes << "shape=\"#{pseudostate_shape}\"" if pseudostate_shape
-        attributes << "label=\"#{escape_label(label)}\"" unless label.nil? || label.to_s == name.to_s
+        attributes << "label=\"#{escape_label(label || name)}\"" unless label.nil? && identifier == name.to_s
         add_metadata_attributes(attributes, state[:metadata])
         attributes
       end
@@ -169,9 +165,9 @@ class Graphomaton
 
         clusters.flat_map do |group, states|
           [
-            "    subgraph \"cluster_#{escape_label(group)}\" {",
+            "    subgraph #{quoted_id(cluster_name(group))} {",
             "        label=\"#{escape_label(group)}\";",
-            *states.map { |state| "        \"#{escape_label(state)}\";" },
+            *states.map { |state| "        #{quoted_state_id(state)};" },
             '    }'
           ]
         end
@@ -228,11 +224,11 @@ class Graphomaton
 
         lines = []
         if @automaton.initial_state
-          lines << "    { rank=source; \"#{escape_label(@automaton.initial_state)}\"; }"
+          lines << "    { rank=source; #{quoted_state_id(@automaton.initial_state)}; }"
         end
 
         unless @automaton.final_states.empty?
-          final_states = @automaton.final_states.map { |state| "\"#{escape_label(state)}\";" }.join(' ')
+          final_states = @automaton.final_states.map { |state| "#{quoted_state_id(state)};" }.join(' ')
           lines << "    { rank=sink; #{final_states} }"
         end
 
@@ -257,6 +253,25 @@ class Graphomaton
              .gsub('\\') { '\\\\' }
              .gsub('"') { '\\"' }
              .gsub("\n") { '\\n' }
+      end
+
+      def state_name(name)
+        @state_names.fetch(name) do
+          @identifiers.allocate([:external_state, name], preferred: name, prefix: 'state')
+        end
+      end
+
+      def quoted_state_id(name)
+        quoted_id(state_name(name))
+      end
+
+      def quoted_id(identifier)
+        "\"#{escape_label(identifier)}\""
+      end
+
+      def cluster_name(group)
+        identifier = @identifiers.allocate([:group, group], preferred: group, prefix: 'group')
+        "cluster_#{identifier}"
       end
 
       def dot_class_name(value)

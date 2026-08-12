@@ -5,6 +5,7 @@ require 'open3'
 require 'shellwords'
 require 'yaml'
 
+require_relative 'graphomaton/identifier_allocator'
 require_relative 'graphomaton/exporters'
 require_relative 'graphomaton/version'
 

@@ -28,6 +28,12 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
         expect(mermaid_output).to include('B')
       end
 
+      it 'declares states that do not participate in transitions' do
+        mermaid_output = mermaid_exporter.export
+
+        expect(mermaid_output).to include('state "C" as C')
+      end
+
       it 'uses explicit state labels when provided' do
         automaton.add_state('q_named', label: 'Named State')
 
@@ -65,7 +71,7 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
 
         expect(mermaid_output).to include('state "Workflow" as workflow')
         expect(mermaid_output).to include('state workflow {')
-        expect(mermaid_output).to include('state draft')
+        expect(mermaid_output).to include('state "draft" as draft')
         expect(mermaid_output).to include('state "Review State" as review')
       end
 
@@ -75,8 +81,8 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
 
         mermaid_output = mermaid_exporter.export
 
-        expect(mermaid_output).to include('state group_alpha {')
-        expect(mermaid_output).to include('state grouped_a')
+        expect(mermaid_output).to match(/state "alpha" as group_\d+ \{/)
+        expect(mermaid_output).to include('state "grouped_a" as grouped_a')
         expect(mermaid_output).to include('state "Grouped B" as grouped_b')
       end
 
@@ -146,8 +152,8 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
 
       it 'handles spaces in state names' do
         mermaid_output = mermaid_exporter.export
-        expect(mermaid_output).to include('State_1')
-        expect(mermaid_output).to include('State_2')
+        expect(mermaid_output).to include('state "State 1" as state_1')
+        expect(mermaid_output).to include('state "State-2" as state_2')
       end
 
       it 'handles special characters in labels' do
@@ -172,9 +178,38 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
 
         mermaid_output = described_class.new(local).export
 
-        expect(mermaid_output).to include('state "State-1" as State_1_2')
-        expect(mermaid_output).to include('State_1 --> State_1_2 : a')
-        expect(mermaid_output).to include('State_1_2 --> State_1 : b')
+        expect(mermaid_output).to include('state "State-1" as state_2')
+        expect(mermaid_output).to include('state_1 --> state_2 : a')
+        expect(mermaid_output).to include('state_2 --> state_1 : b')
+      end
+
+      it 'allocates safe IDs for reserved words, syntax characters, and leading digits' do
+        local = Graphomaton.new
+        ['state', '[*]', 'A:B', '123start'].each { |name| local.add_state(name) }
+
+        mermaid_output = described_class.new(local).export
+
+        expect(mermaid_output.scan(/as state_\d+/).size).to eq(4)
+        expect(mermaid_output).to include('state "state" as state_1')
+        expect(mermaid_output).not_to match(/^\s*state "\[\*\]" as \[\*\]/)
+      end
+
+      it 'keeps group IDs separate from user state IDs' do
+        local = Graphomaton.new
+        local.add_state('group_alpha')
+        local.add_state('member', metadata: { group: 'alpha' })
+
+        mermaid_output = described_class.new(local).export
+
+        expect(mermaid_output).to include('state "group_alpha" as group_alpha')
+        expect(mermaid_output).to match(/state "alpha" as group_\d+ \{/)
+      end
+
+      it 'falls back to a top-level declaration for a missing parent' do
+        local = Graphomaton.new
+        local.add_state('child', metadata: { parent: 'missing' })
+
+        expect(described_class.new(local).export).to include('state "child" as child')
       end
     end
 

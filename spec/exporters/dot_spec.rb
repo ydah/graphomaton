@@ -92,7 +92,24 @@ RSpec.describe Graphomaton::Exporters::Dot do
       it 'marks final states with double circle' do
         automaton.add_final('C')
         dot_output = dot_exporter.export
-        expect(dot_output).to match(/node\s+\[shape\s+=\s+doublecircle\];\s+"C"/)
+        expect(dot_output).to include('"C" [shape="doublecircle"];')
+      end
+
+      it 'declares states that do not participate in transitions' do
+        dot_output = dot_exporter.export
+
+        expect(dot_output).to include('"C";')
+      end
+
+      it 'keeps distinct model IDs distinct after string conversion' do
+        local = Graphomaton.new
+        local.add_state('1')
+        local.add_state(:'1')
+
+        dot_output = described_class.new(local).export
+
+        expect(dot_output).to include('"1";')
+        expect(dot_output).to match(/"state_\d+" \[label="1"\];/)
       end
 
       it 'can emit rank constraints for initial and final states' do
@@ -115,12 +132,22 @@ RSpec.describe Graphomaton::Exporters::Dot do
       it 'creates invisible initial node' do
         dot_output = dot_exporter.export
         expect(dot_output).to include('__start__')
-        expect(dot_output).to match(/__start__\s+\[shape=point\]/)
+        expect(dot_output).to include('"__start__" [shape=point]')
       end
 
       it 'creates arrow from invisible node to initial state' do
         dot_output = dot_exporter.export
-        expect(dot_output).to include('__start__ -> "Start"')
+        expect(dot_output).to include('"__start__" -> "Start"')
+      end
+
+      it 'does not collide with a user state named __start__' do
+        automaton.add_state('__start__')
+
+        dot_output = described_class.new(automaton).export
+
+        expect(dot_output).to include('"__start__";')
+        expect(dot_output).to include('"__graphomaton_start_1" [shape=point]')
+        expect(dot_output).to include('"__graphomaton_start_1" -> "Start"')
       end
     end
 
@@ -242,10 +269,10 @@ RSpec.describe Graphomaton::Exporters::Dot do
         expect(dot_output).to include('"q2"')
 
         # Should mark final state
-        expect(dot_output).to match(/node\s+\[shape\s+=\s+doublecircle\];\s+"q2"/)
+        expect(dot_output).to include('"q2" [shape="doublecircle"];')
 
         # Should have initial arrow
-        expect(dot_output).to include('__start__ -> "q0"')
+        expect(dot_output).to include('"__start__" -> "q0"')
 
         # Should have all transitions
         expect(dot_output).to include('"q0" -> "q1"')
