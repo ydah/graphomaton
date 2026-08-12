@@ -49,8 +49,8 @@ RSpec.describe Graphomaton::Exporters::Png do
     end
 
     it 'returns PNG bytes converted from SVG' do
-      expect(Open3).to receive(:capture3)
-        .with(*command, stdin_data: a_string_including('<svg'), binmode: true)
+      expect(Graphomaton::ProcessRunner).to receive(:capture3)
+        .with(*command, stdin_data: a_string_including('<svg'), binmode: true, timeout: 30, max_stdout_bytes: 67_108_864)
         .and_return([png_data, '', successful_status])
 
       expect(png_exporter.export).to eq(png_data)
@@ -58,15 +58,31 @@ RSpec.describe Graphomaton::Exporters::Png do
 
     it 'uses a requested converter command' do
       expect(png_exporter).to receive(:available_command).with(converter: :magick).and_return(magick_command)
-      expect(Open3).to receive(:capture3)
-        .with(*magick_command, stdin_data: a_string_including('<svg'), binmode: true)
+      expect(Graphomaton::ProcessRunner).to receive(:capture3)
+        .with(*magick_command, stdin_data: a_string_including('<svg'), binmode: true, timeout: 30, max_stdout_bytes: 67_108_864)
         .and_return([png_data, '', successful_status])
 
       expect(png_exporter.export(converter: :magick)).to eq(png_data)
     end
 
+    it 'passes timeout and output limits to the process runner' do
+      expect(Graphomaton::ProcessRunner).to receive(:capture3)
+        .with(*command, stdin_data: a_string_including('<svg'), binmode: true, timeout: 0.5, max_stdout_bytes: 1024)
+        .and_return([png_data, '', successful_status])
+
+      expect(png_exporter.export(timeout: 0.5, max_output_bytes: 1024)).to eq(png_data)
+    end
+
+    it 'reports process runner failures as conversion errors' do
+      allow(Graphomaton::ProcessRunner).to receive(:capture3)
+        .and_raise(Graphomaton::ProcessRunner::TimeoutError, 'Process timed out after 0.1 seconds')
+
+      expect { png_exporter.export(timeout: 0.1) }
+        .to raise_error(described_class::ConversionError, /timed out after 0.1 seconds/)
+    end
+
     it 'passes custom dimensions to the SVG renderer' do
-      expect(Open3).to receive(:capture3) do |*args|
+      expect(Graphomaton::ProcessRunner).to receive(:capture3) do |*args|
         options = args.last
         expect(options[:stdin_data]).to include("width='1000'")
         expect(options[:stdin_data]).to include("height='800'")
@@ -78,7 +94,7 @@ RSpec.describe Graphomaton::Exporters::Png do
     end
 
     it 'scales pixel dimensions without changing the logical viewBox' do
-      expect(Open3).to receive(:capture3) do |*args|
+      expect(Graphomaton::ProcessRunner).to receive(:capture3) do |*args|
         options = args.last
         document = REXML::Document.new(options[:stdin_data])
         expect(document.root.attributes['width']).to eq('2000')
@@ -93,7 +109,7 @@ RSpec.describe Graphomaton::Exporters::Png do
 
     it 'keeps state geometry stable across output scales' do
       rendered_documents = []
-      allow(Open3).to receive(:capture3) do |*args|
+      allow(Graphomaton::ProcessRunner).to receive(:capture3) do |*args|
         rendered_documents << REXML::Document.new(args.last[:stdin_data])
         [png_data, '', successful_status]
       end
@@ -113,7 +129,7 @@ RSpec.describe Graphomaton::Exporters::Png do
     end
 
     it 'passes custom themes to the SVG renderer' do
-      expect(Open3).to receive(:capture3) do |*args|
+      expect(Graphomaton::ProcessRunner).to receive(:capture3) do |*args|
         options = args.last
         expect(options[:stdin_data]).to include('diagram-background')
         expect(options[:stdin_data]).to include('#111827')
@@ -143,7 +159,7 @@ RSpec.describe Graphomaton::Exporters::Png do
     end
 
     it 'raises a conversion error when the converter fails' do
-      allow(Open3).to receive(:capture3).and_return(['', 'bad svg', failed_status])
+      allow(Graphomaton::ProcessRunner).to receive(:capture3).and_return(['', 'bad svg', failed_status])
 
       expect { png_exporter.export }.to raise_error(
         described_class::ConversionError,
@@ -152,7 +168,7 @@ RSpec.describe Graphomaton::Exporters::Png do
     end
 
     it 'raises a conversion error when the converter output is not PNG data' do
-      allow(Open3).to receive(:capture3).and_return(['', '', successful_status])
+      allow(Graphomaton::ProcessRunner).to receive(:capture3).and_return(['', '', successful_status])
 
       expect { png_exporter.export }.to raise_error(
         described_class::ConversionError,

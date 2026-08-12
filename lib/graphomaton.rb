@@ -6,6 +6,7 @@ require 'shellwords'
 require 'yaml'
 
 require_relative 'graphomaton/identifier_allocator'
+require_relative 'graphomaton/process_runner'
 require_relative 'graphomaton/url_policy'
 require_relative 'graphomaton/exporters'
 require_relative 'graphomaton/version'
@@ -1104,7 +1105,7 @@ class Graphomaton
                                padding = DEFAULT_PADDING, command: DEFAULT_GRAPHVIZ_COMMAND)
     return {} if auto_states.empty?
 
-    stdout, stderr, status = Open3.capture3(
+    stdout, stderr, status = ProcessRunner.capture3(
       *graphviz_command_args(command),
       '-Tplain',
       stdin_data: graphviz_layout_dot(auto_states, direction)
@@ -1125,6 +1126,8 @@ class Graphomaton
     )
   rescue Errno::ENOENT
     raise ArgumentError, "Graphviz layout requires the `#{Array(command).join(' ')}` command"
+  rescue ProcessRunner::Error => e
+    raise ArgumentError, "Graphviz layout failed: #{e.message}"
   end
 
   def graphviz_layout_dot(auto_states, direction)

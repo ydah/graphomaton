@@ -353,7 +353,7 @@ Metadata behavior:
 
 ```ruby
 automaton.save_png('diagram.png', 800, 600, scale: 2.0, converter: :magick)
-automaton.save_pdf('diagram.pdf', 800, 600, converter: :magick)
+automaton.save_pdf('diagram.pdf', 800, 600, converter: :magick, timeout: 15, max_output_bytes: 32 * 1024 * 1024)
 automaton.save_webp('diagram.webp', 800, 600, converter: :magick)
 
 Graphomaton.png_available?(converter: :auto)
@@ -362,6 +362,7 @@ Graphomaton.webp_available?(converter: :auto)
 ```
 
 PNG `scale:` changes only output pixel density. The logical SVG viewBox, state size, and layout remain unchanged.
+Converter processes default to a 30-second timeout, a 64 MiB output limit, and a 1 MiB diagnostic limit. Timeout and output-limit failures terminate the process group and raise the format-specific `ConversionError`.
 
 ### HTML with Mermaid.js
 

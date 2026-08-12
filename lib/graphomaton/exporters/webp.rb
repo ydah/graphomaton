@@ -10,6 +10,8 @@ class Graphomaton
       class ConversionError < StandardError; end
 
       DEFAULT_CONVERTER = :auto
+      DEFAULT_TIMEOUT = ProcessRunner::DEFAULT_TIMEOUT
+      DEFAULT_MAX_OUTPUT_BYTES = ProcessRunner::DEFAULT_MAX_STDOUT_BYTES
 
       CONVERTER_COMMANDS = {
         magick: ['magick', 'svg:-', 'webp:-'],
@@ -33,18 +35,27 @@ class Graphomaton
         @automaton = automaton
       end
 
-      def export(width = 800, height = 600, theme: Svg::DEFAULT_THEME, converter: DEFAULT_CONVERTER, **svg_options)
+      def export(width = 800, height = 600, theme: Svg::DEFAULT_THEME, converter: DEFAULT_CONVERTER,
+                 timeout: DEFAULT_TIMEOUT, max_output_bytes: DEFAULT_MAX_OUTPUT_BYTES, **svg_options)
         command = available_command(converter: converter)
         raise ConversionError, missing_converter_message(converter) unless command
 
         svg = Svg.new(@automaton).export(width, height, theme: theme, **svg_options)
-        webp, error, status = Open3.capture3(*command, stdin_data: svg, binmode: true)
+        webp, error, status = ProcessRunner.capture3(
+          *command,
+          stdin_data: svg,
+          binmode: true,
+          timeout: timeout,
+          max_stdout_bytes: max_output_bytes
+        )
         webp = webp.b
 
         return webp if status.success? && webp?(webp)
         raise ConversionError, invalid_webp_message(command, error) if status.success?
 
         raise ConversionError, failed_conversion_message(command, error)
+      rescue ProcessRunner::Error => e
+        raise ConversionError, failed_conversion_message(command, e.message)
       end
 
       private

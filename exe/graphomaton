@@ -39,6 +39,8 @@ parser = OptionParser.new do |opts|
   opts.on('--height HEIGHT', Integer, 'Output height for size-aware formats') { |value| options[:height] = value }
   opts.on('--scale SCALE', Float, 'PNG output scale') { |value| options[:scale] = value }
   opts.on('--converter CONVERTER', 'SVG conversion backend for PNG, PDF, or WebP') { |value| options[:converter] = value.to_sym }
+  opts.on('--timeout SECONDS', Float, 'Converter timeout in seconds') { |value| options[:timeout] = value }
+  opts.on('--max-output-bytes BYTES', Integer, 'Maximum converter output size') { |value| options[:max_output_bytes] = value }
   opts.on('--theme THEME', 'Theme name') { |value| options[:theme] = value.to_sym }
   opts.on('--theme-file PATH', 'Theme JSON or YAML file') { |value| options[:theme_file] = value }
   opts.on('--theme-gallery', 'Write a standalone HTML gallery of built-in themes') { options[:theme_gallery] = true }
@@ -285,6 +287,8 @@ if svg_backed_format
 end
 if %i[png pdf webp].include?(resolved_output_format)
   save_options[:converter] = options[:converter] if options[:converter]
+  save_options[:timeout] = options[:timeout] if options[:timeout]
+  save_options[:max_output_bytes] = options[:max_output_bytes] if options[:max_output_bytes]
 end
 save_options[:scale] = options[:scale] if options[:scale] && resolved_output_format == :png
 if resolved_output_format == :html

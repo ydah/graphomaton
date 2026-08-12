@@ -37,8 +37,8 @@ RSpec.describe Graphomaton::Exporters::Webp do
     end
 
     it 'returns WebP bytes converted from SVG' do
-      expect(Open3).to receive(:capture3)
-        .with(*command, stdin_data: a_string_including('<svg'), binmode: true)
+      expect(Graphomaton::ProcessRunner).to receive(:capture3)
+        .with(*command, stdin_data: a_string_including('<svg'), binmode: true, timeout: 30, max_stdout_bytes: 67_108_864)
         .and_return([webp_data, '', successful_status])
 
       expect(webp_exporter.export).to eq(webp_data)
@@ -46,8 +46,8 @@ RSpec.describe Graphomaton::Exporters::Webp do
 
     it 'uses a requested converter command' do
       expect(webp_exporter).to receive(:available_command).with(converter: :convert).and_return(convert_command)
-      expect(Open3).to receive(:capture3)
-        .with(*convert_command, stdin_data: a_string_including('<svg'), binmode: true)
+      expect(Graphomaton::ProcessRunner).to receive(:capture3)
+        .with(*convert_command, stdin_data: a_string_including('<svg'), binmode: true, timeout: 30, max_stdout_bytes: 67_108_864)
         .and_return([webp_data, '', successful_status])
 
       expect(webp_exporter.export(converter: :convert)).to eq(webp_data)
@@ -63,7 +63,7 @@ RSpec.describe Graphomaton::Exporters::Webp do
     end
 
     it 'raises a conversion error when the converter fails' do
-      allow(Open3).to receive(:capture3).and_return(['', 'bad svg', failed_status])
+      allow(Graphomaton::ProcessRunner).to receive(:capture3).and_return(['', 'bad svg', failed_status])
 
       expect { webp_exporter.export }.to raise_error(
         described_class::ConversionError,
@@ -72,7 +72,7 @@ RSpec.describe Graphomaton::Exporters::Webp do
     end
 
     it 'raises a conversion error when the converter output is not WebP data' do
-      allow(Open3).to receive(:capture3).and_return(['', '', successful_status])
+      allow(Graphomaton::ProcessRunner).to receive(:capture3).and_return(['', '', successful_status])
 
       expect { webp_exporter.export }.to raise_error(
         described_class::ConversionError,

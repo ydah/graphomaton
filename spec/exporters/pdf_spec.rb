@@ -37,8 +37,8 @@ RSpec.describe Graphomaton::Exporters::Pdf do
     end
 
     it 'returns PDF bytes converted from SVG' do
-      expect(Open3).to receive(:capture3)
-        .with(*command, stdin_data: a_string_including('<svg'), binmode: true)
+      expect(Graphomaton::ProcessRunner).to receive(:capture3)
+        .with(*command, stdin_data: a_string_including('<svg'), binmode: true, timeout: 30, max_stdout_bytes: 67_108_864)
         .and_return([pdf_data, '', successful_status])
 
       expect(pdf_exporter.export).to eq(pdf_data)
@@ -46,15 +46,15 @@ RSpec.describe Graphomaton::Exporters::Pdf do
 
     it 'uses a requested converter command' do
       expect(pdf_exporter).to receive(:available_command).with(converter: :magick).and_return(magick_command)
-      expect(Open3).to receive(:capture3)
-        .with(*magick_command, stdin_data: a_string_including('<svg'), binmode: true)
+      expect(Graphomaton::ProcessRunner).to receive(:capture3)
+        .with(*magick_command, stdin_data: a_string_including('<svg'), binmode: true, timeout: 30, max_stdout_bytes: 67_108_864)
         .and_return([pdf_data, '', successful_status])
 
       expect(pdf_exporter.export(converter: :magick)).to eq(pdf_data)
     end
 
     it 'passes custom themes to the SVG renderer' do
-      expect(Open3).to receive(:capture3) do |*args|
+      expect(Graphomaton::ProcessRunner).to receive(:capture3) do |*args|
         options = args.last
         expect(options[:stdin_data]).to include('diagram-background')
         expect(options[:stdin_data]).to include('#111827')
@@ -75,7 +75,7 @@ RSpec.describe Graphomaton::Exporters::Pdf do
     end
 
     it 'raises a conversion error when the converter fails' do
-      allow(Open3).to receive(:capture3).and_return(['', 'bad svg', failed_status])
+      allow(Graphomaton::ProcessRunner).to receive(:capture3).and_return(['', 'bad svg', failed_status])
 
       expect { pdf_exporter.export }.to raise_error(
         described_class::ConversionError,
@@ -84,7 +84,7 @@ RSpec.describe Graphomaton::Exporters::Pdf do
     end
 
     it 'raises a conversion error when the converter output is not PDF data' do
-      allow(Open3).to receive(:capture3).and_return(['', '', successful_status])
+      allow(Graphomaton::ProcessRunner).to receive(:capture3).and_return(['', '', successful_status])
 
       expect { pdf_exporter.export }.to raise_error(
         described_class::ConversionError,

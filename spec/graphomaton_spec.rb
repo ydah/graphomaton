@@ -671,7 +671,7 @@ RSpec.describe Graphomaton do
       it 'supports graphviz layout from dot plain coordinates' do
         automaton.add_transition('q0', 'q1', 'a')
         status = instance_double(Process::Status, success?: true)
-        allow(Open3).to receive(:capture3).and_return(
+        allow(Graphomaton::ProcessRunner).to receive(:capture3).and_return(
           [
             <<~PLAIN,
               graph 1 2 1
@@ -693,7 +693,7 @@ RSpec.describe Graphomaton do
           fit: :none
         )
 
-        expect(Open3).to have_received(:capture3).with(
+        expect(Graphomaton::ProcessRunner).to have_received(:capture3).with(
           'dot',
           '-Tplain',
           stdin_data: a_string_including('rankdir=LR;', '"q0" -> "q1";')
@@ -703,7 +703,7 @@ RSpec.describe Graphomaton do
       end
 
       it 'reports graphviz command failures clearly' do
-        allow(Open3).to receive(:capture3).and_raise(Errno::ENOENT)
+        allow(Graphomaton::ProcessRunner).to receive(:capture3).and_raise(Errno::ENOENT)
 
         expect do
           automaton.layout_positions(layout: :graphviz, graphviz_command: 'missing-dot')
