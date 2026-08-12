@@ -1445,22 +1445,55 @@ class Graphomaton
       end
 
       def add_orthogonal_line(svg, start_x, start_y, end_x, end_y, trans)
-        if vertical_direction?
-          mid_y = (start_y + end_y) / 2.0
-          path_d = "M #{start_x} #{start_y} L #{start_x} #{mid_y} L #{end_x} #{mid_y} L #{end_x} #{end_y}"
-          label_x = (start_x + end_x) / 2.0
-          label_y = mid_y - 8
-          label_angle = label_rotation_angle(start_x, mid_y, end_x, mid_y)
-        else
-          mid_x = (start_x + end_x) / 2.0
-          path_d = "M #{start_x} #{start_y} L #{mid_x} #{start_y} L #{mid_x} #{end_y} L #{end_x} #{end_y}"
-          label_x = mid_x
-          label_y = ((start_y + end_y) / 2.0) - 8
-          label_angle = label_rotation_angle(mid_x, start_y, mid_x, end_y)
-        end
+        points = orthogonal_route(start_x, start_y, end_x, end_y, trans)
+        path_d = points.each_with_index.map do |(x, y), index|
+          "#{index.zero? ? 'M' : 'L'} #{x} #{y}"
+        end.join(' ')
+        middle_start = points[1]
+        middle_end = points[2]
+        label_x = (middle_start[0] + middle_end[0]) / 2.0
+        label_y = ((middle_start[1] + middle_end[1]) / 2.0) - 8
+        label_angle = label_rotation_angle(*middle_start, *middle_end)
 
         svg.add_element('path', transition_line_attributes(trans, 'd' => path_d))
         add_label(svg, label_x, label_y, trans[:label], angle: label_angle)
+      end
+
+      def orthogonal_route(start_x, start_y, end_x, end_y, transition)
+        clearance = @state_radius + 12.0
+        x_candidates = [(start_x + end_x) / 2.0]
+        y_candidates = [(start_y + end_y) / 2.0]
+        @positions.each do |name, position|
+          next if name == transition[:from] || name == transition[:to]
+
+          x_candidates.concat([position[:x].to_f - clearance, position[:x].to_f + clearance])
+          y_candidates.concat([position[:y].to_f - clearance, position[:y].to_f + clearance])
+        end
+
+        routes = x_candidates.uniq.map do |middle_x|
+          [[start_x, start_y], [middle_x, start_y], [middle_x, end_y], [end_x, end_y]]
+        end
+        routes.concat(y_candidates.uniq.map do |middle_y|
+          [[start_x, start_y], [start_x, middle_y], [end_x, middle_y], [end_x, end_y]]
+        end)
+        clear_routes = routes.select { |route| orthogonal_route_clear?(route, transition) }
+        (clear_routes.empty? ? routes : clear_routes).min_by { |route| orthogonal_route_length(route) }
+      end
+
+      def orthogonal_route_clear?(route, transition)
+        @positions.all? do |name, position|
+          next true if name == transition[:from] || name == transition[:to]
+
+          route.each_cons(2).all? do |(from_x, from_y), (to_x, to_y)|
+            distance_to_segment(position[:x].to_f, position[:y].to_f, from_x, from_y, to_x, to_y) >= (@state_radius + 8)
+          end
+        end
+      end
+
+      def orthogonal_route_length(route)
+        route.each_cons(2).sum do |(from_x, from_y), (to_x, to_y)|
+          (to_x - from_x).abs + (to_y - from_y).abs
+        end
       end
 
       def add_overlapping_state_transition(svg, x, y, trans)

@@ -315,6 +315,24 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(path.attributes['d']).to include(' Q ')
       end
 
+      it 'routes orthogonal edges around intervening states' do
+        local = Graphomaton.new
+        local.add_state('A', 100, 200)
+        local.add_state('B', 500, 200)
+        local.add_state('blocker', 300, 200)
+        local.add_transition('A', 'B', 'detour')
+
+        svg_output = described_class.new(local).export(600, 400, layout: :manual, edge_style: :orthogonal)
+        document = REXML::Document.new(svg_output)
+        path = REXML::XPath.first(document, '//path[@class="transition-line"]')
+        points = path.attributes['d'].scan(/-?\d+(?:\.\d+)?/).map(&:to_f).each_slice(2).to_a
+        minimum_distance = points.each_cons(2).map do |from, to|
+          svg_exporter.send(:distance_to_segment, 300, 200, from[0], from[1], to[0], to[1])
+        end.min
+
+        expect(minimum_distance).to be >= 48
+      end
+
       it 'can grow state radius from label width when enabled' do
         long_label = Graphomaton.new
         long_label.add_state('q_long', label: 'VeryLongStateNameForRadius')
