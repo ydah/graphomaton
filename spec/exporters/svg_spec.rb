@@ -27,6 +27,24 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(svg.attributes['height']).to eq('600')
       end
 
+      it 'uses deterministic default IDs for identical renders' do
+        first = described_class.new(automaton).export
+        second = described_class.new(automaton).export
+
+        expect(second).to eq(first)
+        expect(REXML::Document.new(first).root.attributes['id']).to match(/\Agraphomaton-[0-9a-f]{12}\z/)
+      end
+
+      it 'scopes embedded selectors to the SVG root' do
+        document = REXML::Document.new(svg_exporter.export)
+        root_id = document.root.attributes['id']
+        css = REXML::XPath.first(document, '//style').text
+
+        expect(css).to include("##{root_id} .state-circle")
+        expect(css).to include("##{root_id} .transition-line")
+        expect(css).not_to match(/^\s*\.state-circle/m)
+      end
+
       it 'renders responsive SVG when requested' do
         svg_output = svg_exporter.export(responsive: true)
         doc = REXML::Document.new(svg_output)
@@ -602,6 +620,12 @@ RSpec.describe Graphomaton::Exporters::Svg do
         automaton.states.delete('property')
         automaton.add_state('value', style: { fill: 'red; stroke: black' })
         expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG style value/)
+      end
+
+      it 'rejects CSS injection through font options' do
+        expect do
+          svg_exporter.export(font_family: 'Arial; } body { display: none')
+        end.to raise_error(Graphomaton::SecurityError, /Unsafe SVG font_family/)
       end
     end
 

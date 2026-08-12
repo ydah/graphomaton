@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'digest'
 require 'rexml/document'
 require 'rexml/formatters/pretty'
 
@@ -294,9 +295,9 @@ class Graphomaton
         @sort_labels = sort_labels
         @label_tooltips = label_tooltips
         @html_tooltips = html_tooltips
-        @font_family = font_family
-        @state_font_weight = state_font_weight
-        @transition_font_weight = transition_font_weight
+        @font_family = safe_css_value(font_family, context: 'font_family')
+        @state_font_weight = safe_css_value(state_font_weight, context: 'state_font_weight', allow_nil: true)
+        @transition_font_weight = safe_css_value(transition_font_weight, context: 'transition_font_weight', allow_nil: true)
         @automaton = folded_automaton(@automaton) if fold_groups
         layout_padding = automatic_layout_padding
         @positions = @automaton.layout_positions(
@@ -325,7 +326,7 @@ class Graphomaton
         @label_boxes = state_collision_boxes + group_label_collision_boxes
         @title_text = title
         @description_text = description
-        @svg_id = svg_id ? svg_id_component(svg_id) : "graphomaton-#{object_id}"
+        @svg_id = svg_id ? svg_id_component(svg_id) : default_svg_id(width, height)
         @arrowhead_id = "#{@svg_id}-arrowhead"
         @element_id_counts = Hash.new(0)
 
@@ -665,30 +666,31 @@ class Graphomaton
       def add_style(svg)
         style = svg.add_element('style')
         background = theme_css_value(:background, fallback: 'transparent')
+        scope = "##{@svg_id}"
         style.text = <<-CSS
 #{css_variables_css}      
-      .diagram-background { fill: #{background}; }
-      .state-circle { fill: #{theme_css_value(:state_fill)}; stroke: #{theme_css_value(:stroke)}; stroke-width: #{@state_stroke_width}; vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; #{state_effect_css} }
-      .final-state { stroke-width: #{final_state_stroke_width}; }
-      .state-text { font-family: #{@font_family}; text-anchor: middle; fill: #{theme_css_value(:state_text)}; text-rendering: geometricPrecision; #{font_weight_css(@state_font_weight)} }
-      .state-icon { font-family: #{@font_family}; text-anchor: middle; fill: #{theme_css_value(:state_text)}; font-size: 14px; text-rendering: geometricPrecision; }
-      .transition-line { stroke: #{theme_css_value(:stroke)}; stroke-width: #{@transition_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
-      .transition-label { font-family: #{@font_family}; font-size: 14px; fill: #{theme_css_value(:transition_label)}; text-rendering: geometricPrecision; #{font_weight_css(@transition_font_weight)} }
-      .label-leader { stroke: #{theme_css_value(:transition_label)}; stroke-width: 1; opacity: 0.45; fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; }
-      .initial-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
-      .final-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
-      .label-bg { fill: #{theme_css_value(:label_background)}; opacity: #{theme_css_value(:label_opacity)}; #{label_border_css} }
-      .state-group-box { fill: #{theme_css_value(:stroke)}; opacity: 0.08; stroke: #{theme_css_value(:stroke)}; stroke-width: 1; stroke-dasharray: 6 4; }
-      .state-group-label { font-family: #{@font_family}; font-size: 12px; fill: #{theme_css_value(:state_text)}; font-weight: 700; text-rendering: geometricPrecision; }
-      .unreachable-state { opacity: 0.45; }
-      .initial-state .state-circle { fill: #dbeafe; }
-      .accepting-state .state-circle { fill: #dcfce7; }
-      .dead-state { opacity: 0.65; }
-      .dead-state .state-circle { stroke-dasharray: 6 4; }
-      .trap-state .state-circle { stroke-dasharray: 2 4; }
-      .highlighted-transition .transition-line { stroke: #ef4444; stroke-width: #{highlighted_transition_stroke_width}; }
-      .inactive-transition { opacity: 0.25; }
-      .bundled-transition .transition-line { stroke-dasharray: 10 4; }
+      #{scope} .diagram-background { fill: #{background}; }
+      #{scope} .state-circle { fill: #{theme_css_value(:state_fill)}; stroke: #{theme_css_value(:stroke)}; stroke-width: #{@state_stroke_width}; vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; #{state_effect_css} }
+      #{scope} .final-state { stroke-width: #{final_state_stroke_width}; }
+      #{scope} .state-text { font-family: #{@font_family}; text-anchor: middle; fill: #{theme_css_value(:state_text)}; text-rendering: geometricPrecision; #{font_weight_css(@state_font_weight)} }
+      #{scope} .state-icon { font-family: #{@font_family}; text-anchor: middle; fill: #{theme_css_value(:state_text)}; font-size: 14px; text-rendering: geometricPrecision; }
+      #{scope} .transition-line { stroke: #{theme_css_value(:stroke)}; stroke-width: #{@transition_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      #{scope} .transition-label { font-family: #{@font_family}; font-size: 14px; fill: #{theme_css_value(:transition_label)}; text-rendering: geometricPrecision; #{font_weight_css(@transition_font_weight)} }
+      #{scope} .label-leader { stroke: #{theme_css_value(:transition_label)}; stroke-width: 1; opacity: 0.45; fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+      #{scope} .initial-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      #{scope} .final-arrow { stroke: #{theme_css_value(:stroke)}; stroke-width: #{arrow_stroke_width}; fill: none; marker-end: url(##{@arrowhead_id}); vector-effect: non-scaling-stroke; shape-rendering: geometricPrecision; stroke-linecap: round; stroke-linejoin: round; }
+      #{scope} .label-bg { fill: #{theme_css_value(:label_background)}; opacity: #{theme_css_value(:label_opacity)}; #{label_border_css} }
+      #{scope} .state-group-box { fill: #{theme_css_value(:stroke)}; opacity: 0.08; stroke: #{theme_css_value(:stroke)}; stroke-width: 1; stroke-dasharray: 6 4; }
+      #{scope} .state-group-label { font-family: #{@font_family}; font-size: 12px; fill: #{theme_css_value(:state_text)}; font-weight: 700; text-rendering: geometricPrecision; }
+      #{scope} .unreachable-state { opacity: 0.45; }
+      #{scope} .initial-state .state-circle { fill: #dbeafe; }
+      #{scope} .accepting-state .state-circle { fill: #dcfce7; }
+      #{scope} .dead-state { opacity: 0.65; }
+      #{scope} .dead-state .state-circle { stroke-dasharray: 6 4; }
+      #{scope} .trap-state .state-circle { stroke-dasharray: 2 4; }
+      #{scope} .highlighted-transition .transition-line { stroke: #ef4444; stroke-width: #{highlighted_transition_stroke_width}; }
+      #{scope} .inactive-transition { opacity: 0.25; }
+      #{scope} .bundled-transition .transition-line { stroke-dasharray: 10 4; }
 #{state_effect_animation_css}
         CSS
       end
@@ -747,7 +749,7 @@ class Graphomaton
         when :glow
           "filter: drop-shadow(0 0 8px #{theme_css_value(:stroke)});"
         when :pulse
-          "filter: drop-shadow(0 0 6px #{theme_css_value(:stroke)}); animation: graphomaton-pulse 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center;"
+          "filter: drop-shadow(0 0 6px #{theme_css_value(:stroke)}); animation: #{pulse_animation_name} 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center;"
         else
           ''
         end
@@ -757,12 +759,12 @@ class Graphomaton
         return '' unless @state_effect == :pulse
 
         <<-CSS
-      @keyframes graphomaton-pulse {
+      @keyframes #{pulse_animation_name} {
         0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px #{theme_css_value(:stroke)}); }
         50% { opacity: 0.72; filter: drop-shadow(0 0 14px #{theme_css_value(:stroke)}); }
       }
       @media (prefers-reduced-motion: reduce) {
-        .state-circle { animation: none; }
+        ##{@svg_id} .state-circle { animation: none; }
       }
         CSS
       end
@@ -777,6 +779,29 @@ class Graphomaton
 
       def highlighted_transition_stroke_width
         @transition_stroke_width + 1.0
+      end
+
+      def pulse_animation_name
+        "graphomaton-pulse-#{@svg_id}"
+      end
+
+      def default_svg_id(width, height)
+        components = [
+          @automaton.states,
+          @automaton.transitions,
+          @automaton.initial_state,
+          @automaton.final_states,
+          @positions,
+          width,
+          height,
+          @theme,
+          @layout,
+          @direction
+        ]
+        payload = Marshal.dump(components)
+        "graphomaton-#{Digest::SHA256.hexdigest(payload)[0, 12]}"
+      rescue TypeError
+        "graphomaton-#{Digest::SHA256.hexdigest(components.inspect)[0, 12]}"
       end
 
       def add_background(svg, width, height)
@@ -2204,13 +2229,21 @@ class Graphomaton
             raise Graphomaton::SecurityError, "Unsafe SVG style property: #{property.inspect}"
           end
 
-          css_value = value.to_s
-          if css_value.match?(/[\u0000-\u001f\u007f;{}]/) || css_value.match?(/url\s*\(/i)
-            raise Graphomaton::SecurityError, "Unsafe SVG style value for #{property}: #{value.inspect}"
-          end
+          css_value = safe_css_value(value, context: "style value for #{property}")
 
           "#{property}: #{css_value}"
         end.join('; ')
+      end
+
+      def safe_css_value(value, context:, allow_nil: false)
+        return nil if value.nil? && allow_nil
+
+        css_value = value.to_s
+        if css_value.match?(/[\u0000-\u001f\u007f;{}]/) || css_value.match?(/url\s*\(/i)
+          raise Graphomaton::SecurityError, "Unsafe SVG #{context}: #{value.inspect}"
+        end
+
+        css_value
       end
 
       def state_group_attributes(name)

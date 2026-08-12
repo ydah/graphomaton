@@ -292,7 +292,8 @@ automaton.save_svg('diagram.svg', label_padding: 16, label_radius: 8, label_bord
 
 Other SVG options:
 
-- `svg_id:` sets a stable SVG root and marker ID prefix.
+- Default SVG root and marker IDs are deterministic for the graph, layout, and theme. `svg_id:` sets an explicit prefix and should be unique when embedding duplicate diagrams in one HTML document.
+- Embedded CSS selectors and animation names are scoped to the SVG root ID.
 - `css_variables: true` emits theme values as CSS variables.
 - `embed_styles: false` skips the embedded style block.
 - `xml_declaration: true`, `pretty: true`, and `minify: true` control serialization.
