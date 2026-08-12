@@ -1145,11 +1145,8 @@ class Graphomaton
           return
         end
 
-        radius = @state_radius
-        start_x = x1 + ((dx / dist) * radius)
-        start_y = y1 + ((dy / dist) * radius)
-        end_x = x2 - ((dx / dist) * radius)
-        end_y = y2 - ((dy / dist) * radius)
+        start_x, start_y = state_connection_point(trans[:from], from_state, to_state)
+        end_x, end_y = state_connection_point(trans[:to], to_state, from_state)
 
         state_names = @automaton.states.keys
         from_index = state_names.index(trans[:from])
@@ -1208,6 +1205,42 @@ class Graphomaton
 
       def undirected_transition_pair_key(from, to)
         [from, to].sort_by { |endpoint| [endpoint.class.name, endpoint.to_s] }
+      end
+
+      def state_connection_point(name, center, target)
+        delta_x = target[:x].to_f - center[:x].to_f
+        delta_y = target[:y].to_f - center[:y].to_f
+        return [center[:x].to_f, center[:y].to_f] if delta_x.zero? && delta_y.zero?
+
+        shape = state_shape(@automaton.states.fetch(name))
+        scale = connection_scale(shape, delta_x, delta_y)
+        [center[:x].to_f + (delta_x * scale), center[:y].to_f + (delta_y * scale)]
+      end
+
+      def connection_scale(shape, delta_x, delta_y)
+        radius = @state_radius.to_f
+        case shape
+        when :ellipse
+          ellipse_connection_scale(delta_x, delta_y, radius * 1.25, radius * 0.8)
+        when :diamond
+          radius / (delta_x.abs + delta_y.abs)
+        when :bar
+          rectangle_connection_scale(delta_x, delta_y, radius * 0.7, [radius * 0.1, 4.0].max)
+        when :rounded_rect
+          rectangle_connection_scale(delta_x, delta_y, radius, radius)
+        else
+          radius / Math.sqrt((delta_x * delta_x) + (delta_y * delta_y))
+        end
+      end
+
+      def ellipse_connection_scale(delta_x, delta_y, radius_x, radius_y)
+        1.0 / Math.sqrt(((delta_x / radius_x)**2) + ((delta_y / radius_y)**2))
+      end
+
+      def rectangle_connection_scale(delta_x, delta_y, half_width, half_height)
+        x_scale = delta_x.zero? ? Float::INFINITY : half_width / delta_x.abs
+        y_scale = delta_y.zero? ? Float::INFINITY : half_height / delta_y.abs
+        [x_scale, y_scale].min
       end
 
       def transition_bundle_points

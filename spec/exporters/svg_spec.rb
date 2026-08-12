@@ -660,6 +660,34 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(first_key).not_to eq(second_key)
       end
     end
+
+    context 'with non-circular state shapes' do
+      it 'connects horizontal edges to ellipse and bar boundaries' do
+        local = Graphomaton.new
+        local.add_state('ellipse', 100, 100, shape: :ellipse)
+        local.add_state('bar', 300, 100, shape: :bar)
+        local.add_transition('ellipse', 'bar', 'go')
+
+        document = REXML::Document.new(described_class.new(local).export(layout: :manual, edge_style: :straight))
+        line = REXML::XPath.first(document, '//line[@class="transition-line"]')
+
+        expect(line.attributes['x1'].to_f).to be_within(0.001).of(150.0)
+        expect(line.attributes['x2'].to_f).to be_within(0.001).of(272.0)
+      end
+
+      it 'connects diagonal edges to diamond and rounded rectangle boundaries' do
+        local = Graphomaton.new
+        local.add_state('diamond', 100, 100, shape: :diamond)
+        local.add_state('rectangle', 300, 300, shape: :rounded_rect)
+        local.add_transition('diamond', 'rectangle', 'go')
+
+        document = REXML::Document.new(described_class.new(local).export(layout: :manual, edge_style: :straight))
+        line = REXML::XPath.first(document, '//line[@class="transition-line"]')
+
+        expect([line.attributes['x1'].to_f, line.attributes['y1'].to_f]).to eq([120.0, 120.0])
+        expect([line.attributes['x2'].to_f, line.attributes['y2'].to_f]).to eq([260.0, 260.0])
+      end
+    end
   end
 
   describe 'text width calculation' do
