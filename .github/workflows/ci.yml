@@ -97,7 +97,7 @@ jobs:
           bundle exec ruby exe/graphomaton /tmp/machine.yml /tmp/machine.mmd
           bundle exec ruby exe/graphomaton /tmp/machine.yml /tmp/machine.puml
           dot -Tsvg /tmp/machine.dot -o /tmp/machine-dot.svg
-          mmdc -i /tmp/machine.mmd -o /tmp/machine-mermaid.svg
+          mmdc -p .github/mermaid-puppeteer.json -i /tmp/machine.mmd -o /tmp/machine-mermaid.svg
           plantuml -failfast2 -tsvg /tmp/machine.puml
           bundle exec ruby exe/graphomaton /tmp/machine.yml /tmp/machine.png
           bundle exec ruby exe/graphomaton /tmp/machine.yml /tmp/machine.pdf

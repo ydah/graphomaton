@@ -121,10 +121,17 @@ class Graphomaton
     private_class_method :terminate
 
     def self.signal_process(pid, signal)
-      Process.kill(signal, Gem.win_platform? ? pid : -pid)
-    rescue Errno::ESRCH, Errno::EINVAL, Errno::EPERM
-      Process.kill(signal, pid)
-    rescue Errno::ESRCH, Errno::ECHILD
+      attempts = Gem.win_platform? ? [[9, pid]] : [[signal, -pid], [signal, pid]]
+      attempts.each do |candidate_signal, target|
+        begin
+          Process.kill(candidate_signal, target)
+          return
+        rescue Errno::ESRCH, Errno::ECHILD
+          return
+        rescue Errno::EINVAL, Errno::EPERM
+          next
+        end
+      end
       nil
     end
     private_class_method :signal_process
@@ -139,7 +146,8 @@ class Graphomaton
     def self.executable_extensions(command, pathext)
       return [''] unless Gem.win_platform? && File.extname(command).empty?
 
-      [''] + pathext.split(';').reject(&:empty?).flat_map { |extension| [extension, extension.downcase] }.uniq
+      extensions = pathext.empty? ? %w[.COM .EXE .BAT .CMD] : pathext.split(';').reject(&:empty?)
+      extensions.flat_map { |extension| [extension, extension.downcase] }.uniq
     end
     private_class_method :executable_extensions
   end

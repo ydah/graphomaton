@@ -27,12 +27,12 @@ RSpec.describe Graphomaton::ProcessRunner do
       File.chmod(0o755, executable)
       File.chmod(0o755, windows_executable)
 
+      allow(Gem).to receive(:win_platform?).and_return(false)
       expect(described_class.which('renderer', path: directory)).to eq(executable)
       expect(described_class.which(executable, path: '')).to eq(executable)
       allow(Gem).to receive(:win_platform?).and_return(true)
-      expect(described_class.which('renderer', path: directory, pathext: '.EXE;.CMD')).to eq(executable)
-      File.delete(executable)
       expect(described_class.which('renderer', path: directory, pathext: '.EXE;.CMD')).to eq(windows_executable)
+      expect(described_class.which(executable, path: '', pathext: '.EXE;.CMD')).to eq(windows_executable)
     end
   end
 

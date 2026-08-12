@@ -10,6 +10,21 @@ require 'stringio'
 RSpec.describe 'graphomaton CLI' do
   let(:executable) { File.expand_path('../exe/graphomaton', __dir__) }
 
+  def write_ruby_command(directory, name, source)
+    if Gem.win_platform?
+      script = File.join(directory, "#{name}.rb")
+      command = File.join(directory, "#{name}.cmd")
+      File.write(script, source)
+      File.write(command, %(\@echo off\r\n"#{RbConfig.ruby}" "#{script}" %*\r\n))
+      command
+    else
+      command = File.join(directory, name)
+      File.write(command, "#!#{RbConfig.ruby}\n#{source}")
+      File.chmod(0o755, command)
+      command
+    end
+  end
+
   it 'runs in-process without terminating its caller' do
     stdout = StringIO.new
     stderr = StringIO.new
@@ -702,7 +717,21 @@ RSpec.describe 'graphomaton CLI' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
       output = File.join(dir, 'diagram.svg')
-      graphviz = File.join(dir, 'fake_dot')
+      graphviz = write_ruby_command(
+        dir,
+        'fake_dot',
+        <<~'RUBY'
+          abort 'expected -Tplain' unless ARGV == ['-Tplain']
+
+          STDIN.read
+          puts <<~PLAIN
+            graph 1 2 1
+            node q0 0 0 0.75 0.5 q0 solid circle black lightgrey
+            node q1 2 0 0.75 0.5 q1 solid circle black lightgrey
+            stop
+          PLAIN
+        RUBY
+      )
       File.write(
         input,
         <<~YAML
@@ -716,23 +745,6 @@ RSpec.describe 'graphomaton CLI' do
               label: a
         YAML
       )
-      File.write(
-        graphviz,
-        <<~'RUBY'
-          #!/usr/bin/env ruby
-          abort 'expected -Tplain' unless ARGV == ['-Tplain']
-
-          STDIN.read
-          puts <<~PLAIN
-            graph 1 2 1
-            node q0 0 0 0.75 0.5 q0 solid circle black lightgrey
-            node q1 2 0 0.75 0.5 q1 solid circle black lightgrey
-            stop
-          PLAIN
-        RUBY
-      )
-      File.chmod(0o755, graphviz)
-
       _stdout, stderr, status = Open3.capture3(
         RbConfig.ruby,
         File.expand_path('../exe/graphomaton', __dir__),
@@ -755,13 +767,12 @@ RSpec.describe 'graphomaton CLI' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
       output = File.join(dir, 'diagram.svg')
-      graphviz = File.join(dir, 'fake_dot')
       count_file = File.join(dir, 'calls')
       File.write(input, "states: [q0, q1]\ntransitions: [[q0, q1, a]]\n")
-      File.write(
-        graphviz,
+      graphviz = write_ruby_command(
+        dir,
+        'fake_dot',
         <<~RUBY
-          #!/usr/bin/env ruby
           count_file = #{count_file.dump}
           calls = File.exist?(count_file) ? File.read(count_file).to_i : 0
           File.write(count_file, (calls + 1).to_s)
@@ -774,7 +785,6 @@ RSpec.describe 'graphomaton CLI' do
           PLAIN
         RUBY
       )
-      File.chmod(0o755, graphviz)
 
       _stdout, stderr, status = Open3.capture3(
         RbConfig.ruby, executable,
