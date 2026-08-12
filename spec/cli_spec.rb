@@ -4,8 +4,28 @@ require 'open3'
 require 'rbconfig'
 require 'tmpdir'
 require 'json'
+require 'graphomaton/cli'
+require 'stringio'
 
 RSpec.describe 'graphomaton CLI' do
+  let(:executable) { File.expand_path('../exe/graphomaton', __dir__) }
+
+  it 'runs in-process without terminating its caller' do
+    stdout = StringIO.new
+    stderr = StringIO.new
+    cli = Graphomaton::CLI.new(
+      stdin: StringIO.new("states: [q0]\ninitial: q0\nfinal: [q0]\n"),
+      stdout: stdout,
+      stderr: stderr
+    )
+
+    status = cli.run(%w[validate - --diagnostics json])
+
+    expect(status).to eq(Graphomaton::CLI::EXIT_SUCCESS)
+    expect(JSON.parse(stdout.string)).to eq([])
+    expect(stderr.string).to eq('')
+  end
+
   it 'prints its version without input files' do
     stdout, stderr, status = Open3.capture3(
       RbConfig.ruby,
@@ -15,6 +35,75 @@ RSpec.describe 'graphomaton CLI' do
 
     expect(status).to be_success, stderr
     expect(stdout).to eq("#{Graphomaton::VERSION}\n")
+  end
+
+  it 'supports validation as a command with structured diagnostics' do
+    stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      executable,
+      'validate', '-', '--diagnostics', 'json',
+      stdin_data: "states: [q0]\ntransitions: [[q0, missing, a]]\n"
+    )
+
+    diagnostics = JSON.parse(stdout)
+    expect(status.exitstatus).to eq(Graphomaton::CLI::EXIT_VALIDATION)
+    expect(stderr).to eq('')
+    expect(diagnostics.map { |diagnostic| diagnostic.fetch('code') }).to include('undefined-transition-target')
+  end
+
+  it 'can fail validation on semantic warnings' do
+    _stdout, _stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      executable,
+      'validate', '-', '--fail-on-warning',
+      stdin_data: "states: [q0]\ninitial: q0\n"
+    )
+
+    expect(status.exitstatus).to eq(Graphomaton::CLI::EXIT_VALIDATION)
+  end
+
+  it 'lists capabilities and reports converter health through commands' do
+    formats, format_errors, format_status = Open3.capture3(RbConfig.ruby, executable, 'list', 'formats')
+    doctor, doctor_errors, doctor_status = Open3.capture3(RbConfig.ruby, executable, 'doctor')
+
+    expect(format_status).to be_success, format_errors
+    expect(formats).to include("svg\n", "dot\n")
+    expect(doctor_status).to be_success, doctor_errors
+    expect(doctor).to include("graphomaton: #{Graphomaton::VERSION}", 'graphviz:')
+  end
+
+  it 'loads format configuration while preserving CLI precedence' do
+    Dir.mktmpdir do |dir|
+      config = File.join(dir, 'config.yml')
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(config, "svg:\n  theme: dark\n  state_radius: 22\n  labels:\n    wrap: true\n")
+      File.write(input, "states: [q0]\n")
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby, executable, 'render', '--config', config, '--theme', 'light', input, output
+      )
+
+      expect(status).to be_success, stderr
+      content = File.read(output)
+      expect(content).to include("r='22.0'")
+      expect(content).not_to include('#111827')
+    end
+  end
+
+  it 'applies no-clobber to theme galleries' do
+    Dir.mktmpdir do |dir|
+      output = File.join(dir, 'themes.html')
+      File.write(output, 'original')
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby, executable, '--theme-gallery', '-o', output, '--no-clobber'
+      )
+
+      expect(status.exitstatus).to eq(Graphomaton::CLI::EXIT_EXPORT)
+      expect(stderr).to include('already exists')
+      expect(File.read(output)).to eq('original')
+    end
   end
 
   it 'renders a YAML automaton to SVG' do
@@ -347,6 +436,28 @@ RSpec.describe 'graphomaton CLI' do
     expect(stderr).not_to include('from ')
   end
 
+  it 'reports semantic loss and can reject it in strict mode' do
+    input = <<~YAML
+      states:
+        - id: q0
+          style:
+            fill: red
+    YAML
+
+    output, warnings, permissive = Open3.capture3(
+      RbConfig.ruby, executable, '-i', '-', '-o', '-', '-f', 'dot', stdin_data: input
+    )
+    _strict_output, strict_errors, strict = Open3.capture3(
+      RbConfig.ruby, executable, '-i', '-', '-o', '-', '-f', 'dot', '--strict-semantics', stdin_data: input
+    )
+
+    expect(permissive).to be_success
+    expect(output).to start_with('digraph')
+    expect(warnings).to include('unsupported-export-feature')
+    expect(strict.exitstatus).to eq(Graphomaton::CLI::EXIT_EXPORT)
+    expect(strict_errors).to include('does not preserve state_style')
+  end
+
   it 'reports an unknown output format as a usage error' do
     _stdout, stderr, status = Open3.capture3(
       RbConfig.ruby,
@@ -552,6 +663,55 @@ RSpec.describe 'graphomaton CLI' do
       expect(status).to be_success, stderr
       expect(File.read(output)).to include('<svg')
     end
+  end
+
+  it 'runs graphviz once when layout diagnostics are requested' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      graphviz = File.join(dir, 'fake_dot')
+      count_file = File.join(dir, 'calls')
+      File.write(input, "states: [q0, q1]\ntransitions: [[q0, q1, a]]\n")
+      File.write(
+        graphviz,
+        <<~RUBY
+          #!/usr/bin/env ruby
+          count_file = #{count_file.dump}
+          calls = File.exist?(count_file) ? File.read(count_file).to_i : 0
+          File.write(count_file, (calls + 1).to_s)
+          STDIN.read
+          puts <<~PLAIN
+            graph 1 2 1
+            node q0 0 0 0.75 0.5 q0 solid circle black lightgrey
+            node q1 2 0 0.75 0.5 q1 solid circle black lightgrey
+            stop
+          PLAIN
+        RUBY
+      )
+      File.chmod(0o755, graphviz)
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby, executable,
+        '-i', input, '-o', output,
+        '--layout', 'graphviz', '--graphviz-command', graphviz, '--layout-warnings'
+      )
+
+      expect(status).to be_success, stderr
+      expect(File.read(count_file)).to eq('1')
+    end
+  end
+
+  it 'uses the layout exit code for graphviz failures' do
+    _stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby, executable,
+      '-i', '-', '-o', '-', '-f', 'svg',
+      '--layout', 'graphviz', '--graphviz-command', 'missing-graphomaton-dot',
+      stdin_data: "states: [q0]\n"
+    )
+
+    expect(status.exitstatus).to eq(Graphomaton::CLI::EXIT_LAYOUT)
+    expect(stderr).to include('requires the `missing-graphomaton-dot` command')
+    expect(stderr).not_to include('from ')
   end
 
   it 'passes SVG group folding through the CLI' do

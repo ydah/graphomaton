@@ -1711,7 +1711,7 @@ class Graphomaton
     unless status.success?
       message = stderr.to_s.strip
       message = 'dot exited without a diagnostic' if message.empty?
-      raise ArgumentError, "Graphviz layout failed: #{message}"
+      raise LayoutError, "Graphviz layout failed: #{message}"
     end
 
     normalize_graphviz_positions(
@@ -1722,9 +1722,11 @@ class Graphomaton
       padding
     )
   rescue Errno::ENOENT
-    raise ArgumentError, "Graphviz layout requires the `#{Array(command).join(' ')}` command"
+    raise LayoutError, "Graphviz layout requires the `#{Array(command).join(' ')}` command"
   rescue ProcessRunner::Error => e
-    raise ArgumentError, "Graphviz layout failed: #{e.message}"
+    raise LayoutError, "Graphviz layout failed: #{e.message}"
+  rescue ArgumentError => e
+    raise LayoutError, "Graphviz layout failed: #{e.message}"
   end
 
   def graphviz_layout_dot(auto_states, direction)

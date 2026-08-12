@@ -968,7 +968,7 @@ RSpec.describe Graphomaton do
 
         expect do
           automaton.layout_positions(layout: :graphviz, graphviz_command: 'missing-dot')
-        end.to raise_error(ArgumentError, /Graphviz layout requires the `missing-dot` command/)
+        end.to raise_error(Graphomaton::LayoutError, /Graphviz layout requires the `missing-dot` command/)
       end
 
       it 'supports layout tuning options for force layout' do
