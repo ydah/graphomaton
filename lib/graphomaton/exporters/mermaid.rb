@@ -8,7 +8,7 @@ class Graphomaton
       DEFAULT_CDN = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.8/dist/mermaid.esm.min.mjs'
       DEFAULT_MATHJAX = false
       DEFAULT_MATHJAX_CDN = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js'
-      DEFAULT_LANG = 'ja'
+      DEFAULT_LANG = 'en'
       DEFAULT_SHOW_SOURCE = false
       DEFAULT_PAN_ZOOM = false
       DEFAULT_NOTES = false
@@ -16,6 +16,32 @@ class Graphomaton
       DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
       PSEUDOSTATE_TYPES = %i[choice fork join].freeze
       RESERVED_IDENTIFIERS = %w[state note direction class classDef hide as of].freeze
+      UI_TEXT = {
+        'en' => {
+          default_title: 'Automaton diagram',
+          notice_label: 'Note:',
+          online_notice: 'This diagram is rendered in the browser with Mermaid.js and requires network access.',
+          offline_notice: 'Mermaid.js is loaded from a classic script asset.',
+          controls_label: 'Diagram zoom controls',
+          viewer_label: 'Zoomable automaton diagram',
+          zoom_out: 'Zoom out',
+          zoom_reset: 'Reset zoom',
+          zoom_in: 'Zoom in',
+          reset: 'Reset'
+        }.freeze,
+        'ja' => {
+          default_title: 'オートマトン図',
+          notice_label: '注意:',
+          online_notice: 'この図は Mermaid.js を使用してブラウザ上で描画されるため、ネットワーク接続が必要です。',
+          offline_notice: 'Mermaid.js は classic script アセットから読み込まれます。',
+          controls_label: '図のズーム操作',
+          viewer_label: 'ズーム可能なオートマトン図',
+          zoom_out: '縮小',
+          zoom_reset: 'ズームをリセット',
+          zoom_in: '拡大',
+          reset: 'リセット'
+        }.freeze
+      }.freeze
 
       def initialize(automaton, direction: DEFAULT_DIRECTION, notes: DEFAULT_NOTES, class_defs: DEFAULT_CLASS_DEFS)
         @automaton = automaton
@@ -57,8 +83,9 @@ class Graphomaton
                       show_source: DEFAULT_SHOW_SOURCE, pan_zoom: DEFAULT_PAN_ZOOM,
                       mathjax: DEFAULT_MATHJAX, mathjax_cdn: DEFAULT_MATHJAX_CDN)
         mermaid_code = export
-        title_text = title || '状態図 - Graphomaton'
-        language = lang || DEFAULT_LANG
+        language = resolve_language(lang)
+        ui = UI_TEXT.fetch(language)
+        title_text = title || ui[:default_title]
 
         <<~HTML
           <!DOCTYPE html>
@@ -108,10 +135,10 @@ class Graphomaton
           <body>
               <h1>#{escape_text(title_text)}</h1>
               <div class="info">
-                  <p><strong>注意:</strong> #{offline ? 'Mermaid.js はローカルファイル経由で読み込まれます。' : 'この図はMermaid.jsを使用してブラウザ上でレンダリングされます。オフライン環境では動作しません。'}</p>
+                  <p><strong>#{ui[:notice_label]}</strong> #{offline ? ui[:offline_notice] : ui[:online_notice]}</p>
               </div>
-              #{pan_zoom_controls(pan_zoom)}
-              <div class="mermaid#{pan_zoom ? ' pan-zoom-content' : ''}"#{pan_zoom ? ' data-pan-zoom-viewer' : ''}>
+              #{pan_zoom_controls(pan_zoom, ui)}
+              <div class="mermaid#{pan_zoom ? ' pan-zoom-content' : ''}"#{pan_zoom ? %( data-pan-zoom-viewer tabindex="0" role="region" aria-label="#{escape_attribute(ui[:viewer_label])}") : ''}>
           #{escape_text(mermaid_code)}
               </div>
               #{source_block(mermaid_code, show_source: show_source)}
@@ -123,13 +150,26 @@ class Graphomaton
 
       private
 
+      def resolve_language(lang)
+        language = (lang || DEFAULT_LANG).to_s.downcase
+        return language if UI_TEXT.key?(language)
+
+        raise ArgumentError, "Unsupported HTML language: #{lang.inspect}. Available languages: #{UI_TEXT.keys.join(', ')}"
+      end
+
       def resolve_theme(theme)
         theme.to_s.delete_prefix(':')
       end
 
       def script_block(cdn:, theme:, inline_mermaid:, offline:)
         resolved_theme = resolve_theme(theme)
+        if offline && cdn == DEFAULT_CDN
+          raise ArgumentError, 'Offline HTML export requires cdn: to name a local classic Mermaid .js asset'
+        end
         safe_cdn = UrlPolicy.validate_asset(cdn, context: 'Mermaid asset URL')
+        if (offline || inline_mermaid) && module_asset?(safe_cdn)
+          raise ArgumentError, 'Offline and inline Mermaid assets must use a classic .js build, not an ES module'
+        end
         escaped_cdn = escape_attribute(safe_cdn)
         theme_expression = mermaid_theme_expression(resolved_theme)
         if inline_mermaid
@@ -138,16 +178,20 @@ class Graphomaton
 
         if offline
           <<~SCRIPT
+            #{mermaid_render_helper}
             <script src="#{escaped_cdn}"></script>
             <script>
-              mermaid.initialize({ startOnLoad: true, securityLevel: 'strict', theme: #{theme_expression} });
+              mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: #{theme_expression} });
+              window.graphomatonMermaidReady = renderGraphomatonMermaid(mermaid);
             </script>
           SCRIPT
         else
           <<~SCRIPT
+            #{mermaid_render_helper}
             <script type="module">
                 import mermaid from #{javascript_string(safe_cdn)};
-                mermaid.initialize({ startOnLoad: true, securityLevel: 'strict', theme: #{theme_expression} });
+                mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: #{theme_expression} });
+                window.graphomatonMermaidReady = renderGraphomatonMermaid(mermaid);
             </script>
           SCRIPT
         end
@@ -157,14 +201,36 @@ class Graphomaton
         theme_expression = mermaid_theme_expression(theme)
         if File.file?(path_or_url)
           <<~SCRIPT
+            #{mermaid_render_helper}
             <script>
               #{File.read(path_or_url)}
-              mermaid.initialize({ startOnLoad: true, securityLevel: 'strict', theme: #{theme_expression} });
+              mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: #{theme_expression} });
+              window.graphomatonMermaidReady = renderGraphomatonMermaid(mermaid);
             </script>
           SCRIPT
         else
           raise ArgumentError, "Unable to inline Mermaid script from: #{path_or_url}"
         end
+      end
+
+      def module_asset?(path)
+        path.to_s.split(/[?#]/, 2).first.end_with?('.mjs')
+      end
+
+      def mermaid_render_helper
+        <<~SCRIPT
+          <script>
+            window.renderGraphomatonMermaid = (instance) => {
+              const render = () => instance.run({ querySelector: '.mermaid' });
+              if (document.readyState === 'loading') {
+                return new Promise((resolve, reject) => {
+                  document.addEventListener('DOMContentLoaded', () => render().then(resolve, reject), { once: true });
+                });
+              }
+              return render();
+            };
+          </script>
+        SCRIPT
       end
 
       def mermaid_theme_expression(theme)
@@ -185,14 +251,13 @@ class Graphomaton
               svg: { fontCache: 'global' }
             };
             window.addEventListener('load', () => {
-              window.setTimeout(() => {
-                if (window.MathJax && window.MathJax.typesetPromise) {
-                  window.MathJax.typesetPromise();
-                }
-              }, 0);
+              Promise.resolve(window.graphomatonMermaidReady)
+                .then(() => window.MathJax.startup.promise)
+                .then(() => window.MathJax.typesetPromise())
+                .catch((error) => console.error('Unable to typeset diagram labels', error));
             });
           </script>
-          <script async src="#{escaped_cdn}"></script>
+          <script defer src="#{escaped_cdn}"></script>
         SCRIPT
       end
 
@@ -248,26 +313,35 @@ class Graphomaton
                       font: inherit;
                       padding: 8px 12px;
                   }
+                  .pan-zoom-controls output {
+                      align-self: center;
+                      min-width: 4ch;
+                      text-align: right;
+                  }
                   .pan-zoom-content {
                       cursor: grab;
                       overflow: auto;
-                      transform-origin: 0 0;
-                      user-select: none;
+                      touch-action: none;
                   }
                   .pan-zoom-content.is-panning {
                       cursor: grabbing;
                   }
+                  .pan-zoom-content svg {
+                      transform-origin: 0 0;
+                      user-select: none;
+                  }
         CSS
       end
 
-      def pan_zoom_controls(enabled)
+      def pan_zoom_controls(enabled, ui)
         return '' unless enabled
 
         <<~HTML
-              <div class="pan-zoom-controls" aria-label="Diagram zoom controls">
-                  <button type="button" data-zoom-out>-</button>
-                  <button type="button" data-zoom-reset>Reset</button>
-                  <button type="button" data-zoom-in>+</button>
+              <div class="pan-zoom-controls" aria-label="#{escape_attribute(ui[:controls_label])}">
+                  <button type="button" data-zoom-out aria-label="#{escape_attribute(ui[:zoom_out])}">−</button>
+                  <button type="button" data-zoom-reset aria-label="#{escape_attribute(ui[:zoom_reset])}">#{escape_text(ui[:reset])}</button>
+                  <button type="button" data-zoom-in aria-label="#{escape_attribute(ui[:zoom_in])}">+</button>
+                  <output data-zoom-value aria-live="polite">100%</output>
               </div>
         HTML
       end
@@ -285,12 +359,20 @@ class Graphomaton
                   let x = 0;
                   let y = 0;
                   let drag = null;
+                  let suppressClick = false;
+                  const zoomValue = document.querySelector('[data-zoom-value]');
 
                   const apply = () => {
-                    viewer.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+                    const diagram = viewer.querySelector('svg');
+                    if (diagram) diagram.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+                    if (zoomValue) zoomValue.value = `${Math.round(scale * 100)}%`;
                   };
-                  const setScale = (nextScale) => {
+                  const setScale = (nextScale, originX = viewer.clientWidth / 2, originY = viewer.clientHeight / 2) => {
+                    const previousScale = scale;
                     scale = Math.min(3, Math.max(0.4, nextScale));
+                    const ratio = scale / previousScale;
+                    x = originX - ((originX - x) * ratio);
+                    y = originY - ((originY - y) * ratio);
                     apply();
                   };
 
@@ -306,26 +388,51 @@ class Graphomaton
                   viewer.addEventListener('wheel', (event) => {
                     if (!event.ctrlKey && !event.metaKey) return;
                     event.preventDefault();
-                    setScale(scale + (event.deltaY < 0 ? 0.1 : -0.1));
+                    const bounds = viewer.getBoundingClientRect();
+                    setScale(
+                      scale + (event.deltaY < 0 ? 0.1 : -0.1),
+                      event.clientX - bounds.left,
+                      event.clientY - bounds.top
+                    );
                   }, { passive: false });
                   viewer.addEventListener('pointerdown', (event) => {
-                    drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, x, y };
+                    if (event.button !== 0 || event.target.closest('a, button')) return;
+                    drag = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, x, y, moved: false };
                     viewer.classList.add('is-panning');
                     viewer.setPointerCapture(event.pointerId);
                   });
                   viewer.addEventListener('pointermove', (event) => {
                     if (!drag || drag.pointerId !== event.pointerId) return;
+                    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 3) drag.moved = true;
                     x = drag.x + event.clientX - drag.startX;
                     y = drag.y + event.clientY - drag.startY;
                     apply();
                   });
                   const stopDrag = (event) => {
                     if (!drag || drag.pointerId !== event.pointerId) return;
+                    suppressClick = drag.moved;
                     viewer.classList.remove('is-panning');
                     drag = null;
                   };
                   viewer.addEventListener('pointerup', stopDrag);
                   viewer.addEventListener('pointercancel', stopDrag);
+                  viewer.addEventListener('click', (event) => {
+                    if (!suppressClick) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    suppressClick = false;
+                  }, true);
+                  viewer.addEventListener('keydown', (event) => {
+                    if (event.key === '+' || event.key === '=') setScale(scale + 0.2);
+                    else if (event.key === '-') setScale(scale - 0.2);
+                    else if (event.key === '0') {
+                      scale = 1;
+                      x = 0;
+                      y = 0;
+                      apply();
+                    } else return;
+                    event.preventDefault();
+                  });
                 })();
               </script>
         HTML

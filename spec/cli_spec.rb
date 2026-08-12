@@ -883,7 +883,7 @@ RSpec.describe 'graphomaton CLI' do
       expect(content).to include('window.__inlineMermaid = true;')
       expect(content).to include('class="mermaid-source"')
       expect(content).to include('data-pan-zoom-viewer')
-      expect(content).to include('<script async src="/assets/mathjax.js"></script>')
+      expect(content).to include('<script defer src="/assets/mathjax.js"></script>')
       expect(content).to include('note right of q0: Entry state')
       expect(content).to include('classDef initial')
     end

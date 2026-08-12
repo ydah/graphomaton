@@ -396,7 +396,7 @@ automaton.save_html('diagram.html', mathjax: true)
 automaton.save_html('diagram.html', notes: true, class_defs: true)
 ```
 
-By default, HTML output uses the pinned Mermaid.js 10.9.8 module with Mermaid's strict security level. Remote asset URLs must use HTTPS; relative and absolute local paths are also accepted. `inline_mermaid: true` reads and embeds the complete file named by `cdn:`, so use it only with a trusted local JavaScript file.
+By default, HTML output uses the pinned Mermaid.js 10.9.8 module with Mermaid's strict security level. Remote asset URLs must use HTTPS; relative and absolute local paths are also accepted. `offline: true` requires `cdn:` to name a local classic `.js` build; ES module `.mjs` assets are rejected in offline and inline modes. `inline_mermaid: true` reads and embeds the complete file named by `cdn:`, so use it only with a trusted local JavaScript file. Generated UI is English by default and supports `lang: 'en'` or `lang: 'ja'`.
 
 ### GraphViz DOT
 

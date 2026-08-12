@@ -326,6 +326,14 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
     it 'supports offline script source override' do
       html_output = mermaid_exporter.export_html(offline: true, cdn: '/assets/mermaid.min.js')
       expect(html_output).to include('<script src="/assets/mermaid.min.js"></script>')
+      expect(html_output).to include('startOnLoad: false')
+    end
+
+    it 'requires a local classic script for offline and inline modes' do
+      expect { mermaid_exporter.export_html(offline: true) }
+        .to raise_error(ArgumentError, /requires cdn: to name a local classic/)
+      expect { mermaid_exporter.export_html(offline: true, cdn: '/assets/mermaid.mjs') }
+        .to raise_error(ArgumentError, /must use a classic .js build/)
     end
 
     it 'rejects executable and insecure asset URLs' do
@@ -357,12 +365,30 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
       expect(html_output).to include('<html lang="en">')
     end
 
+    it 'uses consistent localized page copy' do
+      english = mermaid_exporter.export_html
+      japanese = mermaid_exporter.export_html(lang: 'ja', pan_zoom: true)
+
+      expect(english).to include('<html lang="en">')
+      expect(english).to include('<title>Automaton diagram</title>')
+      expect(japanese).to include('<html lang="ja">')
+      expect(japanese).to include('<title>オートマトン図</title>')
+      expect(japanese).to include('aria-label="拡大"')
+      expect { mermaid_exporter.export_html(lang: 'fr') }
+        .to raise_error(ArgumentError, /Unsupported HTML language/)
+    end
+
     it 'can include pan and zoom controls' do
       html_output = mermaid_exporter.export_html(pan_zoom: true)
 
       expect(html_output).to include('data-pan-zoom-viewer')
       expect(html_output).to include('data-zoom-in')
       expect(html_output).to include('data-zoom-reset')
+      expect(html_output).to include('data-zoom-value')
+      expect(html_output).to include('aria-label="Zoom in"')
+      expect(html_output).to include("event.key === '+'")
+      expect(html_output).to include("viewer.querySelector('svg')")
+      expect(html_output).to include('event.button !== 0')
       expect(html_output).to include('pointerdown')
     end
 
@@ -370,7 +396,9 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
       html_output = mermaid_exporter.export_html(mathjax: true, mathjax_cdn: '/assets/mathjax.js')
 
       expect(html_output).to include('window.MathJax')
-      expect(html_output).to include('<script async src="/assets/mathjax.js"></script>')
+      expect(html_output).to include('<script defer src="/assets/mathjax.js"></script>')
+      expect(html_output).to include('graphomatonMermaidReady')
+      expect(html_output).to include('startup.promise')
       expect(html_output).to include('typesetPromise')
     end
   end
