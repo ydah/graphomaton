@@ -832,6 +832,19 @@ RSpec.describe Graphomaton do
         expect(resolved_distance).to be < initial_distance
       end
 
+      it 'separates coincident force-layout states deterministically' do
+        first = automaton.layout_force_positions(%w[q0 q1], 160, 200, :lr, 40, 80, 120, 2)
+        second = automaton.layout_force_positions(%w[q0 q1], 160, 200, :lr, 40, 80, 120, 2)
+
+        expect(first).to eq(second)
+        expect(first['q0']).not_to eq(first['q1'])
+      end
+
+      it 'rejects a non-integer force layout seed' do
+        expect { automaton.layout_positions(layout: :force, layout_seed: '7') }
+          .to raise_error(ArgumentError, /layout_seed must be an Integer or nil/)
+      end
+
       it 'supports graphviz layout from dot plain coordinates' do
         automaton.add_transition('q0', 'q1', 'a')
         status = instance_double(Process::Status, success?: true)

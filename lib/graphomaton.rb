@@ -625,6 +625,9 @@ class Graphomaton
     unless force_iterations.is_a?(Integer) && force_iterations >= 0
       raise ArgumentError, 'force_iterations must be a non-negative Integer'
     end
+    unless layout_seed.nil? || layout_seed.is_a?(Integer)
+      raise ArgumentError, 'layout_seed must be an Integer or nil'
+    end
 
     return {} if @states.empty?
 
@@ -1146,7 +1149,7 @@ class Graphomaton
 
     return positions if iterations.zero?
 
-    rng = layout_seed ? Random.new(layout_seed.to_i) : nil
+    rng = layout_seed ? Random.new(layout_seed) : nil
 
     if rng
       positions.each_value do |position|
@@ -1175,7 +1178,10 @@ class Graphomaton
         delta_x = a[:x] - b[:x]
         delta_y = a[:y] - b[:y]
         distance = Math.sqrt((delta_x * delta_x) + (delta_y * delta_y))
-        distance = 1.0 if distance <= 0.0
+        if distance <= 0.0
+          delta_x, delta_y = deterministic_separation_delta(name_a, name_b)
+          distance = Math.sqrt((delta_x * delta_x) + (delta_y * delta_y))
+        end
 
         force = repulsion_coeff / distance
         nx = delta_x / distance
@@ -1187,7 +1193,7 @@ class Graphomaton
         forces[name_b][:y] -= ny * force
       end
 
-      manual_positions.each do |_, fixed|
+      manual_positions.each do |fixed_name, fixed|
         fixed_x = fixed[:x].to_f
         fixed_y = fixed[:y].to_f
 
@@ -1198,7 +1204,10 @@ class Graphomaton
           delta_x = current[:x] - fixed_x
           delta_y = current[:y] - fixed_y
           distance = Math.sqrt((delta_x * delta_x) + (delta_y * delta_y))
-          distance = 1.0 if distance <= 0.0
+          if distance <= 0.0
+            delta_x, delta_y = deterministic_separation_delta(name, fixed_name)
+            distance = Math.sqrt((delta_x * delta_x) + (delta_y * delta_y))
+          end
 
           force = repulsion_coeff / distance
           nx = delta_x / distance
@@ -1239,6 +1248,7 @@ class Graphomaton
 
       damping = 1.0 - (step.to_f / (iterations + 1).to_f)
       max_move = max_displacement * damping
+      largest_movement = 0.0
 
       positions.each_key do |name|
         current = positions[name]
@@ -1249,16 +1259,29 @@ class Graphomaton
         next_y = current[:y] + force[:y].clamp(-max_move, max_move)
 
         boundary_margin = padding + state_radius
-        next_x = [[next_x, boundary_margin].max, width - boundary_margin].min
-        next_y = [[next_y, boundary_margin].max, height - boundary_margin].min
+        next_x = [[next_x, boundary_margin].max, width - boundary_margin].min if width >= boundary_margin * 2
+        next_y = [[next_y, boundary_margin].max, height - boundary_margin].min if height >= boundary_margin * 2
+
+        movement = Math.hypot(next_x - current[:x], next_y - current[:y])
+        largest_movement = movement if movement > largest_movement
 
         current[:x] = next_x
         current[:y] = next_y
       end
+      break if largest_movement < 0.01
     end
 
     positions
   end
+
+  def deterministic_separation_delta(left, right)
+    seed = "#{left.class.name}:#{left.inspect}|#{right.class.name}:#{right.inspect}".each_byte.reduce(2_166_136_261) do |hash, byte|
+      ((hash ^ byte) * 16_777_619) & 0xffffffff
+    end
+    angle = (seed % 360) * Math::PI / 180.0
+    [Math.cos(angle) * 0.01, Math.sin(angle) * 0.01]
+  end
+  private :deterministic_separation_delta
 
   def layout_graphviz_positions(auto_states, width, height, direction, state_radius = DEFAULT_STATE_RADIUS,
                                padding = DEFAULT_PADDING, command: DEFAULT_GRAPHVIZ_COMMAND)
