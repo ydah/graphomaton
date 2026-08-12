@@ -267,12 +267,25 @@ def execute_doctor(arguments)
   checks = {
     graphomaton: Graphomaton::VERSION,
     ruby: RUBY_DESCRIPTION,
-    graphviz: executable_available?('dot') ? 'available' : 'missing',
+    graphviz: renderer_health('dot', '-V'),
+    rsvg: renderer_health('rsvg-convert', '--version'),
+    imagemagick: renderer_health('magick', '-version', fallback: 'convert'),
+    mermaid: renderer_health('mmdc', '--version'),
+    plantuml: renderer_health('plantuml', '-version'),
     png: Graphomaton::Exporters::Png.available? ? 'available' : 'missing',
     pdf: Graphomaton::Exporters::Pdf.available? ? 'available' : 'missing',
     webp: Graphomaton::Exporters::Webp.available? ? 'available' : 'missing'
   }
   checks.each { |name, value| puts "#{name}: #{value}" }
+end
+
+def execute_themes(arguments)
+  unless arguments.empty?
+    warn "Unexpected arguments: #{arguments.join(' ')}"
+    halt(EXIT_USAGE)
+  end
+
+  puts Graphomaton::Theme.available_names.join("\n")
 end
 
 def execute_completion(arguments)
@@ -330,11 +343,23 @@ def execute_man(arguments)
   MANPAGE
 end
 
-def executable_available?(command)
-  ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).any? do |directory|
-    path = File.join(directory, command)
-    File.file?(path) && File.executable?(path)
-  end
+def renderer_health(command, *version_arguments, fallback: nil)
+  path = Graphomaton::ProcessRunner.which(command)
+  path ||= Graphomaton::ProcessRunner.which(fallback) if fallback
+  return 'missing' unless path
+
+  stdout, stderr, status = Graphomaton::ProcessRunner.capture3(
+    path,
+    *version_arguments,
+    timeout: 3,
+    max_stdout_bytes: 64 * 1024,
+    max_stderr_bytes: 64 * 1024
+  )
+  version = [stdout, stderr].map(&:strip).find { |text| !text.empty? }
+  version = version.to_s.lines.first.to_s.strip
+  status.success? && !version.empty? ? "#{path} (#{version})" : "#{path} (version unavailable)"
+rescue Graphomaton::ProcessRunner::Error, SystemCallError
+  "#{path} (version unavailable)"
 end
 
 def emit_diagnostics(diagnostics, format:, stream:)
@@ -364,7 +389,7 @@ return execute_list(arguments) if command == :list
 return execute_doctor(arguments) if command == :doctor
 return execute_completion(arguments) if command == :completion
 return execute_man(arguments) if command == :man
-return puts(Graphomaton::Theme.available_names.join("\n")) if command == :themes
+return execute_themes(arguments) if command == :themes
 if arguments.include?('--version')
   puts Graphomaton::VERSION
   halt(EXIT_SUCCESS)
@@ -378,9 +403,14 @@ configured_options = Config.load(
   format: selected_format,
   required: config_required
 )
-if selected_format.nil? && configured_options[:format]
-  selected_format = Graphomaton::EXPORTERS.resolve(configured_options[:format])
-  configured_options = Config.load(selected_config_path, format: selected_format, required: config_required)
+if selected_format.nil?
+  configured_format = configured_options[:format]
+  configured_output = configured_options[:output]
+  configured_format ||= File.extname(configured_output) if configured_output && configured_output != '-'
+  if configured_format && !configured_format.to_s.empty?
+    selected_format = Graphomaton::EXPORTERS.resolve(configured_format)
+    configured_options = Config.load(selected_config_path, format: selected_format, required: config_required)
+  end
 end
 options = {
   width: 800,

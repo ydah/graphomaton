@@ -93,10 +93,7 @@ class Graphomaton
       end
 
       def self.executable?(command)
-        paths.any? do |path|
-          executable_path = File.join(path, command)
-          File.file?(executable_path) && File.executable?(executable_path)
-        end
+        !ProcessRunner.which(command).nil?
       end
 
       def self.command_available?(command)
@@ -109,10 +106,6 @@ class Graphomaton
         return resolved if CONVERTER_OPTIONS.include?(resolved)
 
         raise ArgumentError, "Unknown WebP converter: #{converter.inspect}. Available converters: #{CONVERTER_OPTIONS.join(', ')}"
-      end
-
-      def self.paths
-        ENV.fetch('PATH', '').split(File::PATH_SEPARATOR)
       end
 
       def webp?(data)

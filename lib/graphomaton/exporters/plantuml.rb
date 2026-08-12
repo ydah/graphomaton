@@ -117,7 +117,7 @@ class Graphomaton
       def escape_label(label)
         label.to_s
              .gsub('\\') { '\\\\' }
-             .gsub("\n") { '\\n' }
+             .gsub(/\r\n?|\n/) { '\\n' }
       end
 
       def state_alias_lines
@@ -277,7 +277,7 @@ class Graphomaton
         label.to_s
              .gsub('\\') { '\\\\' }
              .gsub('"') { '\\"' }
-             .gsub("\n") { '\\n' }
+             .gsub(/\r\n?|\n/) { '\\n' }
       end
     end
   end

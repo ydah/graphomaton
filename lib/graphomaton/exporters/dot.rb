@@ -254,7 +254,7 @@ class Graphomaton
         label.to_s
              .gsub('\\') { '\\\\' }
              .gsub('"') { '\\"' }
-             .gsub("\n") { '\\n' }
+             .gsub(/\r\n?|\n/) { '\\n' }
       end
 
       def state_name(name)

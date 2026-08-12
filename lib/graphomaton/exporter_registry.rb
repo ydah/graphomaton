@@ -82,7 +82,11 @@ class Graphomaton
       },
       group: ->(graph) { graph.state_records.any? { |_, state| metadata_value(state.metadata, :group, :cluster) } },
       parent: ->(graph) { graph.state_records.any? { |_, state| metadata_value(state.metadata, :parent) } },
-      pseudostate: ->(graph) { graph.state_records.any? { |_, state| metadata_value(state.metadata, :kind, :type) } },
+      pseudostate: lambda { |graph|
+        graph.state_records.any? do |_, state|
+          (state.kind && state.kind != :normal) || metadata_value(state.metadata, :kind, :type)
+        end
+      },
       bundle: ->(graph) { graph.transition_records.any? { |transition| metadata_value(transition.metadata, :bundle) } },
       line_style: ->(graph) { graph.transition_records.any?(&:line_style) }
     }.freeze

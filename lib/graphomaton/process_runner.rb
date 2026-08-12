@@ -14,6 +14,23 @@ class Graphomaton
     DEFAULT_MAX_STDERR_BYTES = 1024 * 1024
     READ_SIZE = 16 * 1024
 
+    def self.which(command, path: ENV.fetch('PATH', ''), pathext: ENV.fetch('PATHEXT', ''))
+      name = command.to_s
+      return nil if name.empty? || name.include?("\0")
+
+      explicit = name.include?(File::SEPARATOR) || (File::ALT_SEPARATOR && name.include?(File::ALT_SEPARATOR))
+      directories = explicit ? [''] : path.split(File::PATH_SEPARATOR)
+      extensions = executable_extensions(name, pathext)
+      directories.each do |directory|
+        base = explicit ? name : File.join(directory, name)
+        extensions.each do |extension|
+          candidate = "#{base}#{extension}"
+          return File.expand_path(candidate) if File.file?(candidate) && File.executable?(candidate)
+        end
+      end
+      nil
+    end
+
     def self.capture3(*command, stdin_data: '', binmode: false, timeout: DEFAULT_TIMEOUT,
                       max_stdout_bytes: DEFAULT_MAX_STDOUT_BYTES,
                       max_stderr_bytes: DEFAULT_MAX_STDERR_BYTES)
@@ -118,5 +135,12 @@ class Graphomaton
       raise ArgumentError, "#{name} must be a positive finite number"
     end
     private_class_method :validate_limit
+
+    def self.executable_extensions(command, pathext)
+      return [''] unless Gem.win_platform? && File.extname(command).empty?
+
+      [''] + pathext.split(';').reject(&:empty?).flat_map { |extension| [extension, extension.downcase] }.uniq
+    end
+    private_class_method :executable_extensions
   end
 end

@@ -961,12 +961,12 @@ RSpec.describe Graphomaton::Exporters::Svg do
       local = Graphomaton.new
       local.add_state('A')
       local.add_state('B')
-      local.add_transition('A', 'B', "first\nsecond")
+      local.add_transition('A', 'B', "first\r\nsecond\rthird")
 
       document = REXML::Document.new(described_class.new(local).export)
       lines = REXML::XPath.match(document, '//text[@class="transition-label"]/tspan').map(&:text)
 
-      expect(lines).to eq(%w[first second])
+      expect(lines).to eq(%w[first second third])
     end
 
     it 'does not split emoji grapheme clusters' do

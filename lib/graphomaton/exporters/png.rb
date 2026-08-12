@@ -96,10 +96,7 @@ class Graphomaton
       end
 
       def self.executable?(command)
-        paths.any? do |path|
-          executable_path = File.join(path, command)
-          File.file?(executable_path) && File.executable?(executable_path)
-        end
+        !ProcessRunner.which(command).nil?
       end
 
       def self.resolve_converter(converter)
@@ -140,10 +137,6 @@ class Graphomaton
         dimension.positive? ? dimension : fallback
       rescue ArgumentError, TypeError
         fallback
-      end
-
-      def self.paths
-        ENV.fetch('PATH', '').split(File::PATH_SEPARATOR)
       end
 
       def missing_converter_message(converter)

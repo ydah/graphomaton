@@ -215,6 +215,7 @@ class Graphomaton
   DEFAULT_MAX_LAYOUT_ITERATIONS = 10_000
   FORCE_TREE_THRESHOLD = 128
   VALIDATION_MODES = %i[deferred strict].freeze
+  VALIDATION_PROFILES = %i[references fsm_semantics dfa].freeze
   UNSET = Object.new.freeze
   EMPTY_TRANSITIONS = [].freeze
   attr_reader :initial_state, :revision
@@ -411,7 +412,7 @@ class Graphomaton
     return label unless label.is_a?(Hash)
 
     type = input_value(label, :type, :kind)
-    return label unless type
+    raise ArgumentError, 'Structured transition label requires type or kind' unless type
 
     case type.to_sym
     when :text
@@ -585,7 +586,10 @@ class Graphomaton
   def add_state(name, x = nil, y = nil, label: nil, style: nil, metadata: nil, shape: nil, kind: nil,
                 max_metadata_depth: DEFAULT_MAX_METADATA_DEPTH, max_label_length: DEFAULT_MAX_LABEL_LENGTH)
     InputPolicy.identifier!(name, context: 'State id')
-    InputPolicy.text!(label, context: "State #{name.inspect} label", max_bytes: max_label_length)
+    label = label.to_s if label.is_a?(Label)
+    InputPolicy.label!(label, context: "State #{name.inspect} label", max_bytes: max_label_length)
+    InputPolicy.mapping!(style, context: "State #{name.inspect} style")
+    InputPolicy.mapping!(metadata, context: "State #{name.inspect} metadata")
     if metadata
       InputPolicy.nested_depth!(
         metadata,
@@ -619,8 +623,17 @@ class Graphomaton
     self
   end
 
-  def upsert_state(name, x = nil, y = nil, **attributes)
-    return add_state(name, x, y, **attributes) unless @states.key?(name)
+  def upsert_state(name, x = UNSET, y = UNSET, **attributes)
+    unless @states.key?(name)
+      new_x = x.equal?(UNSET) ? nil : x
+      new_y = y.equal?(UNSET) ? nil : y
+      return add_state(name, new_x, new_y, **attributes)
+    end
+
+    return update_state(name, **attributes) if x.equal?(UNSET) && y.equal?(UNSET)
+    if x.equal?(UNSET) || y.equal?(UNSET)
+      raise ArgumentError, 'State coordinates require both x and y'
+    end
 
     update_state(name, x: x, y: y, **attributes)
   end
@@ -644,8 +657,12 @@ class Graphomaton
       validate_finite_number!(y, 'state y coordinate')
     end
     label = attributes.fetch(:label, state.label)
+    label = label.to_s if label.is_a?(Label)
+    style = attributes.fetch(:style, state.style)
     metadata = attributes.fetch(:metadata, state.metadata)
-    InputPolicy.text!(label, context: "State #{name.inspect} label", max_bytes: DEFAULT_MAX_LABEL_LENGTH)
+    InputPolicy.label!(label, context: "State #{name.inspect} label", max_bytes: DEFAULT_MAX_LABEL_LENGTH)
+    InputPolicy.mapping!(style, context: "State #{name.inspect} style")
+    InputPolicy.mapping!(metadata, context: "State #{name.inspect} metadata")
     if metadata
       InputPolicy.nested_depth!(
         metadata,
@@ -655,16 +672,19 @@ class Graphomaton
       )
     end
 
-    @states[name] = State.new(
+    updated_state = State.new(
       id: state.id,
       x: x,
       y: y,
       label: immutable_copy(label),
-      style: immutable_copy(attributes.fetch(:style, state.style)),
+      style: immutable_copy(style),
       metadata: immutable_copy(metadata),
       shape: immutable_copy(attributes.fetch(:shape, state.shape)),
       kind: resolve_state_kind(attributes.fetch(:kind, state.kind))
     )
+    return self if updated_state == state
+
+    @states[name] = updated_state
     @manual_states[name] = !x.nil? && !y.nil?
     graph_changed!
     self
@@ -697,10 +717,13 @@ class Graphomaton
     InputPolicy.identifier!(to, context: 'Transition target')
     raise ArgumentError, 'Transition label cannot be nil' if label.nil?
     labels = label.is_a?(Array) ? label : [label]
+    raise ArgumentError, 'Transition labels cannot be empty' if labels.empty?
     raise ArgumentError, 'Transition labels cannot contain nil' if labels.any?(&:nil?)
     labels.each do |item|
-      InputPolicy.text!(item.to_s, context: 'Transition label', max_bytes: max_label_length)
+      InputPolicy.label!(item, context: 'Transition label', max_bytes: max_label_length)
     end
+    InputPolicy.mapping!(style, context: 'Transition style')
+    InputPolicy.mapping!(metadata, context: 'Transition metadata')
     if metadata
       InputPolicy.nested_depth!(
         metadata,
@@ -741,26 +764,33 @@ class Graphomaton
     InputPolicy.identifier!(to, context: 'Transition target')
     raise ArgumentError, 'Transition label cannot be nil' if label.nil?
     labels = label.is_a?(Array) ? label : [label]
+    raise ArgumentError, 'Transition labels cannot be empty' if labels.empty?
     raise ArgumentError, 'Transition labels cannot contain nil' if labels.any?(&:nil?)
     labels.each do |item|
-      InputPolicy.text!(item.to_s, context: 'Transition label', max_bytes: DEFAULT_MAX_LABEL_LENGTH)
+      InputPolicy.label!(item, context: 'Transition label', max_bytes: DEFAULT_MAX_LABEL_LENGTH)
     end
     if @validation_mode == :strict
       raise ValidationError, "Transition source #{from.inspect} is not defined" unless @states.key?(from)
       raise ValidationError, "Transition target #{to.inspect} is not defined" unless @states.key?(to)
     end
     metadata = attributes.fetch(:metadata, transition.metadata)
+    style = attributes.fetch(:style, transition.style)
+    InputPolicy.mapping!(style, context: 'Transition style')
+    InputPolicy.mapping!(metadata, context: 'Transition metadata')
     InputPolicy.nested_depth!(metadata, maximum: DEFAULT_MAX_METADATA_DEPTH, context: 'Transition metadata') if metadata
 
-    @transitions[index] = Transition.new(
+    updated_transition = Transition.new(
       id: transition.id,
       from: immutable_copy(from),
       to: immutable_copy(to),
       label: immutable_copy(normalize_transition_label(label)),
-      style: immutable_copy(attributes.fetch(:style, transition.style)),
+      style: immutable_copy(style),
       metadata: immutable_copy(metadata),
       line_style: immutable_copy(attributes.fetch(:line_style, transition.line_style))
     )
+    return self if updated_transition == transition
+
+    @transitions[index] = updated_transition
     graph_changed!
     self
   end
@@ -775,7 +805,10 @@ class Graphomaton
     InputPolicy.identifier!(state, context: 'Initial state id')
     raise ValidationError, "Initial state #{state.inspect} is not defined" if @validation_mode == :strict && !@states.key?(state)
 
-    @initial_state = immutable_copy(state)
+    stable_state = immutable_copy(state)
+    return self if @initial_state == stable_state
+
+    @initial_state = stable_state
     graph_changed!
     self
   end
@@ -810,7 +843,11 @@ class Graphomaton
 
   def validation_diagnostics(profile: :references)
     profiles = Array(profile).map(&:to_sym)
-    profiles = %i[references fsm_semantics dfa] if profiles.include?(:all)
+    profiles = profiles.flat_map { |name| name == :all ? VALIDATION_PROFILES : name }.uniq
+    unknown = profiles - VALIDATION_PROFILES
+    unless unknown.empty?
+      raise ArgumentError, "Unknown validation profiles: #{unknown.join(', ')}. Available profiles: #{VALIDATION_PROFILES.join(', ')}"
+    end
     diagnostics = reference_diagnostics if profiles.include?(:references)
     diagnostics ||= []
     diagnostics.concat(fsm_semantic_diagnostics) if profiles.include?(:fsm_semantics)
@@ -1742,10 +1779,11 @@ class Graphomaton
                                padding = DEFAULT_PADDING, command: DEFAULT_GRAPHVIZ_COMMAND)
     return {} if auto_states.empty?
 
+    state_ids = graphviz_layout_state_ids(auto_states)
     stdout, stderr, status = ProcessRunner.capture3(
       *graphviz_command_args(command),
       '-Tplain',
-      stdin_data: graphviz_layout_dot(auto_states, direction)
+      stdin_data: graphviz_layout_dot(auto_states, direction, state_ids)
     )
 
     unless status.success?
@@ -1755,7 +1793,7 @@ class Graphomaton
     end
 
     normalize_graphviz_positions(
-      parse_graphviz_plain_positions(stdout, auto_states),
+      parse_graphviz_plain_positions(stdout, auto_states, state_ids),
       width,
       height,
       state_radius,
@@ -1769,7 +1807,15 @@ class Graphomaton
     raise LayoutError, "Graphviz layout failed: #{e.message}"
   end
 
-  def graphviz_layout_dot(auto_states, direction)
+  def graphviz_layout_state_ids(auto_states)
+    allocator = IdentifierAllocator.new
+    auto_states.to_h do |name|
+      preferred = name.to_s if name.to_s.match?(/\A[A-Za-z_][A-Za-z0-9_]*\z/)
+      [name, allocator.allocate([:state, name], preferred: preferred, prefix: 'state')]
+    end
+  end
+
+  def graphviz_layout_dot(auto_states, direction, state_ids)
     included = auto_states.to_h { |name| [name, true] }
     lines = [
       'digraph graphomaton_layout {',
@@ -1778,7 +1824,7 @@ class Graphomaton
     ]
 
     auto_states.each do |name|
-      lines << "    \"#{graphviz_escape(name)}\";"
+      lines << "    \"#{state_ids.fetch(name)}\";"
     end
 
     @transitions.each do |transition|
@@ -1786,7 +1832,7 @@ class Graphomaton
       to = transition[:to]
       next unless included[from] && included[to]
 
-      lines << "    \"#{graphviz_escape(from)}\" -> \"#{graphviz_escape(to)}\";"
+      lines << "    \"#{state_ids.fetch(from)}\" -> \"#{state_ids.fetch(to)}\";"
     end
 
     lines << '}'
@@ -1809,11 +1855,7 @@ class Graphomaton
     }.fetch(direction)
   end
 
-  def graphviz_escape(value)
-    value.to_s.gsub('\\', '\\\\').gsub('"', '\"')
-  end
-
-  def parse_graphviz_plain_positions(output, expected_states)
+  def parse_graphviz_plain_positions(output, expected_states, state_ids)
     positions = {}
 
     output.each_line do |line|
@@ -1828,12 +1870,12 @@ class Graphomaton
       next
     end
 
-    missing = expected_states.reject { |name| positions.key?(name) }
+    missing = expected_states.reject { |name| positions.key?(state_ids.fetch(name)) }
     unless missing.empty?
       raise ArgumentError, "Graphviz layout did not return positions for: #{missing.join(', ')}"
     end
 
-    expected_states.to_h { |name| [name, positions[name]] }
+    expected_states.to_h { |name| [name, positions.fetch(state_ids.fetch(name))] }
   end
 
   def normalize_graphviz_positions(raw_positions, width, height, state_radius, padding)

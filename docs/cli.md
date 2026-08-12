@@ -7,7 +7,8 @@
 `graphomaton validate INPUT --diagnostics json` validates references, hierarchy,
 FSM warnings, and DFA constraints without writing a diagram. Add
 `--fail-on-warning` for CI. `graphomaton list` reports formats, layouts, themes,
-and converters; `doctor` reports the Ruby version and native renderer status.
+and converters; `doctor` reports the Ruby version plus discovered native renderer
+paths and bounded version probes.
 
 Configuration resolution is defaults, `.graphomaton.yml`, environment, then CLI.
 `GRAPHOMATON_CONFIG` selects another config. Supported scalar environment values

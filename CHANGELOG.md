@@ -30,6 +30,9 @@
 - Preserve SVG layout diagnostics and metadata through PNG, PDF, and WebP conversion.
 - Preserve structured transition labels and format-independent pseudostate kinds in the model.
 - Make custom exporter registration renderable and reject ambiguous schema aliases.
+- Reject ignored schema value types and preserve coordinates across partial state upserts.
+- Use collision-free Graphviz layout IDs and cross-platform executable discovery.
+- Normalize CR/LF label boundaries before emitting renderer syntax.
 
 ## 1.0.0 (2025-12-23)
 

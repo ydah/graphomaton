@@ -72,6 +72,13 @@ RSpec.describe 'graphomaton CLI' do
     expect(doctor).to include("graphomaton: #{Graphomaton::VERSION}", 'graphviz:')
   end
 
+  it 'rejects extra arguments for discovery commands' do
+    _stdout, stderr, status = Open3.capture3(RbConfig.ruby, executable, 'themes', 'unexpected')
+
+    expect(status.exitstatus).to eq(Graphomaton::CLI::EXIT_USAGE)
+    expect(stderr).to include('Unexpected arguments: unexpected')
+  end
+
   it 'generates shell completion and a man page' do
     completion, completion_errors, completion_status = Open3.capture3(
       RbConfig.ruby, executable, 'completion', 'zsh'
@@ -100,6 +107,23 @@ RSpec.describe 'graphomaton CLI' do
       content = File.read(output)
       expect(content).to include("r='22.0'")
       expect(content).not_to include('#111827')
+    end
+  end
+
+  it 'loads a format section inferred from a configured output path' do
+    Dir.mktmpdir do |dir|
+      config = File.join(dir, 'config.yml')
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(config, "output: #{output}\nsvg:\n  state_radius: 23\n")
+      File.write(input, "states: [q0]\n")
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby, executable, 'render', '--config', config, input
+      )
+
+      expect(status).to be_success, stderr
+      expect(File.read(output)).to include("r='23.0'")
     end
   end
 

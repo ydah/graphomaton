@@ -3,7 +3,7 @@
 class Graphomaton
   # Validates untrusted model input before it reaches exporters or graph analysis.
   class InputPolicy
-    XML_INVALID_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/
+    XML_INVALID_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\uFFFE\uFFFF]/
     TOP_LEVEL_KEYS = %i[version states transitions initial initial_state final final_states].freeze
     STATE_KEYS = %i[id name x y label style metadata shape kind initial final accepting].freeze
     TRANSITION_KEYS = %i[from to label style metadata line_style].freeze
@@ -28,6 +28,21 @@ class Graphomaton
 
       text!(value, context: context)
       value
+    end
+
+    def self.label!(value, context:, max_bytes: nil)
+      if value.is_a?(Hash) || value.is_a?(Array)
+        raise ArgumentError, "#{context} must be scalar text or a Graphomaton::Label"
+      end
+
+      text!(value.to_s, context: context, max_bytes: max_bytes) unless value.nil?
+      value
+    end
+
+    def self.mapping!(value, context:)
+      return value if value.nil? || value.is_a?(Hash)
+
+      raise ArgumentError, "#{context} must be a Hash"
     end
 
     def self.boolean!(value, context:)

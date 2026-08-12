@@ -47,17 +47,23 @@ class Graphomaton
                          when :text
                            value.to_s
                          when :symbols
-                           Array(value).map(&:to_s)
+                           symbols = Array(value).map(&:to_s)
+                           raise ArgumentError, 'Symbol label requires at least one symbol' if symbols.empty?
+
+                           symbols
                          when :epsilon
                            value.nil? ? Graphomaton::DEFAULT_EPSILON_LABEL : value.to_s
                          when :uml
                            raise ArgumentError, 'UML label value must be a Hash' unless value.is_a?(Hash)
 
-                           {
+                           uml_value = {
                              event: value.key?(:event) ? value[:event] : value['event'],
                              guard: value.key?(:guard) ? value[:guard] : value['guard'],
                              action: value.key?(:action) ? value[:action] : value['action']
                            }.compact
+                           raise ArgumentError, 'UML label requires an event' unless uml_value.key?(:event)
+
+                           uml_value
                          end
       super(kind: resolved_kind, value: ModelValue.copy(normalized_value))
     end

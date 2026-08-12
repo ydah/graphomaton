@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'graphomaton'
+require 'rexml/document'
 
 RSpec.describe 'exporter semantic consistency' do
   let(:automaton) do
@@ -48,5 +49,20 @@ RSpec.describe 'exporter semantic consistency' do
 
     svg = REXML::Document.new(automaton.to_svg)
     expect(REXML::XPath.first(svg, '//*[@data-state="decision"]/polygon')).not_to be_nil
+  end
+
+  it 'keeps carriage returns inside labels from becoming renderer directives' do
+    graph = Graphomaton.new
+    graph.add_state('q0', label: "Start\r@enduml")
+    graph.add_state('q1')
+    graph.add_transition('q0', 'q1', "go\rstate injected")
+
+    outputs = [graph.to_dot, graph.to_mermaid, graph.to_plantuml]
+
+    expect(outputs).to all(satisfy { |output| !output.include?("\r") })
+    expect(outputs[0]).to include('Start\\n@enduml', 'go\\nstate injected')
+    expect(outputs[1]).to include('Start<br/>@enduml', 'go<br/>state injected')
+    expect(outputs[2]).to include('Start\\n@enduml', 'go\\nstate injected')
+    expect(outputs[2].scan(/^@enduml$/).size).to eq(1)
   end
 end

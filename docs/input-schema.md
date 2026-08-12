@@ -16,6 +16,11 @@ Transitions are an array. Each item is either a mapping with `from`, `to`, and
 `line_style`. Reference validation is deferred in the Ruby library and enabled by
 default in the CLI.
 
+State and transition `style` and `metadata` values must be mappings. State labels
+are scalar display text. Transition labels may be scalar text, a symbol array, or
+a structured label with an explicit `type`/`kind`; malformed collections are
+rejected instead of being stringified or ignored.
+
 YAML aliases are disabled. Parsing limits input bytes, state and transition
 counts, label bytes, metadata depth, and hierarchy depth. Callers handling
 untrusted data should lower the defaults for their service budget.

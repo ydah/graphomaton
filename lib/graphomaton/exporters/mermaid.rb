@@ -559,7 +559,7 @@ class Graphomaton
       end
 
       def format_label(label)
-        label.to_s.gsub("\n", '<br/>')
+        label.to_s.gsub(/\r\n?|\n/, '<br/>')
       end
 
       def state_alias_lines
@@ -743,7 +743,7 @@ class Graphomaton
         text.to_s
             .gsub('\\') { '\\\\' }
             .gsub('"') { '\\"' }
-            .gsub("\n") { '<br/>' }
+            .gsub(/\r\n?|\n/) { '<br/>' }
       end
 
       def resolve_direction(direction)

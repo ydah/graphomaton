@@ -2,6 +2,7 @@
 
 require 'graphomaton'
 require 'rbconfig'
+require 'tmpdir'
 
 RSpec.describe Graphomaton::ProcessRunner do
   it 'captures stdout, stderr, and exit status' do
@@ -15,6 +16,24 @@ RSpec.describe Graphomaton::ProcessRunner do
     expect(stdout).to eq('HELLO')
     expect(stderr).to eq('notice')
     expect(status).to be_success
+  end
+
+  it 'finds executables by PATH, explicit path, and Windows executable extensions' do
+    Dir.mktmpdir do |directory|
+      executable = File.join(directory, 'renderer')
+      windows_executable = File.join(directory, 'renderer.EXE')
+      File.write(executable, '')
+      File.write(windows_executable, '')
+      File.chmod(0o755, executable)
+      File.chmod(0o755, windows_executable)
+
+      expect(described_class.which('renderer', path: directory)).to eq(executable)
+      expect(described_class.which(executable, path: '')).to eq(executable)
+      allow(Gem).to receive(:win_platform?).and_return(true)
+      expect(described_class.which('renderer', path: directory, pathext: '.EXE;.CMD')).to eq(executable)
+      File.delete(executable)
+      expect(described_class.which('renderer', path: directory, pathext: '.EXE;.CMD')).to eq(windows_executable)
+    end
   end
 
   it 'terminates processes that exceed the timeout' do

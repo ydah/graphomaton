@@ -1288,7 +1288,7 @@ class Graphomaton
 
       def wrapped_lines(value, max_width)
         text = value.to_s
-        paragraphs = text.split("\n", -1)
+        paragraphs = text.split(/\r\n?|\n/, -1)
         return paragraphs if max_width.nil? || max_width <= 0
 
         max_width = max_width.to_f

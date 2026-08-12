@@ -108,6 +108,15 @@ RSpec.describe Graphomaton do
       expect do
         described_class.from_hash(states: %w[q0 q1], transitions: [['q0', 'q1', nil]])
       end.to raise_error(ArgumentError, /exactly from, to, and label/)
+      expect do
+        described_class.from_hash(states: %w[q0 q1], transitions: [{ from: 'q0', to: 'q1', label: [] }])
+      end.to raise_error(ArgumentError, /labels cannot be empty/)
+      expect do
+        described_class.from_hash(
+          states: %w[q0 q1],
+          transitions: [{ from: 'q0', to: 'q1', label: { type: 'uml', value: { guard: 'ready' } } }]
+        )
+      end.to raise_error(ArgumentError, /UML label requires an event/)
     end
 
     it 'disables YAML aliases unless explicitly enabled' do
@@ -170,6 +179,21 @@ RSpec.describe Graphomaton do
       expect(described_class.from_hash({ statse: ['q0'] }, strict_schema: false).states).to be_empty
     end
 
+    it 'rejects schema values that exporters would otherwise ignore' do
+      expect { described_class.from_hash(states: [{ id: 'q0', style: 'red' }]) }
+        .to raise_error(ArgumentError, /style must be a Hash/)
+      expect { described_class.from_hash(states: [{ id: 'q0', metadata: [] }]) }
+        .to raise_error(ArgumentError, /metadata must be a Hash/)
+      expect { described_class.from_hash(states: [{ id: 'q0', label: ['not', 'text'] }]) }
+        .to raise_error(ArgumentError, /label must be scalar text/)
+      expect do
+        described_class.from_hash(states: %w[q0 q1], transitions: [{ from: 'q0', to: 'q1', label: { value: 'a' } }])
+      end.to raise_error(ArgumentError, /requires type or kind/)
+      expect do
+        described_class.from_hash(states: %w[q0 q1], transitions: [{ from: 'q0', to: 'q1', label: 'a', style: [] }])
+      end.to raise_error(ArgumentError, /style must be a Hash/)
+    end
+
     it 'supports version 1 and rejects unknown schema versions' do
       expect(described_class.from_hash(version: 1, states: ['q0']).states).to have_key('q0')
       expect { described_class.from_hash(version: 2, states: ['q0']) }
@@ -216,6 +240,8 @@ RSpec.describe Graphomaton do
       expect { described_class.new.add_state(nil) }.to raise_error(ArgumentError, /cannot be nil/)
       expect { described_class.new.add_transition('a', 'b', nil) }.to raise_error(ArgumentError, /cannot be nil/)
       expect { described_class.new.add_state('q0', label: "bad\u0000label") }
+        .to raise_error(ArgumentError, /invalid in XML/)
+      expect { described_class.new.add_state('q0', label: "bad\uFFFFlabel") }
         .to raise_error(ArgumentError, /invalid in XML/)
       expect { described_class.new.add_state('q0', label: "bad\xFF".b) }
         .to raise_error(ArgumentError, /valid UTF-8/)
@@ -999,6 +1025,34 @@ RSpec.describe Graphomaton do
 
         expect(Graphomaton::ProcessRunner).to have_received(:capture3).once
         expect(result.layout.keys).to contain_exactly('q0', 'q1', 'q2')
+      end
+
+      it 'uses collision-free internal IDs for mixed and hostile state names' do
+        local = Graphomaton.new
+        local.add_state(1)
+        local.add_state('1')
+        local.add_state("bad\"\nnode injected")
+        status = instance_double(Process::Status, success?: true)
+        allow(Graphomaton::ProcessRunner).to receive(:capture3) do |*arguments|
+          dot = arguments.last.fetch(:stdin_data)
+          expect(dot).to include('"state_1";', '"state_2";', '"state_3";')
+          expect(dot).not_to include('node injected')
+          [
+            <<~PLAIN,
+              graph 1 3 1
+              node state_1 0 0 0.75 0.5 state_1 solid circle black lightgrey
+              node state_2 1 0 0.75 0.5 state_2 solid circle black lightgrey
+              node state_3 2 0 0.75 0.5 state_3 solid circle black lightgrey
+              stop
+            PLAIN
+            '',
+            status
+          ]
+        end
+
+        positions = local.layout_positions(layout: :graphviz)
+
+        expect(positions.keys).to contain_exactly(1, '1', "bad\"\nnode injected")
       end
 
       it 'reports graphviz command failures clearly' do

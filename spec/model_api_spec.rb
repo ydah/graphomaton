@@ -77,6 +77,27 @@ RSpec.describe 'Graphomaton model API' do
     expect(graph.remove_final('q1').clear_initial).to equal(graph)
   end
 
+  it 'preserves coordinates on partial upserts and ignores effective no-op updates' do
+    graph = Graphomaton.new
+    graph.add_state('q0', 25, 40, label: 'Start')
+    graph.add_transition('q0', 'q0', 'stay')
+    graph.set_initial('q0')
+    revision = graph.revision
+
+    graph.upsert_state('q0', label: 'Updated')
+    state = graph.state_records.fetch('q0')
+    expect([state.x, state.y, state.label]).to eq([25, 40, 'Updated'])
+    changed_revision = graph.revision
+    expect(changed_revision).to eq(revision + 1)
+
+    graph.update_state('q0', label: 'Updated')
+    graph.update_transition(graph.transition_records.first.id)
+    graph.set_initial('q0')
+    expect(graph.revision).to eq(changed_revision)
+    expect { graph.upsert_state('q0', 50, label: 'invalid') }
+      .to raise_error(ArgumentError, /coordinates require both/)
+  end
+
   it 'provides strict and deferred construction modes' do
     deferred = Graphomaton.new(validation: :deferred)
     expect { deferred.add_transition('q0', 'q1', 'go') }.not_to raise_error
@@ -89,7 +110,7 @@ RSpec.describe 'Graphomaton model API' do
 
   it 'round trips the versioned canonical schema' do
     graph = Graphomaton.new
-    graph.add_state('q0', label: 'Start')
+    graph.add_state('q0', label: Graphomaton::Label.text('Start'))
     graph.add_state('q1', kind: :join)
     graph.set_initial('q0').add_final('q1')
     graph.add_transition('q0', 'q1', Graphomaton::Label.uml(event: 'go', guard: 'ready?', action: 'start'))
@@ -98,6 +119,7 @@ RSpec.describe 'Graphomaton model API' do
     expect(Graphomaton.from_json(graph.to_json)).to eq(graph)
     expect(Graphomaton.from_yaml(graph.to_yaml)).to eq(graph)
     expect(graph.to_h[:version]).to eq(1)
+    expect(graph.state_records.fetch('q0').label).to eq('Start')
     expect(graph.state_records.fetch('q1').kind).to eq(:join)
   end
 
@@ -114,6 +136,8 @@ RSpec.describe 'Graphomaton model API' do
     expect(semantic.map(&:code)).to contain_exactly('missing-initial-state', 'missing-final-state')
     expect(dfa.map(&:code)).to include('nondeterministic-transition')
     expect(semantic.first.to_h).to include(:code, :severity, :path, :message)
+    expect { graph.validation_diagnostics(profile: :unknown) }
+      .to raise_error(ArgumentError, /Unknown validation profiles: unknown/)
   end
 
   it 'validates structured symbol and epsilon labels with DFA semantics' do
@@ -192,11 +216,14 @@ RSpec.describe 'Graphomaton model API' do
         exporter: exporter_class
       )
 
-      graph = Graphomaton.new.add_state('q0')
-      expect(graph.render(format: '.TEST-OUTPUT', width: 320, height: 240, prefix: 'ok')).to eq('ok:1:320x240')
+      graph = Graphomaton.new.add_state('q0').add_state('decision', kind: :choice)
+      expect(graph.render(format: '.TEST-OUTPUT', width: 320, height: 240, prefix: 'ok')).to eq('ok:2:320x240')
       output = StringIO.new
       graph.write(output, format: :test_custom, width: 320, height: 240, prefix: 'ok')
       expect(output.external_encoding).to eq(Encoding::ASCII_8BIT)
+      expect(graph.semantic_diagnostics(:test_custom).map(&:message)).to include(/does not preserve pseudostate/)
+      expect { graph.render(format: :test_custom, strict_semantics: true, prefix: 'ok') }
+        .to raise_error(Graphomaton::ExportError, /pseudostate/)
       expect(Graphomaton::EXPORTERS.resolve(:test_alias)).to eq(:test_custom)
       expect do
         Graphomaton.register_exporter(:another_custom, aliases: %i[test_alias], exporter: exporter_class)
