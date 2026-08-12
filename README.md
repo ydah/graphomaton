@@ -211,10 +211,11 @@ graphomaton --input automaton.yml --output diagram.svg --layout-warnings
 graphomaton --input automaton.json --output diagram.png --format png --theme dark --scale 2 --timeout 15 --max-output-bytes 33554432
 graphomaton --input automaton.yml --output diagram.html --title "Automaton" --show-source --pan-zoom
 graphomaton --input automaton.yml --output diagram.dot --rank-constraints
+cat automaton.yml | graphomaton --input - --output - --format svg > diagram.svg
 graphomaton --version
 ```
 
-The CLI validates state references and hierarchy by default. `--no-validate` is available for intentionally deferred or partial diagrams. Usage, parse, validation, conversion, and security failures use distinct exit statuses and are reported without backtraces.
+The CLI validates state references and hierarchy by default. `--no-validate` is available for intentionally deferred or partial diagrams. Standard input auto-detects JSON documents that start with `{` or `[`, otherwise YAML is assumed; use `--input-format` to override it. `--format` is required when `--output -` is used. Input limits can be lowered with `--max-input-bytes`, `--max-states`, and `--max-transitions`. Use `--no-clobber` to protect an existing output (and `--force` to opt back into replacement). Usage, parse, validation, conversion, and security failures use distinct exit statuses and are reported without backtraces.
 
 Common SVG options:
 

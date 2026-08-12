@@ -9,21 +9,51 @@ $LOAD_PATH.unshift(lib_path) if File.directory?(lib_path)
 require 'graphomaton'
 
 def load_theme_file(path)
-  theme_input = File.read(path)
-  case File.extname(path).downcase
-  when '.json'
-    Graphomaton.theme_from_json(theme_input)
-  when '.yml', '.yaml'
-    Graphomaton.theme_from_yaml(theme_input)
-  else
-    warn 'Theme file must use .json, .yml, or .yaml extension'
-    exit 1
+  File.open(path, 'rb') do |theme_input|
+    case File.extname(path).downcase
+    when '.json'
+      Graphomaton.theme_from_json(theme_input)
+    when '.yml', '.yaml'
+      Graphomaton.theme_from_yaml(theme_input)
+    else
+      raise ArgumentError, 'Theme file must use .json, .yml, or .yaml extension'
+    end
   end
+rescue JSON::ParserError, Psych::Exception, ArgumentError, SystemCallError => e
+  warn "Theme input error: #{e.message}"
+  exit 3
+end
+
+def parse_automaton(source, format, limits)
+  case format.to_s.delete_prefix('.').downcase
+  when 'json'
+    Graphomaton.from_json(source, **limits)
+  when 'yml', 'yaml'
+    Graphomaton.from_yaml(source, **limits)
+  else
+    raise ArgumentError, 'Input format must be json, yml, or yaml'
+  end
+end
+
+def load_automaton(path, input_format:, limits:)
+  if path == '-'
+    payload = $stdin.read(limits.fetch(:max_input_bytes) + 1)
+    detected_format = input_format || (payload.lstrip.start_with?('{', '[') ? :json : :yaml)
+    return parse_automaton(payload, detected_format, limits)
+  end
+
+  extension = File.extname(path)
+  if input_format.nil? && !%w[.json .yml .yaml].include?(extension.downcase)
+    raise ArgumentError, 'Input file must use .json, .yml, or .yaml extension'
+  end
+  format = input_format || extension
+  File.open(path, 'rb') { |source| parse_automaton(source, format, limits) }
 end
 
 def validate_cli_numeric_options!(options)
   positive = %i[
-    width height scale timeout max_output_bytes state_radius min_state_radius max_state_radius
+    width height scale timeout max_output_bytes max_input_bytes max_states max_transitions
+    state_radius min_state_radius max_state_radius
     state_stroke_width transition_stroke_width arrow_size initial_arrow_length final_arrow_length
   ]
   nonnegative = %i[
@@ -47,9 +77,47 @@ def validate_cli_numeric_options!(options)
   end
 end
 
+def validate_format_options!(options, format)
+  svg_backed = %i[svg png pdf webp]
+  converted = %i[png pdf webp]
+  support = {}
+  %i[
+    layout_warnings layout fit padding node_spacing rank_spacing force_iterations layout_seed
+    graphviz_command auto_density_spacing initial_position final_position responsive state_radius
+    auto_state_radius min_state_radius max_state_radius state_stroke_width transition_stroke_width
+    state_shape edge_style arrow_shape arrow_size state_effect font_family state_font_weight
+    transition_font_weight preserve_manual_positions auto_size xml_declaration pretty minify
+    css_variables embed_styles svg_id wrap max_transition_label_width state_wrap
+    max_state_label_width label_tooltips html_tooltips sort_labels rotate_labels label_padding
+    label_radius label_border label_background initial_arrow_length initial_arrow_label
+    final_arrow_length final_arrow_label show_final_arrows scc_groups fold_groups
+    highlight_unreachable unreachable_zone highlight_dead_states highlight_initial_state
+    highlight_final_states highlight_transitions loop_position merge_parallel_transitions description
+  ].each { |name| support[name] = svg_backed }
+  support[:theme] = svg_backed + %i[html dot plantuml]
+  support[:theme_file] = support[:theme]
+  support[:direction] = svg_backed + %i[html mermaid dot plantuml]
+  support[:title] = svg_backed + [:html]
+  %i[converter timeout max_output_bytes].each { |name| support[name] = converted }
+  support[:scale] = [:png]
+  %i[cdn offline inline_mermaid lang show_source pan_zoom mathjax mathjax_cdn].each { |name| support[name] = [:html] }
+  support[:notes] = %i[html mermaid plantuml]
+  support[:class_defs] = %i[html mermaid]
+  support[:rank_constraints] = [:dot]
+
+  unsupported = support.each_key.select { |name| options.key?(name) && !support.fetch(name).include?(format) }
+  return if unsupported.empty?
+
+  flags = unsupported.map { |name| "--#{name.to_s.tr('_', '-')}" }.join(', ')
+  raise OptionParser::InvalidArgument, "#{flags} not supported for #{format} output"
+end
+
 options = {
   width: 800,
   height: 600,
+  max_input_bytes: Graphomaton::DEFAULT_MAX_INPUT_BYTES,
+  max_states: Graphomaton::DEFAULT_MAX_STATES,
+  max_transitions: Graphomaton::DEFAULT_MAX_TRANSITIONS,
   validate: true
 }
 
@@ -58,7 +126,10 @@ parser = OptionParser.new do |opts|
   opts.separator '       graphomaton --theme-gallery --output theme_gallery.html [options]'
 
   opts.on('-i', '--input PATH', 'Input JSON or YAML file') { |value| options[:input] = value }
+  opts.on('--input-format FORMAT', 'Input format for stdin or extension override') { |value| options[:input_format] = value.to_sym }
   opts.on('-o', '--output PATH', 'Output file path') { |value| options[:output] = value }
+  opts.on('--no-clobber', 'Fail if the output file already exists') { options[:no_clobber] = true }
+  opts.on('--force', 'Allow replacing an existing output file') { options[:no_clobber] = false }
   opts.on('-f', '--format FORMAT', 'Output format override') { |value| options[:format] = value.to_sym }
   opts.on('--[no-]validate', 'Validate automaton references before rendering (default: enabled)') { |value| options[:validate] = value }
   opts.on('--layout-warnings', 'Print SVG layout clipping warnings before rendering') { options[:layout_warnings] = true }
@@ -68,6 +139,9 @@ parser = OptionParser.new do |opts|
   opts.on('--converter CONVERTER', 'SVG conversion backend for PNG, PDF, or WebP') { |value| options[:converter] = value.to_sym }
   opts.on('--timeout SECONDS', Float, 'Converter timeout in seconds') { |value| options[:timeout] = value }
   opts.on('--max-output-bytes BYTES', Integer, 'Maximum converter output size') { |value| options[:max_output_bytes] = value }
+  opts.on('--max-input-bytes BYTES', Integer, 'Maximum JSON or YAML input size') { |value| options[:max_input_bytes] = value }
+  opts.on('--max-states COUNT', Integer, 'Maximum parsed state count') { |value| options[:max_states] = value }
+  opts.on('--max-transitions COUNT', Integer, 'Maximum parsed transition count') { |value| options[:max_transitions] = value }
   opts.on('--theme THEME', 'Theme name') { |value| options[:theme] = value.to_sym }
   opts.on('--theme-file PATH', 'Theme JSON or YAML file') { |value| options[:theme_file] = value }
   opts.on('--theme-gallery', 'Write a standalone HTML gallery of built-in themes') { options[:theme_gallery] = true }
@@ -145,7 +219,8 @@ parser = OptionParser.new do |opts|
   opts.on('--cdn URL_OR_PATH', 'Mermaid CDN URL or local script path for HTML output') { |value| options[:cdn] = value }
   opts.on('--offline', 'Use a non-module Mermaid script tag for HTML output') { options[:offline] = true }
   opts.on('--inline-mermaid', 'Inline Mermaid script from --cdn path in HTML output') { options[:inline_mermaid] = true }
-  opts.on('--title TITLE', 'HTML page title') { |value| options[:title] = value }
+  opts.on('--title TITLE', 'HTML page or accessible SVG title') { |value| options[:title] = value }
+  opts.on('--description TEXT', 'Accessible SVG description') { |value| options[:description] = value }
   opts.on('--lang LANG', 'HTML language code') { |value| options[:lang] = value }
   opts.on('--show-source', 'Include Mermaid source in HTML output') { options[:show_source] = true }
   opts.on('--pan-zoom', 'Add pan and zoom controls to HTML output') { options[:pan_zoom] = true }
@@ -154,6 +229,7 @@ parser = OptionParser.new do |opts|
   opts.on('--notes', 'Include state metadata notes in Mermaid output') { options[:notes] = true }
   opts.on('--class-defs', 'Include Mermaid class definitions in Mermaid output') { options[:class_defs] = true }
   opts.on('--rank-constraints', 'Emit DOT rank constraints for initial and final states') { options[:rank_constraints] = true }
+  opts.on('--[no-]merge-parallel-transitions', 'Merge equivalent parallel SVG transitions') { |value| options[:merge_parallel_transitions] = value }
   opts.on('--version', 'Print version') { options[:version] = true }
   opts.on('-h', '--help', 'Print help') do
     puts opts
@@ -209,16 +285,21 @@ if input_path.nil? || output_path.nil?
   exit 1
 end
 
+if options[:no_clobber] && output_path != '-' && File.exist?(output_path)
+  warn "Output file already exists: #{output_path}"
+  exit 6
+end
+
 begin
-  input = File.read(input_path)
-  automaton = case File.extname(input_path).downcase
-              when '.json'
-                Graphomaton.from_json(input)
-              when '.yml', '.yaml'
-                Graphomaton.from_yaml(input)
-              else
-                raise ArgumentError, 'Input file must use .json, .yml, or .yaml extension'
-              end
+  automaton = load_automaton(
+    input_path,
+    input_format: options[:input_format],
+    limits: {
+      max_input_bytes: options[:max_input_bytes],
+      max_states: options[:max_states],
+      max_transitions: options[:max_transitions]
+    }
+  )
 rescue JSON::ParserError, Psych::Exception, ArgumentError, SystemCallError => e
   warn "Input error: #{e.message}"
   exit 3
@@ -238,8 +319,22 @@ if options[:theme_file]
 end
 
 format_name = options[:format] || File.extname(output_path).delete_prefix('.')
+if output_path == '-' && options[:format].nil?
+  warn '--format is required when writing to standard output'
+  exit 2
+end
 resolved_output_format = format_name.to_s.delete_prefix('.').downcase.to_sym
 resolved_output_format = { mmd: :mermaid, puml: :plantuml }.fetch(resolved_output_format, resolved_output_format)
+unless Graphomaton::FORMAT_OPTIONS.include?(resolved_output_format)
+  warn "Unknown format: #{format_name.inspect}. Available formats: #{Graphomaton::FORMAT_OPTIONS.join(', ')}"
+  exit 2
+end
+begin
+  validate_format_options!(options, resolved_output_format)
+rescue OptionParser::ParseError => e
+  warn e.message
+  exit 2
+end
 svg_backed_format = %i[svg png pdf webp].include?(resolved_output_format)
 
 if options[:layout_warnings] && svg_backed_format
@@ -273,6 +368,9 @@ end
 save_options[:direction] = options[:direction] if options[:direction] && (svg_backed_format || %i[html mermaid dot plantuml].include?(resolved_output_format))
 if svg_backed_format
   save_options[:layout] = options[:layout] if options[:layout]
+  save_options[:title] = options[:title] if options[:title]
+  save_options[:description] = options[:description] if options[:description]
+  save_options[:merge_parallel_transitions] = options[:merge_parallel_transitions] if options.key?(:merge_parallel_transitions)
   save_options[:fit] = options[:fit] if options[:fit]
   save_options[:padding] = options[:padding] if options[:padding]
   save_options[:node_spacing] = options[:node_spacing] if options[:node_spacing]
@@ -359,13 +457,24 @@ end
 save_options[:rank_constraints] = options[:rank_constraints] if options.key?(:rank_constraints) && resolved_output_format == :dot
 
 begin
-  automaton.save(
-    output_path,
-    format: options[:format],
-    width: options[:width],
-    height: options[:height],
-    **save_options
-  )
+  if output_path == '-'
+    output = automaton.render(
+      format: resolved_output_format,
+      width: options[:width],
+      height: options[:height],
+      **save_options
+    )
+    $stdout.binmode if %i[png pdf webp].include?(resolved_output_format)
+    $stdout.write(output)
+  else
+    automaton.save(
+      output_path,
+      format: resolved_output_format,
+      width: options[:width],
+      height: options[:height],
+      **save_options
+    )
+  end
 rescue Graphomaton::SecurityError => e
   warn e.message
   exit 7

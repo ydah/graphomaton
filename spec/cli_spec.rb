@@ -3,6 +3,7 @@
 require 'open3'
 require 'rbconfig'
 require 'tmpdir'
+require 'json'
 
 RSpec.describe 'graphomaton CLI' do
   it 'prints its version without input files' do
@@ -48,6 +49,104 @@ RSpec.describe 'graphomaton CLI' do
       expect(stdout).to eq('')
       expect(File.read(output)).to include('<svg')
     end
+  end
+
+  it 'reads YAML from stdin and writes a selected format to stdout' do
+    stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      File.expand_path('../exe/graphomaton', __dir__),
+      '--input', '-',
+      '--output', '-',
+      '--format', 'svg',
+      stdin_data: "states: [q0]\ninitial: q0\n"
+    )
+
+    expect(status).to be_success, stderr
+    expect(stdout).to start_with('<svg')
+    expect(stderr).to eq('')
+  end
+
+  it 'detects JSON input from stdin' do
+    stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      File.expand_path('../exe/graphomaton', __dir__),
+      '-i', '-',
+      '-o', '-',
+      '-f', 'dot',
+      stdin_data: JSON.generate(states: ['q0'])
+    )
+
+    expect(status).to be_success, stderr
+    expect(stdout).to start_with("digraph finite_state_machine {\n")
+  end
+
+  it 'requires an explicit output format for stdout' do
+    _stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      File.expand_path('../exe/graphomaton', __dir__),
+      '-i', '-',
+      '-o', '-',
+      stdin_data: "states: [q0]\n"
+    )
+
+    expect(status.exitstatus).to eq(2)
+    expect(stderr).to include('--format is required')
+  end
+
+  it 'does not overwrite an existing file with no-clobber' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(input, "states: [q0]\n")
+      File.write(output, 'original')
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '-i', input,
+        '-o', output,
+        '--no-clobber'
+      )
+
+      expect(status.exitstatus).to eq(6)
+      expect(stderr).to include('Output file already exists')
+      expect(File.read(output)).to eq('original')
+    end
+  end
+
+  it 'passes accessible SVG metadata and transition merge options' do
+    stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      File.expand_path('../exe/graphomaton', __dir__),
+      '-i', '-',
+      '-o', '-',
+      '-f', 'svg',
+      '--title', 'Machine',
+      '--description', 'Accepts one token',
+      '--no-merge-parallel-transitions',
+      stdin_data: "states: [q0, q1]\ntransitions: [[q0, q1, a], [q0, q1, b]]\n"
+    )
+
+    expect(status).to be_success, stderr
+    expect(stdout).to include('<title')
+    expect(stdout).to include('Machine</title>')
+    expect(stdout).to include('Accepts one token</desc>')
+    expect(stdout.scan(/class=['"]transition-label['"]/).size).to eq(2)
+  end
+
+  it 'enforces configured input resource limits before rendering' do
+    _stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      File.expand_path('../exe/graphomaton', __dir__),
+      '-i', '-',
+      '-o', '-',
+      '-f', 'svg',
+      '--max-input-bytes', '8',
+      stdin_data: "states: [q0]\n"
+    )
+
+    expect(status.exitstatus).to eq(3)
+    expect(stderr).to include('exceeds max_input_bytes')
   end
 
   it 'writes a theme gallery without an input automaton' do
@@ -230,6 +329,36 @@ RSpec.describe 'graphomaton CLI' do
     expect(status.exitstatus).to eq(2)
     expect(stderr).to include('--width must be positive and finite')
     expect(stderr).not_to include('from ')
+  end
+
+  it 'rejects options that the selected output format cannot use' do
+    _stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      File.expand_path('../exe/graphomaton', __dir__),
+      '-i', '-',
+      '-o', '-',
+      '-f', 'dot',
+      '--layout', 'circle',
+      stdin_data: "states: [q0]\n"
+    )
+
+    expect(status.exitstatus).to eq(2)
+    expect(stderr).to include('--layout not supported for dot output')
+    expect(stderr).not_to include('from ')
+  end
+
+  it 'reports an unknown output format as a usage error' do
+    _stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      File.expand_path('../exe/graphomaton', __dir__),
+      '-i', '-',
+      '-o', '-',
+      '-f', 'unknown',
+      stdin_data: "states: [q0]\n"
+    )
+
+    expect(status.exitstatus).to eq(2)
+    expect(stderr).to include('Unknown format')
   end
 
   it 'can print SVG layout warnings before rendering' do
@@ -784,7 +913,7 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
-  it 'ignores options that do not apply to the selected output format' do
+  it 'reports every option that does not apply to the selected output format' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
       output = File.join(dir, 'diagram.dot')
@@ -822,10 +951,14 @@ RSpec.describe 'graphomaton CLI' do
         '--rank-constraints'
       )
 
-      expect(status).to be_success, stderr
-      content = File.read(output)
-      expect(content).to include('digraph finite_state_machine')
-      expect(content).to include('{ rank=source; "q0"; }')
+      expect(status.exitstatus).to eq(2)
+      expect(stderr).to include('--fit')
+      expect(stderr).to include('--responsive')
+      expect(stderr).to include('--converter')
+      expect(stderr).to include('--scale')
+      expect(stderr).to include('--cdn')
+      expect(stderr).to include('--show-source')
+      expect(File.exist?(output)).to be false
     end
   end
 
