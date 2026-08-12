@@ -192,11 +192,14 @@ end
 
 ```bash
 graphomaton --input automaton.yml --output diagram.svg
-graphomaton --input automaton.yml --output diagram.svg --validate --layout-warnings
-graphomaton --input automaton.json --output diagram.png --format png --theme dark --scale 2
+graphomaton --input automaton.yml --output diagram.svg --layout-warnings
+graphomaton --input automaton.json --output diagram.png --format png --theme dark --scale 2 --timeout 15 --max-output-bytes 33554432
 graphomaton --input automaton.yml --output diagram.html --title "Automaton" --show-source --pan-zoom
 graphomaton --input automaton.yml --output diagram.dot --rank-constraints
+graphomaton --version
 ```
+
+The CLI validates state references and hierarchy by default. `--no-validate` is available for intentionally deferred or partial diagrams. Usage, parse, validation, conversion, and security failures use distinct exit statuses and are reported without backtraces.
 
 Common SVG options:
 

@@ -5,6 +5,17 @@ require 'rbconfig'
 require 'tmpdir'
 
 RSpec.describe 'graphomaton CLI' do
+  it 'prints its version without input files' do
+    stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      File.expand_path('../exe/graphomaton', __dir__),
+      '--version'
+    )
+
+    expect(status).to be_success, stderr
+    expect(stdout).to eq("#{Graphomaton::VERSION}\n")
+  end
+
   it 'renders a YAML automaton to SVG' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
@@ -107,7 +118,7 @@ RSpec.describe 'graphomaton CLI' do
     end
   end
 
-  it 'can validate automaton references before rendering' do
+  it 'validates automaton references by default' do
     Dir.mktmpdir do |dir|
       input = File.join(dir, 'automaton.yml')
       output = File.join(dir, 'diagram.svg')
@@ -129,14 +140,83 @@ RSpec.describe 'graphomaton CLI' do
         '--input',
         input,
         '--output',
-        output,
-        '--validate'
+        output
       )
 
       expect(status).not_to be_success
       expect(stderr).to include('Transition 0 target "missing" is not defined')
       expect(File.exist?(output)).to be false
     end
+  end
+
+  it 'can explicitly skip reference validation' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.svg')
+      File.write(input, "states: [q0]\ntransitions: [[q0, missing, a]]\n")
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input', input,
+        '--output', output,
+        '--no-validate'
+      )
+
+      expect(status).to be_success, stderr
+      expect(File.read(output)).to include('<svg')
+    end
+  end
+
+  it 'reports malformed input without a backtrace' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'broken.json')
+      output = File.join(dir, 'diagram.svg')
+      File.write(input, '{broken')
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        '--input', input,
+        '--output', output
+      )
+
+      expect(status.exitstatus).to eq(3)
+      expect(stderr).to include('Input error:')
+      expect(stderr).not_to include('from ')
+      expect(File.exist?(output)).to be false
+    end
+  end
+
+  it 'infers output formats from uppercase extensions' do
+    Dir.mktmpdir do |dir|
+      input = File.join(dir, 'automaton.yml')
+      output = File.join(dir, 'diagram.SVG')
+      File.write(input, "states: [q0]\n")
+
+      _stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        File.expand_path('../exe/graphomaton', __dir__),
+        input,
+        output
+      )
+
+      expect(status).to be_success, stderr
+      expect(File.read(output)).to include('<svg')
+    end
+  end
+
+  it 'rejects extra positional arguments' do
+    _stdout, stderr, status = Open3.capture3(
+      RbConfig.ruby,
+      File.expand_path('../exe/graphomaton', __dir__),
+      'input.yml',
+      'output.svg',
+      'unexpected'
+    )
+
+    expect(status.exitstatus).to eq(2)
+    expect(stderr).to include('Unexpected arguments: unexpected')
   end
 
   it 'can print SVG layout warnings before rendering' do

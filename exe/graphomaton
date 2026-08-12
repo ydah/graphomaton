@@ -23,7 +23,8 @@ end
 
 options = {
   width: 800,
-  height: 600
+  height: 600,
+  validate: true
 }
 
 parser = OptionParser.new do |opts|
@@ -33,7 +34,7 @@ parser = OptionParser.new do |opts|
   opts.on('-i', '--input PATH', 'Input JSON or YAML file') { |value| options[:input] = value }
   opts.on('-o', '--output PATH', 'Output file path') { |value| options[:output] = value }
   opts.on('-f', '--format FORMAT', 'Output format override') { |value| options[:format] = value.to_sym }
-  opts.on('--validate', 'Validate automaton references before rendering') { options[:validate] = true }
+  opts.on('--[no-]validate', 'Validate automaton references before rendering (default: enabled)') { |value| options[:validate] = value }
   opts.on('--layout-warnings', 'Print SVG layout clipping warnings before rendering') { options[:layout_warnings] = true }
   opts.on('--width WIDTH', Integer, 'Output width for size-aware formats') { |value| options[:width] = value }
   opts.on('--height HEIGHT', Integer, 'Output height for size-aware formats') { |value| options[:height] = value }
@@ -127,16 +128,32 @@ parser = OptionParser.new do |opts|
   opts.on('--notes', 'Include state metadata notes in Mermaid output') { options[:notes] = true }
   opts.on('--class-defs', 'Include Mermaid class definitions in Mermaid output') { options[:class_defs] = true }
   opts.on('--rank-constraints', 'Emit DOT rank constraints for initial and final states') { options[:rank_constraints] = true }
+  opts.on('--version', 'Print version') { options[:version] = true }
   opts.on('-h', '--help', 'Print help') do
     puts opts
     exit 0
   end
 end
 
-parser.parse!
+begin
+  parser.parse!
+rescue OptionParser::ParseError => e
+  warn e.message
+  exit 2
+end
 
 input_path = options[:input] || ARGV.shift
 output_path = options[:output] || ARGV.shift
+
+unless ARGV.empty?
+  warn "Unexpected arguments: #{ARGV.join(' ')}"
+  exit 2
+end
+
+if options[:version]
+  puts Graphomaton::VERSION
+  exit 0
+end
 
 if options[:list_themes]
   puts Graphomaton::Theme.available_names.join("\n")
@@ -165,23 +182,27 @@ if input_path.nil? || output_path.nil?
   exit 1
 end
 
-input = File.read(input_path)
-automaton = case File.extname(input_path).downcase
-            when '.json'
-              Graphomaton.from_json(input)
-            when '.yml', '.yaml'
-              Graphomaton.from_yaml(input)
-            else
-              warn 'Input file must use .json, .yml, or .yaml extension'
-              exit 1
-            end
+begin
+  input = File.read(input_path)
+  automaton = case File.extname(input_path).downcase
+              when '.json'
+                Graphomaton.from_json(input)
+              when '.yml', '.yaml'
+                Graphomaton.from_yaml(input)
+              else
+                raise ArgumentError, 'Input file must use .json, .yml, or .yaml extension'
+              end
+rescue JSON::ParserError, Psych::Exception, ArgumentError, SystemCallError => e
+  warn "Input error: #{e.message}"
+  exit 3
+end
 
 if options[:validate]
   begin
     automaton.validate!
   rescue Graphomaton::ValidationError => e
     warn e.message
-    exit 1
+    exit 4
   end
 end
 
@@ -190,7 +211,7 @@ if options[:theme_file]
 end
 
 format_name = options[:format] || File.extname(output_path).delete_prefix('.')
-resolved_output_format = format_name.to_s.delete_prefix('.').to_sym
+resolved_output_format = format_name.to_s.delete_prefix('.').downcase.to_sym
 resolved_output_format = { mmd: :mermaid, puml: :plantuml }.fetch(resolved_output_format, resolved_output_format)
 svg_backed_format = %i[svg png pdf webp].include?(resolved_output_format)
 
@@ -310,10 +331,22 @@ if %i[html mermaid].include?(resolved_output_format)
 end
 save_options[:rank_constraints] = options[:rank_constraints] if options.key?(:rank_constraints) && resolved_output_format == :dot
 
-automaton.save(
-  output_path,
-  format: options[:format],
-  width: options[:width],
-  height: options[:height],
-  **save_options
-)
+begin
+  automaton.save(
+    output_path,
+    format: options[:format],
+    width: options[:width],
+    height: options[:height],
+    **save_options
+  )
+rescue Graphomaton::SecurityError => e
+  warn e.message
+  exit 7
+rescue Graphomaton::Exporters::Png::ConversionError,
+       Graphomaton::Exporters::Pdf::ConversionError,
+       Graphomaton::Exporters::Webp::ConversionError,
+       ArgumentError,
+       SystemCallError => e
+  warn e.message
+  exit 6
+end
