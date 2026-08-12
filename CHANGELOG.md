@@ -1,50 +1,82 @@
-# Change log
+# Changelog
 
-## Unreleased
+All notable changes to Graphomaton are documented here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
+follows [Semantic Versioning](https://semver.org/).
 
-## 1.1.0 (2026-08-12)
+## [Unreleased]
 
-- Fix force-layout attraction direction, boundary clamping, and undefined endpoint analysis.
-- Declare isolated states and allocate collision-free identifiers in DOT, Mermaid, and PlantUML.
-- Preserve SVG transition presentation metadata and connect edges to shape-aware boundaries.
-- Keep PNG scaling independent from logical layout and SVG geometry.
-- Add safe URL, HTML JavaScript, theme, and SVG style policies; pin Mermaid.js 10.9.8.
-- Add bounded external process execution with timeout and output limits.
-- Validate input state uniqueness, transition tuples, initial states, and state hierarchy.
-- Write exported files atomically and terminate text formats with a newline.
-- Validate CLI input by default and provide structured exit statuses and `--version`.
-- Restrict packaged gem files and add package installation smoke testing.
-- Bound JSON and YAML bytes, state counts, transition counts, and converter resources.
-- Reject non-finite rendering numbers and keep fixed manual positions clear of automatic layouts.
-- Add bounded stdin/stdout CLI workflows, no-clobber protection, and format-specific option errors.
-- Make HTML asset loading deterministic, localize generated UI, and improve pan/zoom accessibility.
-- Replace recursive SCC analysis with an iterative linear-time implementation.
-- Route curved and orthogonal edges from geometry rather than insertion order.
-- Size SVG viewBoxes from rendered paths, shapes, rotated labels, and text content.
-- Add deterministic force-layout separation and convergence detection.
-- Add immutable model records, update/remove APIs, graph revision caches, structured labels, diagnostics, and validation profiles.
-- Add exporter capabilities, semantic-loss reporting, render results, IO output, and RBS signatures.
-- Add obstacle-aware curves, adaptive self-loops, spatial label indexing, and Barnes-Hut force approximation.
-- Add CLI commands for validation, discovery, diagnostics, health checks, config files, completions, and man-page output.
-- Add nonce-based CSP support and trusted local asset inlining for self-contained HTML.
-- Preserve SVG layout diagnostics and metadata through PNG, PDF, and WebP conversion.
-- Preserve structured transition labels and format-independent pseudostate kinds in the model.
-- Make custom exporter registration renderable and reject ambiguous schema aliases.
-- Reject ignored schema value types and preserve coordinates across partial state upserts.
-- Use collision-free Graphviz layout IDs and cross-platform executable discovery.
-- Normalize CR/LF label boundaries before emitting renderer syntax.
-- Expose parser depth and label budgets in the CLI and tighten JavaScript asset boundaries.
-- Support Windows asset paths and process termination, and make renderer CI portable.
+## [1.1.0] - 2026-08-13
 
-## 1.0.0 (2025-12-23)
+### Added
 
-- Add support multiple style outputs, including .dot, mermaid, and .plantuml formats.
-- Improve output format for SVG files.
+- Immutable model records, update/remove APIs, graph revision caches, structured
+  labels, diagnostics, validation profiles, exporter capabilities, semantic-loss
+  reporting, render results, IO output, and RBS signatures.
+- Obstacle-aware curves, adaptive self-loops, spatial label indexing, Barnes-Hut
+  force approximation, deterministic force-layout separation, and convergence
+  detection.
+- CLI commands for validation, discovery, diagnostics, health checks, config
+  files, shell completions, and man-page output.
+- Bounded stdin/stdout workflows, no-clobber protection, format-specific option
+  errors, structured exit statuses, and `--version`.
+- Nonce-based CSP support, trusted local asset inlining for self-contained HTML,
+  and deterministic HTML asset loading with localized generated UI.
+- Restricted gem packaging, gem installation smoke tests, renderer integration
+  jobs, release automation, and immutable GitHub Actions pins.
 
-## 0.1.1 (2025-08-26)
+### Changed
 
-Fix gemspec dependency declaration for 'rexml'.
+- Curved and orthogonal edges are routed from geometry instead of insertion
+  order, and SVG viewBoxes include rendered paths, shapes, rotated labels, and
+  text content.
+- PNG scaling is separated from logical layout and SVG geometry; layout
+  diagnostics and metadata survive PNG, PDF, and WebP conversion.
+- SCC analysis is iterative and linear-time. Fixed manual positions remain clear
+  of automatic layouts, and dense graphs receive adaptive spacing.
+- Structured transition labels and format-independent pseudostate kinds are kept
+  in the model, while custom exporter registration now produces renderable
+  exporters and rejects ambiguous schema aliases.
+- HTML pan/zoom controls are more accessible, and text exporters terminate
+  output with a newline after normalizing CR/LF label boundaries.
 
-## 0.1.0 (2025-08-26)
+### Fixed
+
+- Corrected force-layout attraction direction, boundary clamping, and analysis
+  of undefined transition endpoints.
+- Isolated states are declared in DOT, Mermaid, and PlantUML output.
+- DOT, Mermaid, PlantUML, and Graphviz layout identifiers are collision-free,
+  including reserved names, hostile text, mixed-type model IDs, and groups.
+- SVG parallel-transition merging preserves presentation metadata and uses
+  tuple endpoint keys; edge endpoints now respect ellipse, diamond, bar, and
+  rounded-rectangle boundaries.
+- Input validation now rejects duplicate states, malformed transition tuples,
+  conflicting initial states, invalid state hierarchies, ignored value types,
+  and non-finite rendering numbers.
+- Partial state upserts preserve omitted coordinates and effective no-op updates
+  do not advance the graph revision.
+
+### Security
+
+- Added URL, HTML JavaScript, theme, and SVG style policies, including safe
+  handling of JavaScript strings, trusted local assets, Windows asset paths, and
+  unsafe URL schemes; Mermaid.js is pinned to 10.9.8.
+- External processes are bounded by timeout and stdout/stderr limits, with
+  portable executable discovery and process termination on Windows.
+- JSON and YAML input, state and transition counts, metadata depth, label size,
+  hierarchy depth, and converter resources are bounded.
+- Exported files are written atomically, and embedded scripts enforce size,
+  encoding, and digest checks.
+
+## [1.0.0] - 2025-12-23
+
+- Add support for multiple output styles, including DOT, Mermaid, and PlantUML.
+- Improve SVG output formatting.
+
+## [0.1.1] - 2025-08-26
+
+- Fix the gemspec dependency declaration for `rexml`.
+
+## [0.1.0] - 2025-08-26
 
 - Initial release
