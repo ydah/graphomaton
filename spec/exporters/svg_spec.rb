@@ -952,6 +952,16 @@ RSpec.describe Graphomaton::Exporters::Svg do
       moved = (resolved[:x] != base_box[:x]) || (resolved[:y] != base_box[:y])
       expect(moved).to be true
     end
+
+    it 'uses rotated bounds for label collision checks' do
+      svg_exporter.send(:instance_variable_set, :@rotate_labels, true)
+      box = { x: 10.0, y: 10.0, width: 100.0, height: 20.0 }
+
+      rotated = svg_exporter.send(:rotated_label_collision_box, box, 45)
+
+      expect(rotated[:height]).to be > box[:height]
+      expect(rotated[:width]).to be < box[:width]
+    end
   end
 
   describe '#density_adjusted_spacings' do

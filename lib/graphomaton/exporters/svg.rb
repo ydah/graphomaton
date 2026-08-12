@@ -1244,11 +1244,12 @@ class Graphomaton
         [16 * [lines.size, 1].max, 20].max
       end
 
-      def collision_free_label_box(base_box)
+      def collision_free_label_box(base_box, angle: nil)
         box = base_box.dup
         attempts = 0
         max_attempts = 80
-        while (label_box_overlap?(box) || label_box_overlaps_state?(box)) && attempts < max_attempts
+        collision_box = rotated_label_collision_box(box, angle)
+        while (label_box_overlap?(collision_box) || label_box_overlaps_state?(collision_box)) && attempts < max_attempts
           offset_x, offset_y = label_box_offset(attempts)
           box = {
             x: base_box[:x] + offset_x,
@@ -1256,9 +1257,31 @@ class Graphomaton
             width: base_box[:width],
             height: base_box[:height]
           }
+          collision_box = rotated_label_collision_box(box, angle)
           attempts += 1
         end
         box
+      end
+
+      def rotated_label_collision_box(box, angle)
+        transform = label_rotation_transform(box, angle)
+        return box unless transform
+
+        bounds = coordinate_bounds(
+          [
+            [box[:x], box[:y]],
+            [box[:x] + box[:width], box[:y]],
+            [box[:x] + box[:width], box[:y] + box[:height]],
+            [box[:x], box[:y] + box[:height]]
+          ],
+          transform
+        )
+        {
+          x: bounds[:min_x],
+          y: bounds[:min_y],
+          width: bounds[:max_x] - bounds[:min_x],
+          height: bounds[:max_y] - bounds[:min_y]
+        }
       end
 
       def label_box_offset(attempt)
@@ -1305,8 +1328,8 @@ class Graphomaton
 
           dx = state[:x] - closest_x
           dy = state[:y] - closest_y
-        clearance_radius = @state_radius + 10.0
-        return true if (dx * dx + dy * dy) < (clearance_radius * clearance_radius)
+          clearance_radius = @state_radius + 10.0
+          return true if (dx * dx + dy * dy) < (clearance_radius * clearance_radius)
         end
 
         false
@@ -1677,8 +1700,8 @@ class Graphomaton
           width: text_width,
           height: text_height
         }
-        box = collision_free_label_box(base_box)
-        @label_boxes << box
+        box = collision_free_label_box(base_box, angle: angle)
+        @label_boxes << rotated_label_collision_box(box, angle)
         transform = label_rotation_transform(box, angle)
         add_label_leader(svg, x, y, box) unless transform
 
