@@ -140,6 +140,7 @@ class Graphomaton
         type = plantuml_metadata_value(state, :shape) ||
                plantuml_metadata_value(state, :type) ||
                plantuml_metadata_value(state, :kind) ||
+               state_metadata_value(state, :kind) ||
                state_metadata_value(state, :plantuml_shape) ||
                state_metadata_value(state, :plantuml_type) ||
                state_metadata_value(state, :mermaid_shape) ||

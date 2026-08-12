@@ -2057,6 +2057,7 @@ class Graphomaton
                nested_state_metadata_value(state, :plantuml, :type) ||
                nested_state_metadata_value(state, :mermaid, :shape) ||
                nested_state_metadata_value(state, :mermaid, :type) ||
+               state_metadata_value(state, :kind) ||
                state_metadata_value(state, :svg_shape) ||
                state_metadata_value(state, :svg_type) ||
                state_metadata_value(state, :plantuml_shape) ||

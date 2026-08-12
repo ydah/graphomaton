@@ -38,4 +38,15 @@ RSpec.describe 'exporter semantic consistency' do
     expect(mermaid).to include('q0 --> q1 : a')
     expect(plantuml).to include('q0 --> q1 : a')
   end
+
+  it 'uses format-independent pseudostate kinds across exporters' do
+    automaton.add_state('decision', metadata: { kind: :choice })
+
+    expect(automaton.to_dot).to include('"decision" [shape="diamond"]')
+    expect(automaton.to_mermaid).to include('state decision <<choice>>')
+    expect(automaton.to_plantuml).to include('state decision <<choice>>')
+
+    svg = REXML::Document.new(automaton.to_svg)
+    expect(REXML::XPath.first(svg, '//*[@data-state="decision"]/polygon')).not_to be_nil
+  end
 end

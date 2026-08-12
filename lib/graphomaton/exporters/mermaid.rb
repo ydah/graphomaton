@@ -471,6 +471,7 @@ class Graphomaton
         type = mermaid_metadata_value(state, :shape) ||
                mermaid_metadata_value(state, :type) ||
                mermaid_metadata_value(state, :kind) ||
+               state_metadata_value(state, :kind) ||
                state_metadata_value(state, :mermaid_shape) ||
                state_metadata_value(state, :mermaid_type)
         normalized = type.to_s.tr('-', '_').to_sym

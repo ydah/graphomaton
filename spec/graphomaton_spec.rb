@@ -125,6 +125,20 @@ RSpec.describe Graphomaton do
         described_class.from_hash(states: [{ label: 'missing id' }])
       end.to raise_error(ArgumentError, /requires id or name/)
     end
+
+    it 'rejects duplicate state IDs and conflicting initial declarations' do
+      expect do
+        described_class.from_hash(states: ['q0', { id: 'q0' }])
+      end.to raise_error(ArgumentError, /Duplicate state id: "q0"/)
+
+      expect do
+        described_class.from_hash(states: [{ id: 'q0', initial: true }, { id: 'q1', initial: true }])
+      end.to raise_error(ArgumentError, /Multiple initial states/)
+
+      expect do
+        described_class.from_hash(states: [{ id: 'q0', initial: true }, 'q1'], initial: 'q1')
+      end.to raise_error(ArgumentError, /Multiple initial states/)
+    end
   end
 
   describe '.theme_from_hash, .theme_from_json, and .theme_from_yaml' do
@@ -265,6 +279,19 @@ RSpec.describe Graphomaton do
         shape: :ellipse
       )
     end
+
+    it 'copies mutable style and metadata at the model boundary' do
+      style = { fill: '#fff' }
+      metadata = { tooltip: +'original', nested: { tags: ['one'] } }
+      automaton.add_state('q0', style: style, metadata: metadata)
+
+      style[:fill] = '#000'
+      metadata[:tooltip].replace('changed')
+      metadata[:nested][:tags] << 'two'
+
+      expect(automaton.states['q0'][:style]).to eq(fill: '#fff')
+      expect(automaton.states['q0'][:metadata]).to eq(tooltip: 'original', nested: { tags: ['one'] })
+    end
   end
 
   describe '#add_transition' do
@@ -394,6 +421,20 @@ RSpec.describe Graphomaton do
       expect do
         automaton.validate!
       end.to raise_error(Graphomaton::ValidationError, /missing_target/)
+    end
+
+    it 'reports invalid and cyclic state hierarchies' do
+      automaton.add_state('root')
+      automaton.add_state('missing_child', metadata: { parent: 'missing' })
+      automaton.add_state('conflicted', metadata: { parent: 'root', group: 'visual' })
+      automaton.add_state('cycle_a', metadata: { parent: 'cycle_b' })
+      automaton.add_state('cycle_b', metadata: { parent: 'cycle_a' })
+
+      expect(automaton.validation_errors).to include(
+        'State "missing_child" parent "missing" is not defined',
+        'State "conflicted" cannot define both parent and group'
+      )
+      expect(automaton.validation_errors.grep(/contains a cycle/).size).to eq(1)
     end
   end
 

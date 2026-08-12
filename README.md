@@ -308,7 +308,7 @@ automaton.add_state(
     url: 'https://example.com',
     group: 'main',
     icon: 'S',
-    mermaid: { shape: 'choice' }
+    kind: 'choice'
   }
 )
 
@@ -333,7 +333,8 @@ Metadata behavior:
 - `group` or `cluster` renders SVG background groups, Mermaid/PlantUML composite states, and DOT clusters.
 - `icon` renders a compact SVG icon label inside the state.
 - `bundle` routes native SVG edges through a shared control point and emits `data-bundle`.
-- `choice`, `fork`, and `join` pseudostates can be requested with `svg`, `dot`, `mermaid`, `plantuml`, or compatible shorthand metadata.
+- `kind` defines a format-independent `choice`, `fork`, or `join` pseudostate. Format-specific nested metadata remains available for overrides.
+- `parent` defines semantic hierarchy and `group` defines visual grouping; validation rejects setting both on one state, missing parents, and parent cycles.
 - `fold_groups: true` collapses grouped SVG states into compound nodes, hides internal transitions, and rewrites external transitions to the folded node.
 - `scc_groups: true` renders SVG groups around strongly connected components.
 

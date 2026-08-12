@@ -209,7 +209,7 @@ class Graphomaton
     end
 
     initial_state = input_value(data, :initial, :initial_state)
-    automaton.set_initial(initial_state) unless initial_state.nil?
+    assign_initial_from_input(automaton, initial_state) unless initial_state.nil?
 
     Array(input_value(data, :final, :final_states)).each do |state|
       automaton.add_final(state)
@@ -249,12 +249,16 @@ class Graphomaton
 
   def self.add_state_from_input(automaton, input)
     unless input.is_a?(Hash)
+      raise ArgumentError, 'State input requires a non-nil id' if input.nil?
+      raise ArgumentError, "Duplicate state id: #{input.inspect}" if automaton.states.key?(input)
+
       automaton.add_state(input)
       return
     end
 
     name = input_value(input, :id, :name)
     raise ArgumentError, 'State input requires id or name' if name.nil?
+    raise ArgumentError, "Duplicate state id: #{name.inspect}" if automaton.states.key?(name)
 
     automaton.add_state(
       name,
@@ -265,10 +269,20 @@ class Graphomaton
       metadata: input_value(input, :metadata),
       shape: input_value(input, :shape)
     )
-    automaton.set_initial(name) if input_value(input, :initial)
+    assign_initial_from_input(automaton, name) if input_value(input, :initial)
     automaton.add_final(name) if input_value(input, :final, :accepting)
   end
   private_class_method :add_state_from_input
+
+  def self.assign_initial_from_input(automaton, state)
+    current = automaton.initial_state
+    if !current.nil? && current != state
+      raise ArgumentError, "Multiple initial states: #{current.inspect} and #{state.inspect}"
+    end
+
+    automaton.set_initial(state)
+  end
+  private_class_method :assign_initial_from_input
 
   def self.add_transition_from_input(automaton, input)
     if input.is_a?(Array)
@@ -335,8 +349,8 @@ class Graphomaton
     @manual_states[name] = !x.nil? && !y.nil?
     state = { name: name, x: x, y: y }
     state[:label] = label unless label.nil?
-    state[:style] = style unless style.nil?
-    state[:metadata] = metadata unless metadata.nil?
+    state[:style] = deep_copy(style) unless style.nil?
+    state[:metadata] = deep_copy(metadata) unless metadata.nil?
     state[:shape] = shape unless shape.nil?
     @states[name] = state
     name
@@ -345,8 +359,8 @@ class Graphomaton
   def add_transition(from, to, label, style: nil, metadata: nil, line_style: nil,
                      epsilon_label: DEFAULT_EPSILON_LABEL, sort_labels: false)
     transition = { from: from, to: to, label: normalize_transition_label(label, epsilon_label: epsilon_label, sort_labels: sort_labels) }
-    transition[:style] = style unless style.nil?
-    transition[:metadata] = metadata unless metadata.nil?
+    transition[:style] = deep_copy(style) unless style.nil?
+    transition[:metadata] = deep_copy(metadata) unless metadata.nil?
     transition[:line_style] = line_style unless line_style.nil?
     @transitions << transition
   end
@@ -373,6 +387,8 @@ class Graphomaton
       errors << "Transition #{index} source #{from.inspect} is not defined" unless @states.key?(from)
       errors << "Transition #{index} target #{to.inspect} is not defined" unless @states.key?(to)
     end
+
+    errors.concat(hierarchy_validation_errors)
 
     errors
   end
@@ -1726,6 +1742,74 @@ class Graphomaton
     return epsilon_label if label == :epsilon
 
     label
+  end
+
+  def deep_copy(value, copies = {})
+    case value
+    when Hash
+      return copies[value.object_id] if copies.key?(value.object_id)
+
+      copy = {}
+      copies[value.object_id] = copy
+      value.each { |key, item| copy[deep_copy(key, copies)] = deep_copy(item, copies) }
+      copy
+    when Array
+      return copies[value.object_id] if copies.key?(value.object_id)
+
+      copy = []
+      copies[value.object_id] = copy
+      value.each { |item| copy << deep_copy(item, copies) }
+      copy
+    when String
+      value.dup
+    else
+      value
+    end
+  end
+
+  def hierarchy_validation_errors
+    errors = []
+    parents = {}
+
+    @states.each do |name, state|
+      metadata = state[:metadata]
+      next unless metadata.is_a?(Hash)
+
+      parent = metadata[:parent] || metadata['parent']
+      group = metadata[:group] || metadata['group'] || metadata[:cluster] || metadata['cluster']
+      errors << "State #{name.inspect} cannot define both parent and group" if parent && group
+      next unless parent
+
+      unless @states.key?(parent)
+        errors << "State #{name.inspect} parent #{parent.inspect} is not defined"
+        next
+      end
+      parents[name] = parent
+    end
+
+    reported = {}
+    parents.each_key do |start|
+      path = []
+      indexes = {}
+      current = start
+      while parents.key?(current)
+        if indexes.key?(current)
+          cycle = path[indexes[current]..] + [current]
+          key = cycle[0...-1].to_h { |state| [state, true] }
+          unless key.keys.any? { |state| reported[state] }
+            errors << "State hierarchy contains a cycle: #{cycle.map(&:inspect).join(' -> ')}"
+            key.each_key { |state| reported[state] = true }
+          end
+          break
+        end
+
+        indexes[current] = path.length
+        path << current
+        current = parents[current]
+      end
+    end
+
+    errors
   end
 
   def canvas_warnings(positions, width, height, state_radius)
