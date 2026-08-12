@@ -8,6 +8,58 @@ class Graphomaton
   module Exporters
     class Svg
       include Graphomaton::ExporterIntrospection
+
+      class SpatialIndex
+        MAX_CELLS_PER_ITEM = 256
+
+        def initialize(cell_size:)
+          @cell_size = [cell_size.to_f, 1.0].max
+          @cells = Hash.new { |hash, key| hash[key] = [] }
+          @values = []
+          @oversized_values = []
+        end
+
+        def insert(bounds, value = bounds)
+          @values << value
+          keys = cell_keys(bounds)
+          if keys
+            keys.each { |key| @cells[key] << value }
+          else
+            @oversized_values << value
+          end
+          value
+        end
+
+        def query(bounds)
+          keys = cell_keys(bounds)
+          return @values.dup unless keys
+
+          seen = {}
+          @oversized_values.each { |value| seen[value.object_id] = true }
+          keys.each_with_object(@oversized_values.dup) do |key, values|
+            @cells[key].each do |value|
+              identity = value.object_id
+              next if seen[identity]
+
+              seen[identity] = true
+              values << value
+            end
+          end
+        end
+
+        private
+
+        def cell_keys(bounds)
+          left = (bounds[:x].to_f / @cell_size).floor
+          right = ((bounds[:x].to_f + bounds[:width].to_f) / @cell_size).floor
+          top = (bounds[:y].to_f / @cell_size).floor
+          bottom = ((bounds[:y].to_f + bounds[:height].to_f) / @cell_size).floor
+          return nil if (right - left + 1) * (bottom - top + 1) > MAX_CELLS_PER_ITEM
+
+          (left..right).flat_map { |x| (top..bottom).map { |y| [x, y] } }
+        end
+      end
+
       DEFAULT_STATE_RADIUS = 40
       DEFAULT_AUTO_STATE_RADIUS = false
       DEFAULT_MIN_STATE_RADIUS = 24
@@ -105,7 +157,11 @@ class Graphomaton
           state_text: '#333',
           transition_label: '#666',
           label_background: 'white',
-          label_opacity: '0.9'
+          label_opacity: '0.9',
+          initial_fill: '#dbeafe',
+          final_fill: '#dcfce7',
+          highlight_stroke: '#ef4444',
+          inactive_opacity: '0.25'
         },
         dark: {
           background: '#111827',
@@ -114,7 +170,11 @@ class Graphomaton
           state_text: '#f9fafb',
           transition_label: '#d1d5db',
           label_background: '#111827',
-          label_opacity: '0.95'
+          label_opacity: '0.95',
+          initial_fill: '#1e3a8a',
+          final_fill: '#14532d',
+          highlight_stroke: '#f87171',
+          inactive_opacity: '0.35'
         },
         forest: {
           background: '#f0fdf4',
@@ -198,6 +258,8 @@ class Graphomaton
         @label_padding = DEFAULT_LABEL_PADDING
       end
 
+      attr_reader :diagnostics
+
       def export(width = 800, height = 600, theme: DEFAULT_THEME, layout: DEFAULT_LAYOUT, direction: DEFAULT_DIRECTION, responsive: false,
                  state_radius: DEFAULT_STATE_RADIUS, auto_state_radius: DEFAULT_AUTO_STATE_RADIUS,
                  min_state_radius: DEFAULT_MIN_STATE_RADIUS, max_state_radius: DEFAULT_MAX_STATE_RADIUS,
@@ -250,6 +312,7 @@ class Graphomaton
                  fit: Graphomaton::DEFAULT_FIT,
                  title: nil, description: nil, svg_id: nil)
         source_automaton = @automaton
+        @diagnostics = []
         @state_radius = resolve_state_radius(state_radius, auto_state_radius, min_state_radius, max_state_radius)
         @state_shape = resolve_state_shape(state_shape)
         @state_stroke_width = finite_number!(state_stroke_width, 'state_stroke_width', positive: true)
@@ -328,6 +391,21 @@ class Graphomaton
         @canvas_width = width.to_f
         @canvas_height = height.to_f
         @label_boxes = state_collision_boxes + group_label_collision_boxes
+        cell_size = [@state_radius * 2, 64].max
+        @label_spatial_index = SpatialIndex.new(cell_size: cell_size)
+        @label_boxes.each { |box| @label_spatial_index.insert(box) }
+        @state_spatial_index = SpatialIndex.new(cell_size: cell_size)
+        @positions.each_value do |state|
+          next if state[:x].nil? || state[:y].nil?
+
+          bounds = {
+            x: state[:x] - @state_radius - 10.0,
+            y: state[:y] - @state_radius - 10.0,
+            width: (@state_radius + 10.0) * 2,
+            height: (@state_radius + 10.0) * 2
+          }
+          @state_spatial_index.insert(bounds, state)
+        end
         @title_text = title
         @description_text = description
         @svg_id = svg_id ? svg_id_component(svg_id) : default_svg_id(width, height)
@@ -357,6 +435,20 @@ class Graphomaton
         %(<?xml version="1.0" encoding="UTF-8"?>\n#{svg_output})
       ensure
         @automaton = source_automaton if source_automaton
+      end
+
+      def export_result(*arguments, **options)
+        output = export(*arguments, **options)
+        render_diagnostics = (@diagnostics || []).dup
+        render_diagnostics.concat(
+          @automaton.layout_diagnostics_for(@positions, @canvas_width, @canvas_height, @state_radius)
+        )
+        RenderResult.new(
+          output: output.dup.freeze,
+          diagnostics: render_diagnostics.freeze,
+          bounds: { width: @canvas_width, height: @canvas_height }.freeze,
+          layout: @positions.transform_values { |position| position.dup.freeze }.freeze
+        )
       end
 
       private
@@ -859,13 +951,13 @@ class Graphomaton
       #{scope} .state-group-box { fill: #{theme_css_value(:stroke)}; opacity: 0.08; stroke: #{theme_css_value(:stroke)}; stroke-width: 1; stroke-dasharray: 6 4; }
       #{scope} .state-group-label { font-family: #{@font_family}; font-size: 12px; fill: #{theme_css_value(:state_text)}; font-weight: 700; text-rendering: geometricPrecision; }
       #{scope} .unreachable-state { opacity: 0.45; }
-      #{scope} .initial-state .state-circle { fill: #dbeafe; }
-      #{scope} .accepting-state .state-circle { fill: #dcfce7; }
+      #{scope} .initial-state .state-circle { fill: #{theme_css_value(:initial_fill, fallback: '#dbeafe')}; }
+      #{scope} .accepting-state .state-circle { fill: #{theme_css_value(:final_fill, fallback: '#dcfce7')}; }
       #{scope} .dead-state { opacity: 0.65; }
       #{scope} .dead-state .state-circle { stroke-dasharray: 6 4; }
       #{scope} .trap-state .state-circle { stroke-dasharray: 2 4; }
-      #{scope} .highlighted-transition .transition-line { stroke: #ef4444; stroke-width: #{highlighted_transition_stroke_width}; }
-      #{scope} .inactive-transition { opacity: 0.25; }
+      #{scope} .highlighted-transition .transition-line { stroke: #{theme_css_value(:highlight_stroke, fallback: '#ef4444')}; stroke-width: #{highlighted_transition_stroke_width}; }
+      #{scope} .inactive-transition { opacity: #{theme_css_value(:inactive_opacity, fallback: '0.25')}; }
       #{scope} .bundled-transition .transition-line { stroke-dasharray: 10 4; }
 #{state_effect_animation_css}
         CSS
@@ -896,7 +988,10 @@ class Graphomaton
       end
 
       def css_variable_scope(svg_id, theme, indentation: '      ')
-        variable_keys = %i[background state_fill stroke state_text transition_label label_background label_opacity]
+        variable_keys = %i[
+          background state_fill stroke state_text transition_label label_background label_opacity
+          initial_fill final_fill highlight_stroke inactive_opacity
+        ]
         declarations = variable_keys.filter_map do |key|
           value = theme[key] || (key == :background ? 'transparent' : nil)
           next unless value
@@ -1060,7 +1155,7 @@ class Graphomaton
         transition_content = transition_link_container(transition_node, trans)
         cx = state[:x]
         cy = state[:y]
-        orientation, layer = self_loop_placement(loop_index)
+        orientation, layer = self_loop_placement(loop_index, state)
         loop_specs = self_loop_specs(
           orientation,
           layer: layer,
@@ -1097,11 +1192,30 @@ class Graphomaton
         )
       end
 
-      def self_loop_placement(loop_index)
+      def self_loop_placement(loop_index, state)
         return [@loop_position, loop_index] unless @loop_position == :auto
 
-        orientations = %i[top right bottom left]
+        orientations = %i[top right bottom left].sort_by do |orientation|
+          self_loop_placement_cost(orientation, state)
+        end
         [orientations[loop_index % orientations.size], loop_index / orientations.size]
+      end
+
+      def self_loop_placement_cost(orientation, state)
+        specs = self_loop_specs(orientation, layer: 0, loop_index: 0)
+        points = [specs[:control1], specs[:control2], specs[:label_offset]].map do |offset|
+          [state[:x].to_f + offset[:x], state[:y].to_f + offset[:y]]
+        end
+        outside_cost = points.sum do |x, y|
+          [0.0 - x, x - @canvas_width, 0.0 - y, y - @canvas_height, 0.0].max
+        end
+        obstacle_cost = @positions.values.sum do |position|
+          next 0.0 if position[:x] == state[:x] && position[:y] == state[:y]
+
+          minimum = points.map { |x, y| Math.hypot(x - position[:x].to_f, y - position[:y].to_f) }.min
+          [(@state_radius * 2.0) - minimum, 0.0].max
+        end
+        outside_cost * 10 + obstacle_cost
       end
 
       def self_loop_specs(orientation, layer:, loop_index:)
@@ -1261,7 +1375,25 @@ class Graphomaton
           collision_box = rotated_label_collision_box(box, angle)
           attempts += 1
         end
+        if label_box_overlap?(collision_box) || label_box_overlaps_state?(collision_box)
+          @diagnostics << layout_diagnostic('label-overlap-unresolved', 'Transition label overlap could not be resolved')
+        end
+        if label_box_outside_canvas?(collision_box)
+          @diagnostics << layout_diagnostic('label-outside-canvas', 'Transition label extends outside the SVG canvas')
+        end
         box
+      end
+
+      def label_box_outside_canvas?(box)
+        return false unless @canvas_width&.finite? && @canvas_height&.finite?
+
+        box[:x] < 0 || box[:y] < 0 ||
+          box[:x] + box[:width] > @canvas_width ||
+          box[:y] + box[:height] > @canvas_height
+      end
+
+      def layout_diagnostic(code, message)
+        Graphomaton::Diagnostic.new(code: code, severity: :warning, path: ['layout'], message: message, hint: nil)
       end
 
       def rotated_label_collision_box(box, angle)
@@ -1299,7 +1431,8 @@ class Graphomaton
       end
 
       def label_box_overlap?(box)
-        @label_boxes.any? do |existing|
+        candidates = @label_spatial_index ? @label_spatial_index.query(box) : @label_boxes
+        candidates.any? do |existing|
           !(box[:x] + box[:width] < existing[:x] ||
             box[:x] > existing[:x] + existing[:width] ||
             box[:y] + box[:height] < existing[:y] ||
@@ -1308,7 +1441,8 @@ class Graphomaton
       end
 
       def label_box_overlaps_state?(box)
-        @positions.each_value do |state|
+        candidates = @state_spatial_index ? @state_spatial_index.query(box) : @positions.each_value
+        candidates.each do |state|
           next if state[:x].nil? || state[:y].nil?
 
           closest_x = if state[:x] < box[:x]
@@ -1471,10 +1605,28 @@ class Graphomaton
         end
 
         bundles.transform_values do |points|
-          {
+          average = {
             x: points.sum { |point| point[:x] } / points.size,
             y: points.sum { |point| point[:y] } / points.size
           }
+          safe_bundle_point(average)
+        end
+      end
+
+      def safe_bundle_point(average)
+        clearance = @state_radius * 1.75
+        candidates = [
+          average,
+          { x: average[:x], y: average[:y] - clearance },
+          { x: average[:x], y: average[:y] + clearance },
+          { x: average[:x] - clearance, y: average[:y] },
+          { x: average[:x] + clearance, y: average[:y] }
+        ]
+        candidates.min_by do |candidate|
+          obstacle_count = @positions.values.count do |position|
+            Math.hypot(candidate[:x] - position[:x].to_f, candidate[:y] - position[:y].to_f) < (@state_radius + 12)
+          end
+          [obstacle_count, Math.hypot(candidate[:x] - average[:x], candidate[:y] - average[:y])]
         end
       end
 
@@ -1515,7 +1667,7 @@ class Graphomaton
         mid_y = (start_y + end_y) / 2
 
         base_offset = if blocking_states.positive?
-                        (@state_radius * 1.5) + (blocking_states * 30)
+                        ((@state_radius + 8) * 2.0) + (blocking_states * 16)
                       else
                         @state_radius * 2
                       end
@@ -1548,6 +1700,9 @@ class Graphomaton
           control_y = mid_y + curve_offset
         end
 
+        control_x, control_y = clear_quadratic_control(
+          trans, start_x, start_y, end_x, end_y, control_x, control_y, mid_x, mid_y
+        )
         path_d = "M #{start_x} #{start_y} Q #{control_x} #{control_y}, #{end_x} #{end_y}"
 
         svg.add_element('path', transition_line_attributes(trans, 'd' => path_d))
@@ -1567,12 +1722,26 @@ class Graphomaton
 
         normal_x = -dy / distance
         normal_y = dx / distance
-        bend = @state_radius + (pair_index * 24)
+        blocking_states = edge_blocking_state_count(trans, start_x, start_y, end_x, end_y)
+        bend = @state_radius + (pair_index * 24) + (blocking_states * (@state_radius + 24))
         bend *= forward_direction?(x1, y1, x2, y2) ? -1 : 1
         control1_x = start_x + (dx * 0.35) + (normal_x * bend)
         control1_y = start_y + (dy * 0.35) + (normal_y * bend)
         control2_x = start_x + (dx * 0.65) + (normal_x * bend)
         control2_y = start_y + (dy * 0.65) + (normal_y * bend)
+        control1_x, control1_y, control2_x, control2_y = clear_cubic_controls(
+          trans,
+          start_x,
+          start_y,
+          end_x,
+          end_y,
+          control1_x,
+          control1_y,
+          control2_x,
+          control2_y,
+          normal_x,
+          normal_y
+        )
         path_d = "M #{start_x} #{start_y} C #{control1_x} #{control1_y}, #{control2_x} #{control2_y}, #{end_x} #{end_y}"
 
         svg.add_element('path', transition_line_attributes(trans, 'd' => path_d))
@@ -1581,6 +1750,71 @@ class Graphomaton
         label_x = cubic_bezier_point(start_x, control1_x, control2_x, end_x, t)
         label_y = cubic_bezier_point(start_y, control1_y, control2_y, end_y, t)
         add_label(svg, label_x, label_y, trans[:label], angle: label_rotation_angle(control1_x, control1_y, control2_x, control2_y))
+      end
+
+      def clear_quadratic_control(transition, start_x, start_y, end_x, end_y, control_x, control_y, mid_x, mid_y)
+        return [control_x, control_y] if quadratic_curve_clear?(transition, start_x, start_y, control_x, control_y, end_x, end_y)
+
+        offset_x = control_x - mid_x
+        offset_y = control_y - mid_y
+        1.upto(8) do |attempt|
+          scale = 1.0 + (attempt * 0.5)
+          [-1, 1].each do |side|
+            candidate_x = mid_x + (offset_x * scale * side)
+            candidate_y = mid_y + (offset_y * scale * side)
+            if quadratic_curve_clear?(transition, start_x, start_y, candidate_x, candidate_y, end_x, end_y)
+              return [candidate_x, candidate_y]
+            end
+          end
+        end
+        [control_x, control_y]
+      end
+
+      def clear_cubic_controls(transition, start_x, start_y, end_x, end_y, control1_x, control1_y, control2_x, control2_y, normal_x, normal_y)
+        return [control1_x, control1_y, control2_x, control2_y] if cubic_curve_clear?(transition, start_x, start_y, control1_x, control1_y, control2_x, control2_y, end_x, end_y)
+
+        1.upto(8) do |attempt|
+          [-1, 1].each do |side|
+            shift = (@state_radius + 16) * attempt * side
+            candidate = [
+              control1_x + (normal_x * shift),
+              control1_y + (normal_y * shift),
+              control2_x + (normal_x * shift),
+              control2_y + (normal_y * shift)
+            ]
+            return candidate if cubic_curve_clear?(transition, start_x, start_y, *candidate, end_x, end_y)
+          end
+        end
+        [control1_x, control1_y, control2_x, control2_y]
+      end
+
+      def quadratic_curve_clear?(transition, start_x, start_y, control_x, control_y, end_x, end_y)
+        sampled_curve_clear?(transition) do |t|
+          inverse = 1 - t
+          [
+            (inverse * inverse * start_x) + (2 * inverse * t * control_x) + (t * t * end_x),
+            (inverse * inverse * start_y) + (2 * inverse * t * control_y) + (t * t * end_y)
+          ]
+        end
+      end
+
+      def cubic_curve_clear?(transition, start_x, start_y, control1_x, control1_y, control2_x, control2_y, end_x, end_y)
+        sampled_curve_clear?(transition) do |t|
+          [
+            cubic_bezier_point(start_x, control1_x, control2_x, end_x, t),
+            cubic_bezier_point(start_y, control1_y, control2_y, end_y, t)
+          ]
+        end
+      end
+
+      def sampled_curve_clear?(transition)
+        obstacles = @positions.reject { |name, _| name == transition[:from] || name == transition[:to] }.values
+        (1...32).all? do |sample|
+          x, y = yield(sample / 32.0)
+          obstacles.all? do |position|
+            Math.hypot(x - position[:x].to_f, y - position[:y].to_f) >= (@state_radius + 8)
+          end
+        end
       end
 
       def edge_blocking_state_count(transition, start_x, start_y, end_x, end_y)
@@ -1702,7 +1936,9 @@ class Graphomaton
           height: text_height
         }
         box = collision_free_label_box(base_box, angle: angle)
-        @label_boxes << rotated_label_collision_box(box, angle)
+        collision_box = rotated_label_collision_box(box, angle)
+        @label_boxes << collision_box
+        @label_spatial_index&.insert(collision_box)
         transform = label_rotation_transform(box, angle)
         add_label_leader(svg, x, y, box) unless transform
 

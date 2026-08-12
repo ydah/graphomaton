@@ -941,6 +941,28 @@ RSpec.describe Graphomaton do
         expect(positions['q2'][:y]).to be < positions['q1'][:y]
       end
 
+      it 'collects graphviz layout diagnostics without running layout twice' do
+        status = instance_double(Process::Status, success?: true)
+        allow(Graphomaton::ProcessRunner).to receive(:capture3).and_return(
+          [
+            <<~PLAIN,
+              graph 1 2 1
+              node q0 0 0 0.75 0.5 q0 solid circle black lightgrey
+              node q1 2 0 0.75 0.5 q1 solid circle black lightgrey
+              node q2 2 1 0.75 0.5 q2 solid circle black lightgrey
+              stop
+            PLAIN
+            '',
+            status
+          ]
+        )
+
+        result = automaton.render_result(width: 800, height: 600, layout: :graphviz)
+
+        expect(Graphomaton::ProcessRunner).to have_received(:capture3).once
+        expect(result.layout.keys).to contain_exactly('q0', 'q1', 'q2')
+      end
+
       it 'reports graphviz command failures clearly' do
         allow(Graphomaton::ProcessRunner).to receive(:capture3).and_raise(Errno::ENOENT)
 

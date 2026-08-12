@@ -11,6 +11,7 @@ require_relative 'graphomaton/errors'
 require_relative 'graphomaton/exporter_registry'
 require_relative 'graphomaton/identifier_allocator'
 require_relative 'graphomaton/input_policy'
+require_relative 'graphomaton/layout/force_tree'
 require_relative 'graphomaton/model'
 require_relative 'graphomaton/process_runner'
 require_relative 'graphomaton/url_policy'
@@ -210,6 +211,8 @@ class Graphomaton
   DEFAULT_MAX_LABEL_LENGTH = 64 * 1024
   DEFAULT_MAX_GROUP_DEPTH = 64
   DEFAULT_MAX_CANVAS_AREA = 100_000_000
+  DEFAULT_MAX_LAYOUT_ITERATIONS = 10_000
+  FORCE_TREE_THRESHOLD = 128
   VALIDATION_MODES = %i[deferred strict].freeze
   UNSET = Object.new.freeze
   EMPTY_TRANSITIONS = [].freeze
@@ -523,6 +526,7 @@ class Graphomaton
     @manual_states = {}
     @revision = 0
     @next_transition_id = 0
+    @layout_cache = {}
   end
 
   def states
@@ -975,7 +979,33 @@ class Graphomaton
       fit: fit
     )
 
-    canvas_warnings(positions, width, height, state_radius)
+    layout_diagnostics_for(positions, width, height, state_radius).map(&:message)
+  end
+
+  def layout_diagnostics_for(positions, width, height, state_radius)
+    radius = state_radius.to_f
+    positions.each_with_object([]) do |(name, position), diagnostics|
+      x = position[:x].to_f
+      y = position[:y].to_f
+      if x - radius < 0 || x + radius > width.to_f
+        diagnostics << Diagnostic.new(
+          code: 'state-clipped-horizontal',
+          severity: :warning,
+          path: ['states', name, 'x'],
+          message: "State #{name.inspect} may be clipped horizontally",
+          hint: 'Increase the canvas width or use fit: :contain'
+        )
+      end
+      if y - radius < 0 || y + radius > height.to_f
+        diagnostics << Diagnostic.new(
+          code: 'state-clipped-vertical',
+          severity: :warning,
+          path: ['states', name, 'y'],
+          message: "State #{name.inspect} may be clipped vertically",
+          hint: 'Increase the canvas height or use fit: :contain'
+        )
+      end
+    end.freeze
   end
 
   def layout_positions(width = 800, height = 600, layout: :linear, direction: :lr,
@@ -998,6 +1028,9 @@ class Graphomaton
     unless force_iterations.is_a?(Integer) && force_iterations >= 0
       raise ArgumentError, 'force_iterations must be a non-negative Integer'
     end
+    if force_iterations > DEFAULT_MAX_LAYOUT_ITERATIONS
+      raise ArgumentError, "force_iterations exceeds max_layout_iterations (#{DEFAULT_MAX_LAYOUT_ITERATIONS})"
+    end
     unless layout_seed.nil? || layout_seed.is_a?(Integer)
       raise ArgumentError, 'layout_seed must be an Integer or nil'
     end
@@ -1013,6 +1046,17 @@ class Graphomaton
     resolved_node_spacing = [node_spacing.to_f, (state_radius * 2.5)].max
     resolved_rank_spacing = [rank_spacing.to_f, (state_radius * 2.5)].max
     effective_preserve_manual_positions = preserve_manual_positions || resolved_layout == :manual
+    cache_key = [
+      width.to_f, height.to_f, resolved_layout, resolved_direction, state_radius.to_f, resolved_padding,
+      resolved_node_spacing, resolved_rank_spacing, force_iterations, layout_seed,
+      Array(graphviz_command), resolved_initial_position, resolved_final_position,
+      effective_preserve_manual_positions, resolved_fit
+    ].freeze
+    if (cached = @layout_cache[cache_key])
+      positions = deep_copy(cached)
+      @state_positions = positions
+      return positions
+    end
     ordered_states = ordered_state_names
 
     manual_positions = {}
@@ -1096,6 +1140,8 @@ class Graphomaton
     positions = manual_positions.merge(auto_positions)
     positions = fit_positions(positions, width, height, state_radius, resolved_padding, resolved_fit) unless resolved_fit == :none
     @state_positions = positions
+    @layout_cache.shift if @layout_cache.size >= 16
+    @layout_cache[cache_key] = immutable_copy(positions)
     positions
   end
 
@@ -1537,52 +1583,17 @@ class Graphomaton
         [name, { x: 0.0, y: 0.0 }]
       end
 
-      auto_states.combination(2) do |name_a, name_b|
-        a = positions[name_a]
-        b = positions[name_b]
-        next unless a && b
-
-        delta_x = a[:x] - b[:x]
-        delta_y = a[:y] - b[:y]
-        distance = Math.sqrt((delta_x * delta_x) + (delta_y * delta_y))
-        if distance <= 0.0
-          delta_x, delta_y = deterministic_separation_delta(name_a, name_b)
-          distance = Math.sqrt((delta_x * delta_x) + (delta_y * delta_y))
-        end
-
-        force = repulsion_coeff / distance
-        nx = delta_x / distance
-        ny = delta_y / distance
-
-        forces[name_a][:x] += nx * force
-        forces[name_a][:y] += ny * force
-        forces[name_b][:x] -= nx * force
-        forces[name_b][:y] -= ny * force
-      end
-
-      manual_positions.each do |fixed_name, fixed|
-        fixed_x = fixed[:x].to_f
-        fixed_y = fixed[:y].to_f
-
-        auto_states.each do |name|
-          current = positions[name]
-          next unless current
-
-          delta_x = current[:x] - fixed_x
-          delta_y = current[:y] - fixed_y
-          distance = Math.sqrt((delta_x * delta_x) + (delta_y * delta_y))
-          if distance <= 0.0
-            delta_x, delta_y = deterministic_separation_delta(name, fixed_name)
-            distance = Math.sqrt((delta_x * delta_x) + (delta_y * delta_y))
+      if positions.size + manual_positions.size >= FORCE_TREE_THRESHOLD
+        force_tree = Layout::ForceTree.new(manual_positions.merge(positions))
+        positions.each do |name, current|
+          force_x, force_y = force_tree.force_on(name, current, repulsion_coeff) do |left, right|
+            deterministic_separation_delta(left, right)
           end
-
-          force = repulsion_coeff / distance
-          nx = delta_x / distance
-          ny = delta_y / distance
-
-          forces[name][:x] += nx * force
-          forces[name][:y] += ny * force
+          forces[name][:x] += force_x
+          forces[name][:y] += force_y
         end
+      else
+        accumulate_exact_repulsion!(forces, positions, manual_positions, repulsion_coeff)
       end
 
       @transitions.each do |transition|
@@ -1640,6 +1651,43 @@ class Graphomaton
 
     positions
   end
+
+  def accumulate_exact_repulsion!(forces, positions, manual_positions, coefficient)
+    positions.to_a.combination(2) do |(name_a, a), (name_b, b)|
+      delta_x = a[:x] - b[:x]
+      delta_y = a[:y] - b[:y]
+      if delta_x.zero? && delta_y.zero?
+        delta_x, delta_y = deterministic_separation_delta(name_a, name_b)
+      end
+      force_x, force_y = repulsion_vector(delta_x, delta_y, coefficient)
+      forces[name_a][:x] += force_x
+      forces[name_a][:y] += force_y
+      forces[name_b][:x] -= force_x
+      forces[name_b][:y] -= force_y
+    end
+
+    manual_positions.each do |fixed_name, fixed|
+      positions.each do |name, current|
+        delta_x = current[:x] - fixed[:x].to_f
+        delta_y = current[:y] - fixed[:y].to_f
+        if delta_x.zero? && delta_y.zero?
+          delta_x, delta_y = deterministic_separation_delta(name, fixed_name)
+        end
+        force_x, force_y = repulsion_vector(delta_x, delta_y, coefficient)
+        forces[name][:x] += force_x
+        forces[name][:y] += force_y
+      end
+    end
+  end
+
+  def repulsion_vector(delta_x, delta_y, coefficient)
+    distance = Math.hypot(delta_x, delta_y)
+    return [0.0, 0.0] unless distance.positive?
+
+    force = coefficient / distance
+    [(delta_x / distance) * force, (delta_y / distance) * force]
+  end
+  private :accumulate_exact_repulsion!, :repulsion_vector
 
   def deterministic_separation_delta(left, right)
     seed = "#{left.class.name}:#{left.inspect}|#{right.class.name}:#{right.inspect}".each_byte.reduce(2_166_136_261) do |hash, byte|
@@ -1905,6 +1953,25 @@ class Graphomaton
     raise ArgumentError, 'options must be a Graphomaton::RenderOptions' unless options.is_a?(RenderOptions)
 
     render(format: options.format, width: options.width, height: options.height, **options.options)
+  end
+
+  def render_result(format: :svg, width: 800, height: 600, strict_semantics: false, **options)
+    resolved = resolve_format(format)
+    return Exporters::Svg.new(self).export_result(width, height, **options) if resolved == :svg
+
+    output = render(
+      format: resolved,
+      width: width,
+      height: height,
+      strict_semantics: strict_semantics,
+      **options
+    )
+    RenderResult.new(
+      output: output,
+      diagnostics: semantic_diagnostics(resolved),
+      bounds: nil,
+      layout: nil
+    )
   end
 
   def save(filename, format: nil, width: 800, height: 600, **options)
@@ -2522,6 +2589,7 @@ class Graphomaton
     @revision += 1
     @analysis_index_revision = nil
     @state_positions = {}
+    @layout_cache.clear
     self
   end
 
@@ -2568,20 +2636,6 @@ class Graphomaton
     end
 
     errors
-  end
-
-  def canvas_warnings(positions, width, height, state_radius)
-    radius = state_radius.to_f
-    positions.each_with_object([]) do |(name, position), warnings|
-      x = position[:x].to_f
-      y = position[:y].to_f
-      if x - radius < 0 || x + radius > width.to_f
-        warnings << "State #{name.inspect} may be clipped horizontally"
-      end
-      if y - radius < 0 || y + radius > height.to_f
-        warnings << "State #{name.inspect} may be clipped vertically"
-      end
-    end
   end
 
   def fit_positions(positions, width, height, state_radius, padding, fit)

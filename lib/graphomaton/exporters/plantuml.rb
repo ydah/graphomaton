@@ -17,6 +17,9 @@ class Graphomaton
         @notes = notes
         @identifiers = IdentifierAllocator.new(reserved: RESERVED_IDENTIFIERS)
         @state_names = allocate_state_names
+        @hierarchy_usable = @automaton.validation_diagnostics.none? do |diagnostic|
+          diagnostic.code == 'invalid-state-hierarchy'
+        end
       end
 
       def export
@@ -238,6 +241,8 @@ class Graphomaton
       end
 
       def valid_state_parent(state)
+        return nil unless @hierarchy_usable
+
         parent = state_parent(state)
         return nil unless parent && @automaton.state_records.key?(parent)
 

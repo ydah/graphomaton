@@ -111,4 +111,6 @@ class Graphomaton
       super(width: width, height: height, options: options.freeze)
     end
   end
+
+  RenderResult = Data.define(:output, :diagnostics, :bounds, :layout)
 end

@@ -43,6 +43,17 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
         expect(plantuml_output).to include('state "C" as C')
       end
 
+      it 'preserves states when an invalid parent cycle is deferred' do
+        local = Graphomaton.new
+        local.add_state('parent', metadata: { parent: 'child' })
+        local.add_state('child', metadata: { parent: 'parent' })
+
+        plantuml_output = described_class.new(local).export
+
+        expect(plantuml_output).to include('state "parent" as parent')
+        expect(plantuml_output).to include('state "child" as child')
+      end
+
       it 'uses explicit state labels when provided' do
         automaton.add_state('q_named', label: 'Named State')
 

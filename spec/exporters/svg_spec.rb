@@ -6,6 +6,19 @@ RSpec.describe Graphomaton::Exporters::Svg do
   let(:automaton) { Graphomaton.new }
   let(:svg_exporter) { described_class.new(automaton) }
 
+  describe Graphomaton::Exporters::Svg::SpatialIndex do
+    it 'bounds cell allocation for exceptionally large labels' do
+      index = described_class.new(cell_size: 64)
+      oversized = { x: 0, y: 0, width: 1_000_000, height: 20 }
+      nearby = { x: 10, y: 10, width: 20, height: 20 }
+      index.insert(oversized)
+      index.insert(nearby)
+
+      expect(index.query(nearby)).to contain_exactly(oversized, nearby)
+      expect(index.query(oversized)).to contain_exactly(oversized, nearby)
+    end
+  end
+
   describe '#initialize' do
     it 'initializes with an automaton' do
       expect(svg_exporter).to be_a(described_class)
@@ -280,6 +293,42 @@ RSpec.describe Graphomaton::Exporters::Svg do
         path = REXML::XPath.first(doc, '//path[@class="transition-line"]')
 
         expect(path.attributes['d']).to include(' C ')
+      end
+
+      %i[curved spline].each do |edge_style|
+        it "routes #{edge_style} edges around intervening states" do
+          local = Graphomaton.new
+          local.add_state('A', 100, 150)
+          local.add_state('blocker', 300, 150)
+          local.add_state('B', 500, 150)
+          local.add_transition('A', 'B', 'detour')
+
+          document = REXML::Document.new(
+            described_class.new(local).export(600, 300, layout: :manual, edge_style: edge_style)
+          )
+          coordinates = REXML::XPath.first(document, '//path[@class="transition-line"]')
+                                     .attributes['d'].scan(/-?\d+(?:\.\d+)?/).map(&:to_f)
+          samples = (1...64).map do |sample|
+            t = sample / 64.0
+            inverse = 1 - t
+            if edge_style == :curved
+              start_x, start_y, control_x, control_y, end_x, end_y = coordinates
+              x = (inverse**2 * start_x) + (2 * inverse * t * control_x) + (t**2 * end_x)
+              y = (inverse**2 * start_y) + (2 * inverse * t * control_y) + (t**2 * end_y)
+              [x, y]
+            else
+              start_x, start_y, control1_x, control1_y, control2_x, control2_y, end_x, end_y = coordinates
+              x = (inverse**3 * start_x) + (3 * inverse**2 * t * control1_x) +
+                  (3 * inverse * t**2 * control2_x) + (t**3 * end_x)
+              y = (inverse**3 * start_y) + (3 * inverse**2 * t * control1_y) +
+                  (3 * inverse * t**2 * control2_y) + (t**3 * end_y)
+              [x, y]
+            end
+          end
+
+          closest_distance = samples.map { |x, y| Math.hypot(x - 300, y - 150) }.min
+          expect(closest_distance).to be >= 47
+        end
       end
 
       it 'keeps curved control points independent of transition insertion order' do
@@ -921,6 +970,33 @@ RSpec.describe Graphomaton::Exporters::Svg do
       label = REXML::XPath.first(document, '//text[@class="transition-label"]')
 
       expect(label.get_elements('tspan').size).to be > 1
+    end
+
+    it 'reports labels that collision resolution moves beyond the canvas' do
+      local = Graphomaton.new
+      local.add_state('A', 100, 40)
+      local.add_transition('A', 'A', 'a very long loop label')
+
+      result = described_class.new(local).export_result(200, 160, layout: :manual, loop_position: :top)
+
+      expect(result.diagnostics.map(&:code)).to include('label-outside-canvas')
+      expect(result.bounds).to eq(width: 200.0, height: 160.0)
+    end
+
+    it 'uses dark-theme tokens for semantic highlights' do
+      local = Graphomaton.new
+      local.add_state('A')
+      local.set_initial('A')
+      local.add_final('A')
+
+      document = REXML::Document.new(
+        described_class.new(local).export(theme: :dark, highlight_initial_state: true, highlight_final_states: true)
+      )
+      css = REXML::XPath.first(document, '//style').text
+
+      expect(css).to include('fill: #1e3a8a')
+      expect(css).to include('fill: #14532d')
+      expect(css).to include('stroke: #f87171')
     end
 
     it 'can rotate transition labels along edges' do
