@@ -12,6 +12,14 @@
 - Write exported files atomically and terminate text formats with a newline.
 - Validate CLI input by default and provide structured exit statuses and `--version`.
 - Restrict packaged gem files and add package installation smoke testing.
+- Bound JSON and YAML bytes, state counts, transition counts, and converter resources.
+- Reject non-finite rendering numbers and keep fixed manual positions clear of automatic layouts.
+- Add bounded stdin/stdout CLI workflows, no-clobber protection, and format-specific option errors.
+- Make HTML asset loading deterministic, localize generated UI, and improve pan/zoom accessibility.
+- Replace recursive SCC analysis with an iterative linear-time implementation.
+- Route curved and orthogonal edges from geometry rather than insertion order.
+- Size SVG viewBoxes from rendered paths, shapes, rotated labels, and text content.
+- Add deterministic force-layout separation and convergence detection.
 
 ## 1.0.0 (2025-12-23)
 
