@@ -46,19 +46,39 @@ class Graphomaton
 
       def export(width = 800, height = 600, theme: Svg::DEFAULT_THEME, converter: DEFAULT_CONVERTER,
                  timeout: DEFAULT_TIMEOUT, max_output_bytes: DEFAULT_MAX_OUTPUT_BYTES, **svg_options)
+        export_result(
+          width,
+          height,
+          theme: theme,
+          converter: converter,
+          timeout: timeout,
+          max_output_bytes: max_output_bytes,
+          **svg_options
+        ).output
+      end
+
+      def export_result(width = 800, height = 600, theme: Svg::DEFAULT_THEME, converter: DEFAULT_CONVERTER,
+                        timeout: DEFAULT_TIMEOUT, max_output_bytes: DEFAULT_MAX_OUTPUT_BYTES, **svg_options)
         command = available_command(converter: converter)
         raise ConversionError, missing_converter_message(converter) unless command
 
-        svg = Svg.new(@automaton).export(width, height, theme: theme, **svg_options)
+        svg_result = Svg.new(@automaton).export_result(width, height, theme: theme, **svg_options)
         webp, error, status = run_conversion(
           command,
-          svg,
+          svg_result.output,
           timeout: timeout,
           max_output_bytes: max_output_bytes
         )
         webp = webp.b
 
-        return webp if status.success? && webp?(webp)
+        if status.success? && webp?(webp)
+          return RenderResult.new(
+            output: webp.freeze,
+            diagnostics: svg_result.diagnostics,
+            bounds: svg_result.bounds,
+            layout: svg_result.layout
+          )
+        end
         raise ConversionError, invalid_webp_message(command, error) if status.success?
 
         raise ConversionError, failed_conversion_message(command, error)

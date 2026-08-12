@@ -41,12 +41,26 @@ class Graphomaton
 
       def export(width = 800, height = 600, theme: Svg::DEFAULT_THEME, scale: DEFAULT_SCALE, converter: DEFAULT_CONVERTER,
                  timeout: DEFAULT_TIMEOUT, max_output_bytes: DEFAULT_MAX_OUTPUT_BYTES, **svg_options)
+        export_result(
+          width,
+          height,
+          theme: theme,
+          scale: scale,
+          converter: converter,
+          timeout: timeout,
+          max_output_bytes: max_output_bytes,
+          **svg_options
+        ).output
+      end
+
+      def export_result(width = 800, height = 600, theme: Svg::DEFAULT_THEME, scale: DEFAULT_SCALE, converter: DEFAULT_CONVERTER,
+                        timeout: DEFAULT_TIMEOUT, max_output_bytes: DEFAULT_MAX_OUTPUT_BYTES, **svg_options)
         command = available_command(converter: converter)
         raise ConversionError, missing_converter_message(converter) unless command
 
         resolved_scale = resolve_scale(scale)
-        svg = Svg.new(@automaton).export(width, height, theme: theme, **svg_options)
-        svg = scale_svg_dimensions(svg, resolved_scale)
+        svg_result = Svg.new(@automaton).export_result(width, height, theme: theme, **svg_options)
+        svg = scale_svg_dimensions(svg_result.output, resolved_scale)
         png, error, status = ProcessRunner.capture3(
           *command,
           stdin_data: svg,
@@ -56,7 +70,14 @@ class Graphomaton
         )
         png = png.b
 
-        return png if status.success? && png.start_with?(PNG_SIGNATURE)
+        if status.success? && png.start_with?(PNG_SIGNATURE)
+          return RenderResult.new(
+            output: png.freeze,
+            diagnostics: svg_result.diagnostics,
+            bounds: svg_result.bounds,
+            layout: svg_result.layout
+          )
+        end
         raise ConversionError, invalid_png_message(command, error) if status.success?
 
         raise ConversionError, failed_conversion_message(command, error)

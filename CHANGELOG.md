@@ -27,6 +27,7 @@
 - Add obstacle-aware curves, adaptive self-loops, spatial label indexing, and Barnes-Hut force approximation.
 - Add CLI commands for validation, discovery, diagnostics, health checks, config files, completions, and man-page output.
 - Add nonce-based CSP support and trusted local asset inlining for self-contained HTML.
+- Preserve SVG layout diagnostics and metadata through PNG, PDF, and WebP conversion.
 
 ## 1.0.0 (2025-12-23)
 

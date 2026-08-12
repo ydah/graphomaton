@@ -1960,6 +1960,9 @@ class Graphomaton
   def render_result(format: :svg, width: 800, height: 600, strict_semantics: false, **options)
     resolved = resolve_format(format)
     return Exporters::Svg.new(self).export_result(width, height, **options) if resolved == :svg
+    return Exporters::Png.new(self).export_result(width, height, **options) if resolved == :png
+    return Exporters::Pdf.new(self).export_result(width, height, **options) if resolved == :pdf
+    return Exporters::Webp.new(self).export_result(width, height, **options) if resolved == :webp
 
     output = render(
       format: resolved,

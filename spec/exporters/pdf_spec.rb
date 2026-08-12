@@ -92,4 +92,19 @@ RSpec.describe Graphomaton::Exporters::Pdf do
       )
     end
   end
+
+  describe '#export_result' do
+    it 'preserves SVG layout diagnostics and metadata after conversion' do
+      automaton.update_state('A', x: 10, y: 10)
+      allow(pdf_exporter).to receive(:available_command).and_return(command)
+      allow(Graphomaton::ProcessRunner).to receive(:capture3).and_return([pdf_data, '', successful_status])
+
+      result = pdf_exporter.export_result(200, 200)
+
+      expect(result.output).to eq(pdf_data)
+      expect(result.diagnostics.map(&:code)).to include('state-clipped-horizontal', 'state-clipped-vertical')
+      expect(result.bounds).to eq(width: 200.0, height: 200.0)
+      expect(result.layout.fetch('A')).to include(x: 10.0, y: 10.0)
+    end
+  end
 end

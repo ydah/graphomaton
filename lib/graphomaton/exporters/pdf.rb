@@ -40,20 +40,40 @@ class Graphomaton
 
       def export(width = 800, height = 600, theme: Svg::DEFAULT_THEME, converter: DEFAULT_CONVERTER,
                  timeout: DEFAULT_TIMEOUT, max_output_bytes: DEFAULT_MAX_OUTPUT_BYTES, **svg_options)
+        export_result(
+          width,
+          height,
+          theme: theme,
+          converter: converter,
+          timeout: timeout,
+          max_output_bytes: max_output_bytes,
+          **svg_options
+        ).output
+      end
+
+      def export_result(width = 800, height = 600, theme: Svg::DEFAULT_THEME, converter: DEFAULT_CONVERTER,
+                        timeout: DEFAULT_TIMEOUT, max_output_bytes: DEFAULT_MAX_OUTPUT_BYTES, **svg_options)
         command = available_command(converter: converter)
         raise ConversionError, missing_converter_message(converter) unless command
 
-        svg = Svg.new(@automaton).export(width, height, theme: theme, **svg_options)
+        svg_result = Svg.new(@automaton).export_result(width, height, theme: theme, **svg_options)
         pdf, error, status = ProcessRunner.capture3(
           *command,
-          stdin_data: svg,
+          stdin_data: svg_result.output,
           binmode: true,
           timeout: timeout,
           max_stdout_bytes: max_output_bytes
         )
         pdf = pdf.b
 
-        return pdf if status.success? && pdf.start_with?(PDF_SIGNATURE)
+        if status.success? && pdf.start_with?(PDF_SIGNATURE)
+          return RenderResult.new(
+            output: pdf.freeze,
+            diagnostics: svg_result.diagnostics,
+            bounds: svg_result.bounds,
+            layout: svg_result.layout
+          )
+        end
         raise ConversionError, invalid_pdf_message(command, error) if status.success?
 
         raise ConversionError, failed_conversion_message(command, error)

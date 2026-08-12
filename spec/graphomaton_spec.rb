@@ -2182,6 +2182,20 @@ RSpec.describe Graphomaton do
       expect(dot_output).to include('rankdir=TB')
     end
 
+    it 'uses converter render results for converted formats' do
+      result = Graphomaton::RenderResult.new(
+        output: 'converted',
+        diagnostics: [].freeze,
+        bounds: { width: 900, height: 700 }.freeze,
+        layout: {}.freeze
+      )
+      exporter = instance_double(Graphomaton::Exporters::Png)
+      expect(Graphomaton::Exporters::Png).to receive(:new).with(automaton).and_return(exporter)
+      expect(exporter).to receive(:export_result).with(900, 700, scale: 2).and_return(result)
+
+      expect(automaton.render_result(format: :png, width: 900, height: 700, scale: 2)).to equal(result)
+    end
+
     it 'saves by inferring format from filename extension' do
       automaton.save(temp_file, direction: :rl)
 
