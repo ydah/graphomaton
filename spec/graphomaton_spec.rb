@@ -2222,8 +2222,8 @@ RSpec.describe Graphomaton do
       doc = REXML::Document.new(svg_output)
 
       # Verify all transitions are rendered
-      paths = REXML::XPath.match(doc, '//path[@class="transition-line"]')
-      expect(paths.size).to eq(4)
+      transitions = REXML::XPath.match(doc, '//g[@data-from][@data-to]')
+      expect(transitions.size).to eq(6)
 
       # Verify all labels are present
       labels = REXML::XPath.match(doc, '//text[@class="transition-label"]')

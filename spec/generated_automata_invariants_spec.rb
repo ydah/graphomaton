@@ -45,4 +45,34 @@ RSpec.describe 'generated automata invariants' do
       expect(automaton.to_plantuml).to include('@startuml')
     end
   end
+
+  it 'preserves randomly connected Unicode and syntax-heavy identifiers' do
+    identifier_parts = ['状態', 'é', '👨‍👩‍👧‍👦', '[*]', 'state', 'A:B', 'group-alpha', '123start']
+
+    10.times do |seed|
+      random = Random.new(seed)
+      automaton = Graphomaton.new
+      states = 24.times.map { |index| "#{identifier_parts[index % identifier_parts.size]} #{seed}-#{index}" }
+      states.each { |state| automaton.add_state(state, label: "Label <#{state}> & Ω") }
+      automaton.set_initial(states.first)
+      automaton.add_final(states.last)
+      48.times do |index|
+        automaton.add_transition(states.sample(random: random), states.sample(random: random), "event #{index} → λ")
+      end
+
+      document = REXML::Document.new(automaton.to_svg(merge_parallel_transitions: false))
+      expect(REXML::XPath.match(document, '//g[@data-state]').size).to eq(states.size)
+      expect(REXML::XPath.match(document, '//g[@data-from]').size).to eq(48)
+      mermaid = automaton.to_mermaid
+      dot = automaton.to_dot
+      plantuml = automaton.to_plantuml
+      expect(mermaid).to end_with("\n")
+      expect(dot).to end_with("\n")
+      expect(plantuml).to end_with("\n")
+      states.each do |state|
+        expect(mermaid).to include("Label <#{state}> & Ω")
+        expect(plantuml).to include("Label <#{state}> & Ω")
+      end
+    end
+  end
 end

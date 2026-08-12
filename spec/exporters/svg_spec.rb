@@ -350,6 +350,21 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(coordinates.map(&:abs).max).to be < 2_000
       end
 
+      it 'assigns distinct automatic lanes to dense parallel transitions' do
+        local = Graphomaton.new
+        local.add_state('A', 100, 100)
+        local.add_state('B', 700, 500)
+        200.times { |index| local.add_transition('A', 'B', "event-#{index}") }
+
+        result = described_class.new(local).export_result(
+          800, 600, layout: :manual, merge_parallel_transitions: false
+        )
+        document = REXML::Document.new(result.output)
+
+        expect(REXML::XPath.match(document, '//path[@class="transition-line"]').size).to eq(200)
+        expect(result.diagnostics.map(&:code)).not_to include('label-overlap-unresolved')
+      end
+
       it 'curves automatic edges that would cross another state' do
         local = Graphomaton.new
         local.add_state('A', 100, 100)

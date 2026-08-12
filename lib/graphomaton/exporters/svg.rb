@@ -1531,6 +1531,22 @@ class Graphomaton
           add_spline_line(transition_content, start_x, start_y, end_x, end_y, x1, y1, x2, y2, trans, pair_index)
         elsif @edge_style == :orthogonal
           add_orthogonal_line(transition_content, start_x, start_y, end_x, end_y, trans)
+        elsif parallel_count > 1
+          add_curved_line(
+            transition_content,
+            start_x,
+            start_y,
+            end_x,
+            end_y,
+            x1,
+            y1,
+            x2,
+            y2,
+            trans,
+            parallel_count,
+            pair_index,
+            blocking_states
+          )
         elsif forward_direction?(x1, y1, x2, y2) && blocking_states.zero?
           add_straight_line(transition_content, start_x, start_y, end_x, end_y, trans)
         else
@@ -1679,11 +1695,11 @@ class Graphomaton
                       end
 
         curve_offset = if parallel_count > 1
-                         if forward_direction?(x1, y1, x2, y2)
-                           -(base_offset + (50 * pair_index))
-                         else
-                           base_offset + (50 * pair_index)
-                         end
+                         label_width = transition_label_box_lines_width(transition_label_lines(trans[:label]))
+                         lane_step = [label_width + 12, 60].max * 2
+                         lane = pair_index / 2
+                         side = pair_index.even? ? -1 : 1
+                         side * (base_offset + (lane_step * lane))
                        elsif forward_direction?(x1, y1, x2, y2)
                          -base_offset
                        else
