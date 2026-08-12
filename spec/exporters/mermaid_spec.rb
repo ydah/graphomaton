@@ -75,6 +75,32 @@ RSpec.describe Graphomaton::Exporters::Mermaid do
         expect(mermaid_output).to include('state "Review State" as review')
       end
 
+      it 'nests multi-level composite states as a tree' do
+        local = Graphomaton.new
+        local.add_state('workflow')
+        local.add_state('review', metadata: { parent: 'workflow' })
+        local.add_state('approved', metadata: { parent: 'review' })
+
+        lines = described_class.new(local).export.lines
+        workflow_block = lines.index { |line| line.match?(/^\s{4}state workflow \{/) }
+        review_block = lines.index { |line| line.match?(/^\s{8}state review \{/) }
+        approved = lines.index { |line| line.match?(/^\s{12}state "approved" as approved/) }
+
+        expect(workflow_block).to be < review_block
+        expect(review_block).to be < approved
+      end
+
+      it 'keeps a grouped composite tree in one group block' do
+        local = Graphomaton.new
+        local.add_state('workflow', metadata: { group: 'flow' })
+        local.add_state('review', metadata: { parent: 'workflow' })
+
+        output = described_class.new(local).export
+
+        expect(output.scan(/state workflow \{/).size).to eq(1)
+        expect(output).to match(/state "flow" as group_\d+ \{.*state workflow \{/m)
+      end
+
       it 'can render state metadata groups as Mermaid composite blocks' do
         automaton.add_state('grouped_a', metadata: { group: 'alpha' })
         automaton.add_state('grouped_b', label: 'Grouped B', metadata: { group: 'alpha' })

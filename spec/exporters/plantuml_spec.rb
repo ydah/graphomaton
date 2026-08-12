@@ -82,6 +82,21 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
         expect(plantuml_output).to include('state merge <<join>>')
       end
 
+      it 'nests multi-level composite states as a tree' do
+        local = Graphomaton.new
+        local.add_state('workflow')
+        local.add_state('review', metadata: { parent: 'workflow' })
+        local.add_state('approved', metadata: { parent: 'review' })
+
+        lines = described_class.new(local).export.lines
+        workflow_block = lines.index { |line| line.match?(/^state workflow \{/) }
+        review_block = lines.index { |line| line.match?(/^  state review \{/) }
+        approved = lines.index { |line| line.match?(/^    state "approved" as approved/) }
+
+        expect(workflow_block).to be < review_block
+        expect(review_block).to be < approved
+      end
+
       it 'marks final states' do
         automaton.add_final('C')
         plantuml_output = plantuml_exporter.export

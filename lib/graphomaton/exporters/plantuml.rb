@@ -183,6 +183,7 @@ class Graphomaton
           lines = ["state \"#{escape_state_label(group)}\" as #{group_name} {"]
           states.each do |name, state|
             lines << "  #{state_declaration_line(name, state)}"
+            lines.concat(composite_block_lines(name, indentation: '  ')) if hierarchy_children.key?(name)
           end
           lines << '}'
         end
@@ -198,20 +199,33 @@ class Graphomaton
       end
 
       def composite_state_lines
-        children_by_parent = @automaton.states.each_with_object({}) do |(name, state), groups|
+        roots = hierarchy_children.keys.select do |parent|
+          parent_state = @automaton.states.fetch(parent)
+          !valid_state_parent(parent_state) && !state_group_name(parent_state)
+        end
+
+
+        roots.flat_map { |root| composite_block_lines(root, indentation: '') }
+      end
+
+      def composite_block_lines(parent, indentation:)
+        lines = ["#{indentation}state #{state_name(parent)} {"]
+        hierarchy_children.fetch(parent, []).each do |name, state|
+          child_indentation = "#{indentation}  "
+          lines << "#{child_indentation}#{state_declaration_line(name, state)}"
+          lines.concat(composite_block_lines(name, indentation: child_indentation)) if hierarchy_children.key?(name)
+        end
+        lines << "#{indentation}}"
+        lines
+      end
+
+      def hierarchy_children
+        @hierarchy_children ||= @automaton.states.each_with_object({}) do |(name, state), groups|
           parent = valid_state_parent(state)
           next unless parent
 
           groups[parent] ||= []
           groups[parent] << [name, state]
-        end
-
-        children_by_parent.flat_map do |parent, children|
-          parent_state = @automaton.states.fetch(parent)
-          label = parent_state[:label] || parent
-          lines = ["state \"#{escape_state_label(label)}\" as #{state_name(parent)} {"]
-          children.each { |name, state| lines << "  #{state_declaration_line(name, state)}" }
-          lines << '}'
         end
       end
 
