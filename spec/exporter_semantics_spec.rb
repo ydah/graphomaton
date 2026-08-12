@@ -40,7 +40,7 @@ RSpec.describe 'exporter semantic consistency' do
   end
 
   it 'uses format-independent pseudostate kinds across exporters' do
-    automaton.add_state('decision', metadata: { kind: :choice })
+    automaton.add_state('decision', kind: :choice)
 
     expect(automaton.to_dot).to include('"decision" [shape="diamond"]')
     expect(automaton.to_mermaid).to include('state decision <<choice>>')

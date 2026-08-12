@@ -2,25 +2,48 @@
 
 class Graphomaton
   class ExporterRegistry
-    Entry = Data.define(:name, :aliases, :extensions, :binary, :capabilities, :loader)
+    Entry = Data.define(:name, :aliases, :extensions, :binary, :capabilities, :loader) do
+      def exporter
+        resolved = loader.call
+        return resolved if resolved.respond_to?(:new)
+
+        raise ArgumentError, "Exporter #{name.inspect} loader must return a class"
+      end
+    end
 
     def initialize
       @entries = {}
       @aliases = {}
     end
 
-    def register(name, aliases: [], extensions: [], binary: false, capabilities: [], &loader)
+    def register(name, aliases: [], extensions: [], binary: false, capabilities: [], exporter: nil, &loader)
       canonical = name.to_sym
+      resolved_loader = loader || (-> { exporter })
+      raise ArgumentError, "Exporter #{canonical.inspect} requires an exporter class or loader block" unless exporter || loader
+
+      keys = [canonical] + aliases.map(&:to_sym) + extensions.map { |extension| extension.to_s.delete_prefix('.').downcase.to_sym }
+      collisions = keys.select { |key| @aliases.key?(key) }.uniq
+      unless collisions.empty?
+        raise ArgumentError, "Exporter identifiers are already registered: #{collisions.join(', ')}"
+      end
+
       entry = Entry.new(
         name: canonical,
         aliases: aliases.map(&:to_sym).freeze,
         extensions: extensions.map { |extension| extension.to_s.delete_prefix('.').downcase }.freeze,
         binary: binary,
         capabilities: capabilities.map(&:to_sym).freeze,
-        loader: loader
+        loader: resolved_loader
       )
       @entries[canonical] = entry
       ([canonical] + entry.aliases + entry.extensions.map(&:to_sym)).each { |key| @aliases[key] = canonical }
+      entry
+    end
+
+    def unregister(format)
+      canonical = resolve(format)
+      entry = @entries.delete(canonical)
+      @aliases.delete_if { |_key, value| value == canonical }
       entry
     end
 

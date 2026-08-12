@@ -27,7 +27,7 @@ class Graphomaton
     attr_reader value: untyped
     def self.text: (untyped value) -> Label
     def self.symbols: (*untyped values) -> Label
-    def self.epsilon: () -> Label
+    def self.epsilon: (?untyped display) -> Label
     def self.uml: (event: untyped, ?guard: untyped, ?action: untyped) -> Label
     def to_s: () -> String
     def to_h: () -> Hash[Symbol, untyped]
@@ -70,6 +70,7 @@ class Graphomaton
     attr_reader style: Hash[untyped, untyped]?
     attr_reader metadata: Hash[untyped, untyped]?
     attr_reader shape: untyped
+    attr_reader kind: Symbol?
   end
 
   class Transition < Data
@@ -121,4 +122,6 @@ class Graphomaton
   def self.from_hash: (Hash[untyped, untyped] data, **untyped) -> Graphomaton
   def self.from_json: (String | _Reader source, **untyped) -> Graphomaton
   def self.from_yaml: (String | _Reader source, **untyped) -> Graphomaton
+  def self.register_exporter: (Symbol | String name, **untyped) -> untyped
+                            | (Symbol | String name, **untyped) { () -> untyped } -> untyped
 end

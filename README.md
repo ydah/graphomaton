@@ -363,12 +363,12 @@ State and transition metadata can enrich generated diagrams without changing sta
 automaton.add_state(
   'q0',
   label: 'Start',
+  kind: 'choice',
   metadata: {
     tooltip: 'Entry point',
     url: 'https://example.com',
     group: 'main',
-    icon: 'S',
-    kind: 'choice'
+    icon: 'S'
   }
 )
 
@@ -382,6 +382,10 @@ automaton.add_transition(
   }
 )
 ```
+
+`kind:` is format-independent and accepts `normal`, `choice`, `fork`, or `join`.
+Exporter-specific shape overrides belong under `metadata.svg`, `metadata.dot`,
+`metadata.mermaid`, or `metadata.plantuml` and do not affect other formats.
 
 Metadata behavior:
 
@@ -472,6 +476,11 @@ curl -X POST --data-binary @diagram.puml https://www.plantuml.com/plantuml/png >
 ```
 
 ## Contributing
+
+Architecture, input schema, CLI, exporter capabilities, performance limits,
+migration, release operations, and custom exporter integration are documented in
+the [`docs/`](docs/) directory. See [Custom exporters](docs/custom-exporters.md)
+when adding an application-specific output format.
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/ydah/graphomaton.
 

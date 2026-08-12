@@ -2507,17 +2507,10 @@ class Graphomaton
       def pseudostate_shape(state)
         type = nested_state_metadata_value(state, :svg, :shape) ||
                nested_state_metadata_value(state, :svg, :type) ||
-               nested_state_metadata_value(state, :plantuml, :shape) ||
-               nested_state_metadata_value(state, :plantuml, :type) ||
-               nested_state_metadata_value(state, :mermaid, :shape) ||
-               nested_state_metadata_value(state, :mermaid, :type) ||
+               state[:kind] ||
                state_metadata_value(state, :kind) ||
                state_metadata_value(state, :svg_shape) ||
-               state_metadata_value(state, :svg_type) ||
-               state_metadata_value(state, :plantuml_shape) ||
-               state_metadata_value(state, :plantuml_type) ||
-               state_metadata_value(state, :mermaid_shape) ||
-               state_metadata_value(state, :mermaid_type)
+               state_metadata_value(state, :svg_type)
         normalized = type.to_s.tr('-', '_').to_sym
 
         case normalized

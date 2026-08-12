@@ -83,8 +83,8 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
 
       it 'can render PlantUML choice, fork, and join pseudostates from metadata' do
         automaton.add_state('decision', metadata: { plantuml: { shape: 'choice' } })
-        automaton.add_state('split', metadata: { plantuml_shape: 'fork' })
-        automaton.add_state('merge', metadata: { mermaid_type: 'join' })
+        automaton.add_state('split', kind: :fork)
+        automaton.add_state('merge', metadata: { plantuml_type: 'join' })
 
         plantuml_output = plantuml_exporter.export
 
@@ -206,7 +206,7 @@ RSpec.describe Graphomaton::Exporters::Plantuml do
 
       it 'preserves pseudostates inside groups' do
         local = Graphomaton.new
-        local.add_state('decision', metadata: { group: 'flow', plantuml_type: 'choice' })
+        local.add_state('decision', kind: :choice, metadata: { group: 'flow' })
 
         plantuml_output = described_class.new(local).export
 

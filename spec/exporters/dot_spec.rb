@@ -85,14 +85,25 @@ RSpec.describe Graphomaton::Exporters::Dot do
 
       it 'exports pseudostate metadata as DOT shapes' do
         automaton.add_state('decision', metadata: { dot: { shape: 'choice' } })
-        automaton.add_state('split', metadata: { plantuml_shape: 'fork' })
-        automaton.add_state('merge', metadata: { mermaid_type: 'join' })
+        automaton.add_state('split', kind: :fork)
+        automaton.add_state('merge', metadata: { dot_type: 'join' })
 
         dot_output = dot_exporter.export
 
         expect(dot_output).to include('"decision" [shape="diamond"];')
         expect(dot_output).to include('"split" [shape="point"];')
         expect(dot_output).to include('"merge" [shape="point"];')
+      end
+
+      it 'does not import pseudostate overrides from other exporters' do
+        automaton.add_state('mermaid_only', metadata: { mermaid_type: 'choice' })
+        automaton.add_state('plantuml_only', metadata: { plantuml_shape: 'fork' })
+
+        dot_output = dot_exporter.export
+
+        expect(dot_output).to include('"mermaid_only";')
+        expect(dot_output).to include('"plantuml_only";')
+        expect(dot_output).not_to match(/"(?:mermaid_only|plantuml_only)" \[shape=/)
       end
 
       it 'marks final states with double circle' do

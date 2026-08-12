@@ -234,6 +234,28 @@ RSpec.describe Graphomaton do
         described_class.from_hash(states: [{ id: 'q0', initial: true }, 'q1'], initial: 'q1')
       end.to raise_error(ArgumentError, /Multiple initial states/)
     end
+
+    it 'rejects conflicting schema aliases and scalar state collections' do
+      expect do
+        described_class.from_hash(states: ['q0'], initial: 'q0', initial_state: 'q1')
+      end.to raise_error(ArgumentError, /Conflicting top-level initial state/)
+      expect do
+        described_class.from_hash(states: %w[q0 q1], final: ['q0'], final_states: ['q1'])
+      end.to raise_error(ArgumentError, /Conflicting top-level final states/)
+      expect do
+        described_class.from_hash(states: [{ id: 'q0', name: 'q1' }])
+      end.to raise_error(ArgumentError, /Conflicting state id/)
+      expect do
+        described_class.from_hash(states: { q0: { id: 'q1' } })
+      end.to raise_error(ArgumentError, /map key.*conflicts/)
+      expect do
+        described_class.from_hash(states: [{ id: 'q0', final: true, accepting: false }])
+      end.to raise_error(ArgumentError, /Conflicting State.*final flag/)
+      expect { described_class.from_hash(states: 'q0') }
+        .to raise_error(ArgumentError, /States input must be an Array or Hash/)
+      expect { described_class.from_hash(states: [{ id: 'q0', kind: 'history' }]) }
+        .to raise_error(ArgumentError, /Unknown state kind/)
+    end
   end
 
   describe '.theme_from_hash, .theme_from_json, and .theme_from_yaml' do
@@ -432,6 +454,7 @@ RSpec.describe Graphomaton do
       automaton.add_transition('q0', 'q1', %w[a b a])
 
       expect(automaton.transitions).to include({ from: 'q0', to: 'q1', label: 'a, b' })
+      expect(automaton.transition_records.first.label).to eq(Graphomaton::Label.symbols('a', 'b'))
     end
 
     it 'can sort array labels when requested' do
@@ -446,6 +469,21 @@ RSpec.describe Graphomaton do
 
       expect(automaton.transitions).to include({ from: 'q0', to: 'q1', label: Graphomaton::DEFAULT_EPSILON_LABEL })
       expect(automaton.transitions).to include({ from: 'q1', to: 'q0', label: 'eps, a' })
+      expect(automaton.transition_records.first.label.kind).to eq(:epsilon)
+      expect(automaton.transition_records.last.label.kind).to eq(:symbols)
+    end
+
+    it 'distinguishes symbol lists from text containing the same punctuation' do
+      automaton.add_transition('q0', 'q1', %w[a b])
+      automaton.add_transition('q0', 'q1', 'a, b')
+
+      labels = automaton.transition_records.map(&:label)
+      expect(labels.first).to eq(Graphomaton::Label.symbols('a', 'b'))
+      expect(labels.last).to eq('a, b')
+      expect(labels.first).not_to eq(labels.last)
+      expect(automaton.to_h[:transitions].map { |transition| transition[:label] }).to eq(
+        [{ type: :symbols, value: %w[a b] }, 'a, b']
+      )
     end
 
     it 'supports optional transition style, line style, and metadata' do
@@ -1587,9 +1625,9 @@ RSpec.describe Graphomaton do
       expect(icon.text).to eq('S')
     end
 
-    it 'renders SVG pseudostate shapes from compatible metadata' do
+    it 'renders SVG pseudostate shapes from model kinds and SVG metadata' do
       local = described_class.new
-      local.add_state('decision', metadata: { mermaid: { shape: 'choice' } })
+      local.add_state('decision', kind: :choice)
       local.add_state('split', metadata: { svg_shape: 'fork' })
 
       svg_output = local.to_svg

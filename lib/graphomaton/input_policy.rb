@@ -5,7 +5,7 @@ class Graphomaton
   class InputPolicy
     XML_INVALID_CHARACTERS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/
     TOP_LEVEL_KEYS = %i[version states transitions initial initial_state final final_states].freeze
-    STATE_KEYS = %i[id name x y label style metadata shape initial final accepting].freeze
+    STATE_KEYS = %i[id name x y label style metadata shape kind initial final accepting].freeze
     TRANSITION_KEYS = %i[from to label style metadata line_style].freeze
 
     def self.text!(value, context:, max_bytes: nil)

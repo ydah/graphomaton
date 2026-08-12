@@ -766,7 +766,8 @@ begin
   end
 
   if output_path == '-'
-    @stdout.binmode if %i[png pdf webp].include?(resolved_output_format) && @stdout.respond_to?(:binmode)
+    entry = Graphomaton::EXPORTERS.fetch(resolved_output_format)
+    @stdout.binmode if entry.binary && @stdout.respond_to?(:binmode)
     @stdout.write(result.output)
   else
     Graphomaton::AtomicFile.write(

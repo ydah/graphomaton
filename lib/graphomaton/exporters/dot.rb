@@ -126,13 +126,10 @@ class Graphomaton
         type = dot_metadata_value(state, :shape) ||
                dot_metadata_value(state, :type) ||
                dot_metadata_value(state, :kind) ||
+               state[:kind] ||
                state_metadata_value(state, :kind) ||
                state_metadata_value(state, :dot_shape) ||
-               state_metadata_value(state, :dot_type) ||
-               state_metadata_value(state, :plantuml_shape) ||
-               state_metadata_value(state, :plantuml_type) ||
-               state_metadata_value(state, :mermaid_shape) ||
-               state_metadata_value(state, :mermaid_type)
+               state_metadata_value(state, :dot_type)
         normalized = type.to_s.tr('-', '_').to_sym
 
         PSEUDOSTATE_SHAPES.key?(normalized) ? normalized : nil

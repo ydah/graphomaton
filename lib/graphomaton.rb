@@ -181,6 +181,7 @@ class Graphomaton
   LAYOUT_OPTIONS = %i[linear circle grid layered bfs force graphviz dot manual].freeze
   DIRECTION_OPTIONS = %i[lr tb rl bt].freeze
   FIT_OPTIONS = %i[none contain cover].freeze
+  STATE_KIND_OPTIONS = %i[normal choice fork join].freeze
   INITIAL_POSITION_OPTIONS = %i[auto start].freeze
   FINAL_POSITION_OPTIONS = %i[auto end].freeze
   FORMAT_OPTIONS = %i[svg png pdf webp html mermaid mmd dot plantuml puml].freeze
@@ -253,6 +254,8 @@ class Graphomaton
     enforce_positive_limit(max_group_depth, 'max_group_depth')
 
     InputPolicy.known_keys!(data, InputPolicy::TOP_LEVEL_KEYS, context: 'top-level', strict: strict_schema)
+    ensure_alias_values_agree!(data, :initial, :initial_state, context: 'top-level initial state')
+    ensure_alias_values_agree!(data, :final, :final_states, context: 'top-level final states')
     version = input_value(data, :version)
     raise ArgumentError, "Unsupported Graphomaton schema version: #{version.inspect}" unless version.nil? || version == 1
 
@@ -329,6 +332,13 @@ class Graphomaton
     end
 
     InputPolicy.known_keys!(input, InputPolicy::STATE_KEYS, context: 'state', strict: strict_schema)
+    ensure_alias_values_agree!(input, :id, :name, context: 'state id')
+    ensure_alias_values_agree!(
+      input,
+      :final,
+      :accepting,
+      context: "State #{input_value(input, :id, :name).inspect} final flag"
+    )
 
     name = input_value(input, :id, :name)
     raise ArgumentError, 'State input requires id or name' if name.nil?
@@ -344,6 +354,7 @@ class Graphomaton
       style: input_value(input, :style),
       metadata: input_value(input, :metadata),
       shape: input_value(input, :shape),
+      kind: input_value(input, :kind),
       max_metadata_depth: max_metadata_depth,
       max_label_length: max_label_length
     )
@@ -408,7 +419,7 @@ class Graphomaton
     when :symbols
       Label.symbols(*Array(input_value(label, :value, :symbols)))
     when :epsilon
-      Label.epsilon
+      Label.epsilon(input_value(label, :value) || DEFAULT_EPSILON_LABEL)
     when :uml
       value = input_value(label, :value)
       value = label unless value.is_a?(Hash)
@@ -425,16 +436,38 @@ class Graphomaton
 
   def self.state_inputs(input)
     return [] if input.nil?
-    return Array(input) unless input.is_a?(Hash)
+    return input if input.is_a?(Array)
+    raise ArgumentError, 'States input must be an Array or Hash' unless input.is_a?(Hash)
 
     input.map do |name, attributes|
       next name if attributes.nil?
       raise ArgumentError, "State #{name.inspect} attributes must be a Hash" unless attributes.is_a?(Hash)
 
-      attributes.key?(:id) || attributes.key?('id') || attributes.key?(:name) || attributes.key?('name') ? attributes : attributes.merge(id: name)
+      ensure_alias_values_agree!(attributes, :id, :name, context: "State #{name.inspect} id")
+      explicit_name = input_value(attributes, :id, :name)
+      if !explicit_name.nil? && explicit_name != name
+        raise ArgumentError, "State map key #{name.inspect} conflicts with id #{explicit_name.inspect}"
+      end
+
+      explicit_name.nil? ? attributes.merge(id: name) : attributes
     end
   end
   private_class_method :state_inputs
+
+  def self.ensure_alias_values_agree!(hash, *keys, context:)
+    values = keys.filter_map do |key|
+      if hash.key?(key)
+        [key, hash[key]]
+      elsif hash.key?(key.to_s)
+        [key, hash[key.to_s]]
+      end
+    end
+    return if values.size < 2 || values.map(&:last).uniq.size == 1
+
+    details = values.map { |key, value| "#{key}=#{value.inspect}" }.join(', ')
+    raise ArgumentError, "Conflicting #{context}: #{details}"
+  end
+  private_class_method :ensure_alias_values_agree!
 
   def self.transition_inputs(input)
     return [] if input.nil?
@@ -549,7 +582,7 @@ class Graphomaton
     @transitions.dup.freeze
   end
 
-  def add_state(name, x = nil, y = nil, label: nil, style: nil, metadata: nil, shape: nil,
+  def add_state(name, x = nil, y = nil, label: nil, style: nil, metadata: nil, shape: nil, kind: nil,
                 max_metadata_depth: DEFAULT_MAX_METADATA_DEPTH, max_label_length: DEFAULT_MAX_LABEL_LENGTH)
     InputPolicy.identifier!(name, context: 'State id')
     InputPolicy.text!(label, context: "State #{name.inspect} label", max_bytes: max_label_length)
@@ -579,7 +612,8 @@ class Graphomaton
       label: immutable_copy(label),
       style: immutable_copy(style),
       metadata: immutable_copy(metadata),
-      shape: shape
+      shape: immutable_copy(shape),
+      kind: resolve_state_kind(kind)
     )
     graph_changed!
     self
@@ -593,7 +627,7 @@ class Graphomaton
 
   def update_state(name, **attributes)
     state = @states.fetch(name) { raise ArgumentError, "State is not defined: #{name.inspect}" }
-    allowed = %i[x y label style metadata shape]
+    allowed = %i[x y label style metadata shape kind]
     unknown = attributes.keys - allowed
     raise ArgumentError, "Unknown state attributes: #{unknown.join(', ')}" unless unknown.empty?
     if attributes.key?(:x) != attributes.key?(:y)
@@ -628,7 +662,8 @@ class Graphomaton
       label: immutable_copy(label),
       style: immutable_copy(attributes.fetch(:style, state.style)),
       metadata: immutable_copy(metadata),
-      shape: attributes.fetch(:shape, state.shape)
+      shape: immutable_copy(attributes.fetch(:shape, state.shape)),
+      kind: resolve_state_kind(attributes.fetch(:kind, state.kind))
     )
     @manual_states[name] = !x.nil? && !y.nil?
     graph_changed!
@@ -686,7 +721,7 @@ class Graphomaton
       label: immutable_copy(normalize_transition_label(label, epsilon_label: epsilon_label, sort_labels: sort_labels)),
       style: immutable_copy(style),
       metadata: immutable_copy(metadata),
-      line_style: line_style
+      line_style: immutable_copy(line_style)
     )
     graph_changed!
     self
@@ -705,7 +740,11 @@ class Graphomaton
     InputPolicy.identifier!(from, context: 'Transition source')
     InputPolicy.identifier!(to, context: 'Transition target')
     raise ArgumentError, 'Transition label cannot be nil' if label.nil?
-    InputPolicy.text!(label.to_s, context: 'Transition label', max_bytes: DEFAULT_MAX_LABEL_LENGTH)
+    labels = label.is_a?(Array) ? label : [label]
+    raise ArgumentError, 'Transition labels cannot contain nil' if labels.any?(&:nil?)
+    labels.each do |item|
+      InputPolicy.text!(item.to_s, context: 'Transition label', max_bytes: DEFAULT_MAX_LABEL_LENGTH)
+    end
     if @validation_mode == :strict
       raise ValidationError, "Transition source #{from.inspect} is not defined" unless @states.key?(from)
       raise ValidationError, "Transition target #{to.inspect} is not defined" unless @states.key?(to)
@@ -717,10 +756,10 @@ class Graphomaton
       id: transition.id,
       from: immutable_copy(from),
       to: immutable_copy(to),
-      label: immutable_copy(label),
+      label: immutable_copy(normalize_transition_label(label)),
       style: immutable_copy(attributes.fetch(:style, transition.style)),
       metadata: immutable_copy(metadata),
-      line_style: attributes.fetch(:line_style, transition.line_style)
+      line_style: immutable_copy(attributes.fetch(:line_style, transition.line_style))
     )
     graph_changed!
     self
@@ -1196,7 +1235,8 @@ class Graphomaton
         label: state.label,
         style: state.style,
         metadata: state.metadata,
-        shape: state.shape
+        shape: state.shape,
+        kind: state.kind
       )
     end
     graph_changed!
@@ -1879,6 +1919,7 @@ class Graphomaton
         serialized[:style] = state.style unless state.style.nil?
         serialized[:metadata] = state.metadata unless state.metadata.nil?
         serialized[:shape] = state.shape unless state.shape.nil?
+        serialized[:kind] = state.kind unless state.kind.nil?
         serialized
       end,
       transitions: @transitions.map do |transition|
@@ -1905,8 +1946,9 @@ class Graphomaton
   end
 
   def write(io, format: :svg, width: 800, height: 600, **options)
-    output = render(format: format, width: width, height: height, **options)
-    io.binmode if io.respond_to?(:binmode) && %i[png pdf webp].include?(resolve_format(format))
+    resolved = resolve_format(format)
+    output = render(format: resolved, width: width, height: height, **options)
+    io.binmode if io.respond_to?(:binmode) && self.class::EXPORTERS.fetch(resolved).binary
     io.write(output)
   end
 
@@ -1948,6 +1990,9 @@ class Graphomaton
       to_dot(**options)
     when :plantuml
       to_plantuml(**options)
+    else
+      exporter = self.class::EXPORTERS.fetch(resolved_format).exporter.new(self)
+      exporter.export(width, height, **options)
     end
   end
 
@@ -2403,6 +2448,15 @@ class Graphomaton
     raise ArgumentError, "Unknown fit: #{fit.inspect}. Available values: #{FIT_OPTIONS.join(', ')}"
   end
 
+  def resolve_state_kind(kind)
+    return nil if kind.nil?
+
+    resolved = kind.to_sym
+    return resolved if STATE_KIND_OPTIONS.include?(resolved)
+
+    raise ArgumentError, "Unknown state kind: #{kind.inspect}. Available values: #{STATE_KIND_OPTIONS.join(', ')}"
+  end
+
   def resolve_initial_position(initial_position)
     resolved = initial_position.to_sym
     return resolved if INITIAL_POSITION_OPTIONS.include?(resolved)
@@ -2425,7 +2479,7 @@ class Graphomaton
     if label.is_a?(Array)
       labels = label.map { |item| normalize_single_transition_label(item, epsilon_label: epsilon_label) }.uniq
       labels = labels.sort_by(&:to_s) if sort_labels
-      return labels.join(', ')
+      return Label.symbols(*labels.map(&:to_s))
     end
 
     normalize_single_transition_label(label, epsilon_label: epsilon_label)
@@ -2433,7 +2487,7 @@ class Graphomaton
 
   def normalize_single_transition_label(label, epsilon_label: DEFAULT_EPSILON_LABEL)
     return label if label.is_a?(Label)
-    return epsilon_label if label == :epsilon
+    return Label.epsilon(epsilon_label) if label == :epsilon
 
     label
   end
@@ -2558,19 +2612,38 @@ class Graphomaton
 
   def dfa_diagnostics
     ensure_analysis_index!
-    @states.each_key.flat_map do |from|
-      labels = @outgoing_by_state[from].group_by(&:label)
-      labels.filter_map do |label, transitions|
+    diagnostics = []
+    @states.each_key do |from|
+      by_symbol = Hash.new { |hash, key| hash[key] = [] }
+      @outgoing_by_state[from].each do |transition|
+        if transition.label.is_a?(Label) && transition.label.kind == :epsilon
+          diagnostics << diagnostic(
+            'epsilon-transition-in-dfa',
+            :error,
+            ['transitions', transition.id],
+            "State #{from.inspect} has an epsilon transition"
+          )
+        end
+        transition_label_symbols(transition.label).each { |symbol| by_symbol[symbol] << transition }
+      end
+      by_symbol.each do |symbol, transitions|
         next unless transitions.map(&:to).uniq.size > 1
 
-        diagnostic(
+        diagnostics << diagnostic(
           'nondeterministic-transition',
           :error,
           ['states', from],
-          "State #{from.inspect} has multiple targets for label #{label.inspect}"
+          "State #{from.inspect} has multiple targets for label #{symbol.inspect}"
         )
       end
-    end.uniq(&:message)
+    end
+    diagnostics.uniq(&:message)
+  end
+
+  def transition_label_symbols(label)
+    return label.value if label.is_a?(Label) && label.kind == :symbols
+
+    [label.to_s]
   end
 
   def diagnostic(code, severity, path, message, hint = nil)

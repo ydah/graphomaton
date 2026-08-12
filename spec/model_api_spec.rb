@@ -18,6 +18,42 @@ RSpec.describe 'Graphomaton model API' do
     expect { graph.states['q0'][:metadata][:tags] << 'changed' }.to raise_error(FrozenError)
   end
 
+  it 'copies and freezes every mutable value-object field at the model boundary' do
+    label_text = +'go'
+    guard_text = +'ready?'
+    shape = +'diamond'
+    line_style = +'dashed'
+    label = Graphomaton::Label.uml(event: label_text, guard: guard_text)
+    options = { labels: { wrap: true }, title: +'Diagram' }
+    render_options = Graphomaton::RenderOptions.new(options: options)
+    diagnostic_path = ['states', +'q0']
+    diagnostic = Graphomaton::Diagnostic.new(
+      code: 'example', severity: :warning, path: diagnostic_path, message: 'Example', hint: nil
+    )
+    render_result = Graphomaton::RenderResult.new(
+      output: +'output', diagnostics: [diagnostic], bounds: { width: 1 }, layout: { 'q0' => { x: 1 } }
+    )
+
+    graph = Graphomaton.new
+    graph.add_state('q0', shape: shape)
+    graph.add_transition('q0', 'q0', label, line_style: line_style)
+    label_text << '-changed'
+    guard_text << '-changed'
+    shape << '-changed'
+    line_style << '-changed'
+    options[:title] << '-changed'
+
+    stored_label = graph.transition_records.first.label
+    expect(stored_label.to_s).to eq('go [ready?]')
+    expect(graph.state_records.fetch('q0').shape).to eq('diamond')
+    expect(graph.transition_records.first.line_style).to eq('dashed')
+    expect(render_options.options[:title]).to eq('Diagram')
+    expect { stored_label.value[:event] << '-changed' }.to raise_error(FrozenError)
+    expect { render_options.options[:labels][:wrap] = false }.to raise_error(FrozenError)
+    expect { diagnostic.path.last << '-changed' }.to raise_error(FrozenError)
+    expect { render_result.layout['q0'][:x] = 2 }.to raise_error(FrozenError)
+  end
+
   it 'supports explicit update and removal operations with revision tracking' do
     graph = Graphomaton.new
     expect(graph.revision).to eq(0)
@@ -54,7 +90,7 @@ RSpec.describe 'Graphomaton model API' do
   it 'round trips the versioned canonical schema' do
     graph = Graphomaton.new
     graph.add_state('q0', label: 'Start')
-    graph.add_state('q1')
+    graph.add_state('q1', kind: :join)
     graph.set_initial('q0').add_final('q1')
     graph.add_transition('q0', 'q1', Graphomaton::Label.uml(event: 'go', guard: 'ready?', action: 'start'))
 
@@ -62,6 +98,7 @@ RSpec.describe 'Graphomaton model API' do
     expect(Graphomaton.from_json(graph.to_json)).to eq(graph)
     expect(Graphomaton.from_yaml(graph.to_yaml)).to eq(graph)
     expect(graph.to_h[:version]).to eq(1)
+    expect(graph.state_records.fetch('q1').kind).to eq(:join)
   end
 
   it 'exposes structured diagnostics and validation profiles' do
@@ -77,6 +114,20 @@ RSpec.describe 'Graphomaton model API' do
     expect(semantic.map(&:code)).to contain_exactly('missing-initial-state', 'missing-final-state')
     expect(dfa.map(&:code)).to include('nondeterministic-transition')
     expect(semantic.first.to_h).to include(:code, :severity, :path, :message)
+  end
+
+  it 'validates structured symbol and epsilon labels with DFA semantics' do
+    graph = Graphomaton.new
+    %w[q0 q1 q2].each { |state| graph.add_state(state) }
+    graph.set_initial('q0').add_final('q2')
+    graph.add_transition('q0', 'q1', %w[a b])
+    graph.add_transition('q0', 'q2', 'a')
+    graph.add_transition('q1', 'q2', :epsilon)
+
+    diagnostics = graph.validation_diagnostics(profile: :dfa)
+
+    expect(diagnostics.map(&:code)).to include('nondeterministic-transition', 'epsilon-transition-in-dfa')
+    expect(diagnostics.map(&:message)).to include(/label "a"/)
   end
 
   it 'provides indexed graph analyses with explicit semantics' do
@@ -119,6 +170,40 @@ RSpec.describe 'Graphomaton model API' do
     expect(graph.semantic_diagnostics(:dot).map(&:message)).to include(/does not preserve state_style/)
     expect { graph.render(format: :dot, strict_semantics: true) }
       .to raise_error(Graphomaton::ExportError, /state_style/)
+  end
+
+  it 'renders exporter classes registered by applications' do
+    exporter_class = Class.new do
+      def initialize(graph)
+        @graph = graph
+      end
+
+      def export(width, height, prefix:)
+        "#{prefix}:#{@graph.state_records.size}:#{width}x#{height}"
+      end
+    end
+
+    begin
+      Graphomaton.register_exporter(
+        :test_custom,
+        aliases: %i[test_alias],
+        extensions: %w[test-output],
+        binary: true,
+        exporter: exporter_class
+      )
+
+      graph = Graphomaton.new.add_state('q0')
+      expect(graph.render(format: '.TEST-OUTPUT', width: 320, height: 240, prefix: 'ok')).to eq('ok:1:320x240')
+      output = StringIO.new
+      graph.write(output, format: :test_custom, width: 320, height: 240, prefix: 'ok')
+      expect(output.external_encoding).to eq(Encoding::ASCII_8BIT)
+      expect(Graphomaton::EXPORTERS.resolve(:test_alias)).to eq(:test_custom)
+      expect do
+        Graphomaton.register_exporter(:another_custom, aliases: %i[test_alias], exporter: exporter_class)
+      end.to raise_error(ArgumentError, /already registered/)
+    ensure
+      Graphomaton::EXPORTERS.unregister(:test_custom) if Graphomaton::EXPORTERS.formats.include?(:test_custom)
+    end
   end
 
   it 'keeps low-level layout algorithms private' do

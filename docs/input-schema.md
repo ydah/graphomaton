@@ -5,8 +5,9 @@ The top-level mapping accepts `version`, `states`, `transitions`, `initial` (or
 default. `version` is optional for compatibility and, when present, must be `1`.
 
 States may be an array or a mapping keyed by state ID. A state mapping accepts
-`id`, `name`, `x`, `y`, `label`, `style`, `metadata`, `shape`, `initial`, `final`,
-and `accepting`. State IDs must be unique. `initial` is singular. `metadata.parent`
+`id`, `name`, `x`, `y`, `label`, `style`, `metadata`, `shape`, `kind`, `initial`,
+`final`, and `accepting`. `kind` is `normal`, `choice`, `fork`, or `join`. State IDs
+must be unique. `initial` is singular. `metadata.parent`
 must name an existing state and may not form a cycle or coexist with a visual
 `group`.
 
