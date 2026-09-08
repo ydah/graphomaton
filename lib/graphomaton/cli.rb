@@ -327,7 +327,7 @@ def execute_man(arguments)
   end
 
   @stdout.write <<~MANPAGE
-    .TH GRAPHOMATON 1 "2026-08-12" "Graphomaton #{Graphomaton::VERSION}" "User Commands"
+    .TH GRAPHOMATON 1 "2026-09-08" "Graphomaton #{Graphomaton::VERSION}" "User Commands"
     .SH NAME
     graphomaton \- validate, analyze, and render finite-state machines
     .SH SYNOPSIS

@@ -6,6 +6,44 @@ follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-08
+
+### Added
+
+- Added a public GitHub Pages landing page for the project.
+- Added CLI selection for reference, FSM-semantic, DFA, and combined validation
+  profiles.
+- Added structured mixed epsilon/symbol labels that retain their semantics
+  through Hash, JSON, and YAML round trips.
+
+### Changed
+
+- Stronger CLI validation profiles now include reference checks, and exporter
+  semantic diagnostics distinguish state and transition tooltips.
+- SVG rendering now reuses immutable state snapshots and linear state ordering
+  while preserving folded-state kinds and unrelated self-loops.
+- Updated the RubyGems trusted-publishing action to 1.4.1.
+
+### Fixed
+
+- Corrected long-word wrapping, explicit-position tracking, duplicate SVG IDs,
+  numeric-root style scoping, auto-sized bounds, and stale clipping diagnostics.
+- Enforced final SVG and scaled PNG dimension limits before conversion, including
+  overflow and non-real numeric inputs.
+- Made metadata-depth checks independent of Hash insertion order and rejected
+  boolean state identifiers consistently at input boundaries.
+- Preserved option-dependent tooltip semantics in strict rendering and retained
+  epsilon meaning in array transition labels.
+- Made `--no-clobber` atomic, including theme-gallery output races and friendly
+  CLI failures.
+
+### Security
+
+- Rejected escaped, comment-obfuscated, and alternate CSS resource functions in
+  themes and per-element SVG styles.
+- Ensured timed-out Unix process groups are terminated even when the direct
+  parent exits first.
+
 ## [1.1.0] - 2026-08-13
 
 ### Added
