@@ -25,6 +25,7 @@ class Graphomaton
 
     def self.identifier!(value, context:)
       raise ArgumentError, "#{context} cannot be nil" if value.nil?
+      raise ArgumentError, "#{context} cannot be boolean" if value == true || value == false
 
       text!(value, context: context)
       value
@@ -64,16 +65,16 @@ class Graphomaton
       raise ArgumentError, 'max_metadata_depth must be a positive Integer' unless maximum.is_a?(Integer) && maximum.positive?
 
       stack = [[value, 1]]
-      visited = {}
+      visited_depth = {}
       until stack.empty?
         current, depth = stack.pop
         text!(current, context: context, max_bytes: max_string_bytes) if current.is_a?(String)
         next unless current.is_a?(Hash) || current.is_a?(Array)
-        next if visited[current.object_id]
+        next if visited_depth.fetch(current.object_id, 0) >= depth
 
         raise ArgumentError, "#{context} exceeds max_metadata_depth (#{maximum})" if depth > maximum
 
-        visited[current.object_id] = true
+        visited_depth[current.object_id] = depth
         children = current.is_a?(Hash) ? current.flat_map { |key, item| [key, item] } : current
         children.each { |child| stack << [child, depth + 1] }
       end

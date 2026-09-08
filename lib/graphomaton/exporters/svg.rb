@@ -388,6 +388,9 @@ class Graphomaton
         if auto_size
           width, height = auto_size_canvas(width, height)
         end
+        Graphomaton.validate_canvas_dimensions!(width, height)
+        @canvas_x = 0.0
+        @canvas_y = 0.0
         @canvas_width = width.to_f
         @canvas_height = height.to_f
         @label_boxes = state_collision_boxes + group_label_collision_boxes
@@ -411,6 +414,7 @@ class Graphomaton
         @svg_id = svg_id ? svg_id_component(svg_id) : default_svg_id(width, height)
         @arrowhead_id = "#{@svg_id}-arrowhead"
         @element_id_counts = Hash.new(0)
+        @element_ids = Set.new
 
         doc = REXML::Document.new
         svg = doc.add_element('svg', svg_root_attributes(width, height, responsive: responsive))
@@ -441,7 +445,14 @@ class Graphomaton
         output = export(*arguments, **options)
         render_diagnostics = (@diagnostics || []).dup
         render_diagnostics.concat(
-          @automaton.layout_diagnostics_for(@positions, @canvas_width, @canvas_height, @state_radius)
+          @automaton.layout_diagnostics_for(
+            @positions,
+            @canvas_width,
+            @canvas_height,
+            @state_radius,
+            x: @canvas_x,
+            y: @canvas_y
+          )
         )
         RenderResult.new(
           output: output.dup.freeze,
@@ -636,6 +647,11 @@ class Graphomaton
         view_y = bounds[:min_y] - margin
         view_width = (bounds[:max_x] - bounds[:min_x]) + (margin * 2)
         view_height = (bounds[:max_y] - bounds[:min_y]) + (margin * 2)
+        Graphomaton.validate_canvas_dimensions!(view_width, view_height)
+        @canvas_x = view_x
+        @canvas_y = view_y
+        @canvas_width = view_width
+        @canvas_height = view_height
         svg.attributes['viewBox'] = "#{view_x} #{view_y} #{view_width} #{view_height}"
         unless responsive
           svg.attributes['width'] = view_width.to_s
@@ -2660,12 +2676,7 @@ class Graphomaton
       def safe_css_value(value, context:, allow_nil: false)
         return nil if value.nil? && allow_nil
 
-        css_value = value.to_s
-        if css_value.match?(/[\u0000-\u001f\u007f;{}]/) || css_value.match?(/url\s*\(/i)
-          raise Graphomaton::SecurityError, "Unsafe SVG #{context}: #{value.inspect}"
-        end
-
-        css_value
+        Graphomaton::Theme.safe_css_value(value, context: "SVG #{context}")
       end
 
       def state_group_attributes(name)

@@ -614,6 +614,7 @@ if options[:theme_gallery]
   themes = themes.merge(custom: load_theme_file(options[:theme_file])) if options[:theme_file]
   Graphomaton::Theme.save_gallery_html(
     output_path,
+    no_clobber: options[:no_clobber],
     title: options[:title] || 'Graphomaton Theme Gallery',
     themes: themes,
     animated: options[:theme_gallery_animated]
@@ -819,7 +820,8 @@ begin
     Graphomaton::AtomicFile.write(
       output_path,
       result.output,
-      binary: Graphomaton::EXPORTERS.fetch(resolved_output_format).binary
+      binary: Graphomaton::EXPORTERS.fetch(resolved_output_format).binary,
+      no_clobber: options[:no_clobber]
     )
   end
 rescue Graphomaton::SecurityError => e

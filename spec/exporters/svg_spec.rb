@@ -607,6 +607,22 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(label_right).to be <= view_x + view_width
         expect(view_height).to be > 160
       end
+
+
+      it 'reports final auto-sized bounds and rejects oversized content' do
+        automaton.remove_transition(automaton.transition_records.first.id)
+        automaton.add_transition('A', 'A', 'a very long self loop label')
+
+        result = svg_exporter.export_result(100, 100, auto_size: true)
+        view_box = REXML::Document.new(result.output).root.attributes['viewBox'].split.map(&:to_f)
+        expect(result.bounds).to eq(width: view_box[2], height: view_box[3])
+        expect(result.diagnostics.map(&:code)).not_to include('state-clipped-horizontal', 'state-clipped-vertical')
+
+        automaton.update_state('A', x: 0, y: 100)
+        automaton.add_state('far', Graphomaton::DEFAULT_MAX_CANVAS_DIMENSION + 100, 100)
+        expect { svg_exporter.export(100, 100, layout: :manual, auto_size: true) }
+          .to raise_error(ArgumentError, /max_canvas_dimension/)
+      end
     end
 
     context 'with multiple self-loops' do
@@ -746,6 +762,9 @@ RSpec.describe Graphomaton::Exporters::Svg do
 
         automaton.remove_state('property')
         automaton.add_state('value', style: { fill: 'red; stroke: black' })
+        expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG style value/)
+
+        automaton.update_state('value', style: { fill: 'u\\72l(https://example.com/x)' })
         expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG style value/)
       end
 

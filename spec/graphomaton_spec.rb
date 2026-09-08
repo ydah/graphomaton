@@ -234,10 +234,25 @@ RSpec.describe Graphomaton do
       graph.add_state('q0')
       expect { graph.layout_positions(Float::MAX, 100) }
         .to raise_error(ArgumentError, /exceeds max_canvas_area/)
+      expect { graph.layout_positions(Graphomaton::DEFAULT_MAX_CANVAS_DIMENSION + 1, 1) }
+        .to raise_error(ArgumentError, /exceeds max_canvas_dimension/)
+    end
+
+    it 'checks shared metadata at its deepest path regardless of traversal order' do
+      shared = { leaf: true }
+      shallow_first = { shallow: shared, deep: { nested: { more: shared } } }
+      deep_first = { deep: { nested: { more: shared } }, shallow: shared }
+
+      [shallow_first, deep_first].each do |metadata|
+        expect do
+          described_class.from_hash(states: [{ id: 'q0', metadata: metadata }], max_metadata_depth: 3)
+        end.to raise_error(ArgumentError, /exceeds max_metadata_depth/)
+      end
     end
 
     it 'rejects nil identifiers and XML-incompatible text at the model boundary' do
       expect { described_class.new.add_state(nil) }.to raise_error(ArgumentError, /cannot be nil/)
+      expect { described_class.new.add_state(false) }.to raise_error(ArgumentError, /cannot be boolean/)
       expect { described_class.new.add_transition('a', 'b', nil) }.to raise_error(ArgumentError, /cannot be nil/)
       expect { described_class.new.add_state('q0', label: "bad\u0000label") }
         .to raise_error(ArgumentError, /invalid in XML/)
@@ -335,6 +350,9 @@ RSpec.describe Graphomaton do
     it 'rejects unsafe theme values and invalid opacity' do
       expect do
         described_class.theme_from_hash(stroke: 'red; } body { color: red')
+      end.to raise_error(Graphomaton::SecurityError, /Unsafe Graphomaton theme value/)
+      expect do
+        described_class.theme_from_hash(stroke: 'u\\72l(https://example.com/x)')
       end.to raise_error(Graphomaton::SecurityError, /Unsafe Graphomaton theme value/)
 
       expect do

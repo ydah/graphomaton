@@ -143,6 +143,13 @@ RSpec.describe Graphomaton::Exporters::Png do
       expect { png_exporter.export(scale: 0) }.to raise_error(ArgumentError, /positive finite number/)
     end
 
+    it 'rejects scaled pixel dimensions above the canvas limit' do
+      expect(Graphomaton::ProcessRunner).not_to receive(:capture3)
+
+      expect { png_exporter.export(100, 100, scale: 100_001) }
+        .to raise_error(ArgumentError, /max_canvas/)
+    end
+
     it 'passes custom themes to the SVG renderer' do
       expect(Graphomaton::ProcessRunner).to receive(:capture3) do |*args|
         options = args.last

@@ -90,7 +90,17 @@ class Graphomaton
     end
 
     def self.save_gallery_html(filename, **options)
-      AtomicFile.write(filename, gallery_html(**options))
+      no_clobber = options.delete(:no_clobber) || false
+      AtomicFile.write(filename, gallery_html(**options), no_clobber: no_clobber)
+    end
+
+    def self.safe_css_value(value, context:)
+      string = value.to_s
+      if string.match?(/[\u0000-\u001f\u007f;{}\\]/) || string.match?(/url\s*\(/i)
+        raise Graphomaton::SecurityError, "Unsafe #{context}: #{value.inspect}"
+      end
+
+      string
     end
 
     def self.theme_card(name, theme)
@@ -150,10 +160,7 @@ class Graphomaton
     private_class_method :escape_html
 
     def self.validate_value(key, value, context:)
-      string = value.to_s
-      if string.match?(/[\u0000-\u001f\u007f;{}]/) || string.match?(/url\s*\(/i)
-        raise Graphomaton::SecurityError, "Unsafe #{context} value for #{key}: #{value.inspect}"
-      end
+      safe_css_value(value, context: "#{context} value for #{key}")
 
       return unless key == :label_opacity
 
@@ -212,12 +219,29 @@ class Graphomaton
   DEFAULT_MAX_LABEL_LENGTH = 64 * 1024
   DEFAULT_MAX_GROUP_DEPTH = 64
   DEFAULT_MAX_CANVAS_AREA = 100_000_000
+  DEFAULT_MAX_CANVAS_DIMENSION = 100_000
   DEFAULT_MAX_LAYOUT_ITERATIONS = 10_000
   FORCE_TREE_THRESHOLD = 128
   VALIDATION_MODES = %i[deferred strict].freeze
   VALIDATION_PROFILES = %i[references fsm_semantics dfa].freeze
   UNSET = Object.new.freeze
   EMPTY_TRANSITIONS = [].freeze
+
+  def self.validate_canvas_dimensions!(width, height)
+    { width: width, height: height }.each do |name, value|
+      unless value.is_a?(Numeric) && value.real? && value.to_f.finite? && value.positive?
+        raise ArgumentError, "#{name} must be a positive finite number"
+      end
+    end
+    if width.to_f * height.to_f > DEFAULT_MAX_CANVAS_AREA
+      raise ArgumentError, "canvas area exceeds max_canvas_area (#{DEFAULT_MAX_CANVAS_AREA})"
+    end
+    if width.to_f > DEFAULT_MAX_CANVAS_DIMENSION || height.to_f > DEFAULT_MAX_CANVAS_DIMENSION
+      raise ArgumentError, "canvas dimension exceeds max_canvas_dimension (#{DEFAULT_MAX_CANVAS_DIMENSION})"
+    end
+
+    true
+  end
   attr_reader :initial_state, :revision
 
   def self.png_available?(converter: Exporters::Png::DEFAULT_CONVERTER)
@@ -1058,12 +1082,16 @@ class Graphomaton
     layout_diagnostics_for(positions, width, height, state_radius).map(&:message)
   end
 
-  def layout_diagnostics_for(positions, width, height, state_radius)
+  def layout_diagnostics_for(positions, width, height, state_radius, x: 0, y: 0)
     radius = state_radius.to_f
+    left = x.to_f
+    top = y.to_f
+    right = left + width.to_f
+    bottom = top + height.to_f
     positions.each_with_object([]) do |(name, position), diagnostics|
-      x = position[:x].to_f
-      y = position[:y].to_f
-      if x - radius < 0 || x + radius > width.to_f
+      state_x = position[:x].to_f
+      state_y = position[:y].to_f
+      if state_x - radius < left || state_x + radius > right
         diagnostics << Diagnostic.new(
           code: 'state-clipped-horizontal',
           severity: :warning,
@@ -1072,7 +1100,7 @@ class Graphomaton
           hint: 'Increase the canvas width or use fit: :contain'
         )
       end
-      if y - radius < 0 || y + radius > height.to_f
+      if state_y - radius < top || state_y + radius > bottom
         diagnostics << Diagnostic.new(
           code: 'state-clipped-vertical',
           severity: :warning,
@@ -1092,11 +1120,7 @@ class Graphomaton
                       initial_position: DEFAULT_INITIAL_POSITION, final_position: DEFAULT_FINAL_POSITION,
                       preserve_manual_positions: DEFAULT_PRESERVE_MANUAL_POSITIONS,
                       fit: DEFAULT_FIT)
-    validate_finite_number!(width, 'width', positive: true)
-    validate_finite_number!(height, 'height', positive: true)
-    if width.to_f * height.to_f > DEFAULT_MAX_CANVAS_AREA
-      raise ArgumentError, "canvas area exceeds max_canvas_area (#{DEFAULT_MAX_CANVAS_AREA})"
-    end
+    self.class.validate_canvas_dimensions!(width, height)
     validate_finite_number!(state_radius, 'state_radius', positive: true)
     validate_finite_number!(padding, 'padding', nonnegative: true)
     validate_finite_number!(node_spacing, 'node_spacing', nonnegative: true)

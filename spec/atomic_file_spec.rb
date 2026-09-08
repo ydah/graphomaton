@@ -38,4 +38,17 @@ RSpec.describe Graphomaton::AtomicFile do
       expect(File.stat(path).mode & 0o7777).to eq(0o644)
     end
   end
+
+  it 'never replaces a file created during a no-clobber write' do
+    Dir.mktmpdir do |directory|
+      path = File.join(directory, 'diagram.svg')
+      allow(File).to receive(:link).and_wrap_original do |original, source, destination|
+        File.write(destination, 'competitor')
+        original.call(source, destination)
+      end
+
+      expect { described_class.write(path, 'replacement', no_clobber: true) }.to raise_error(Errno::EEXIST)
+      expect(File.read(path)).to eq('competitor')
+    end
+  end
 end

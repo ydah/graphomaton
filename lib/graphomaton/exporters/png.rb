@@ -127,8 +127,11 @@ class Graphomaton
         view_box = root.attributes['viewBox'].to_s.split.map(&:to_f)
         logical_width = numeric_svg_dimension(root.attributes['width'], view_box[2])
         logical_height = numeric_svg_dimension(root.attributes['height'], view_box[3])
-        root.attributes['width'] = scaled_dimension(logical_width, scale).to_s
-        root.attributes['height'] = scaled_dimension(logical_height, scale).to_s
+        pixel_width = scaled_dimension(logical_width, scale)
+        pixel_height = scaled_dimension(logical_height, scale)
+        Graphomaton.validate_canvas_dimensions!(pixel_width, pixel_height)
+        root.attributes['width'] = pixel_width.to_s
+        root.attributes['height'] = pixel_height.to_s
         document.to_s
       end
 

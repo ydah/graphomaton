@@ -54,6 +54,38 @@ RSpec.describe Graphomaton::ProcessRunner do
     expect(elapsed).to be < 1.0
   end
 
+  it 'terminates descendants after their parent exits' do
+    skip 'fork is unavailable on Windows' if Gem.win_platform?
+
+    Dir.mktmpdir do |directory|
+      pid_path = File.join(directory, 'child.pid')
+      term_path = File.join(directory, 'child.term')
+      script = <<~RUBY
+        fork do
+          trap('TERM') { File.write(ARGV.fetch(1), 'terminated'); exit! }
+          File.write(ARGV.fetch(0), Process.pid)
+          sleep 5
+        end
+        exit!
+      RUBY
+      child_pid = nil
+
+      begin
+        expect do
+          described_class.capture3(RbConfig.ruby, '-e', script, pid_path, term_path, timeout: 0.2)
+        end.to raise_error(described_class::TimeoutError, /timed out/)
+        child_pid = Integer(File.read(pid_path), 10)
+        expect(File.read(term_path)).to eq('terminated')
+      ensure
+        begin
+          Process.kill('KILL', child_pid) if child_pid
+        rescue Errno::ESRCH
+          nil
+        end
+      end
+    end
+  end
+
   it 'terminates processes whose output exceeds the limit' do
     expect do
       described_class.capture3(

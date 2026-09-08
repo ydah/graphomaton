@@ -110,13 +110,12 @@ class Graphomaton
     private_class_method :output_reader
 
     def self.terminate(wait_thread)
-      return unless wait_thread.alive?
-
-      signal_process(wait_thread.pid, 'TERM')
-      return if wait_thread.join(0.25)
-
-      signal_process(wait_thread.pid, 'KILL')
-      wait_thread.join
+      pid = wait_thread.pid
+      parent_alive = wait_thread.alive?
+      signal_process(pid, 'TERM')
+      parent_alive ? wait_thread.join(0.25) : sleep(0.25)
+      signal_process(pid, 'KILL')
+      wait_thread.join if wait_thread.alive?
     end
     private_class_method :terminate
 

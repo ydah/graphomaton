@@ -4,7 +4,7 @@ require 'tempfile'
 
 class Graphomaton
   class AtomicFile
-    def self.write(filename, content, binary: false)
+    def self.write(filename, content, binary: false, no_clobber: false)
       destination = File.expand_path(filename)
       directory = File.dirname(destination)
       basename = File.basename(destination)
@@ -17,7 +17,11 @@ class Graphomaton
         temporary.flush
         temporary.fsync
         temporary.close
-        File.rename(temporary.path, destination)
+        if no_clobber
+          File.link(temporary.path, destination)
+        else
+          File.rename(temporary.path, destination)
+        end
       end
 
       content.bytesize
