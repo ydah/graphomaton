@@ -98,6 +98,18 @@ RSpec.describe 'Graphomaton model API' do
       .to raise_error(ArgumentError, /coordinates require both/)
   end
 
+  it 'does not turn automatic coordinates into manual positions on label updates' do
+    graph = Graphomaton.new
+    graph.add_state('q0').add_state('q1')
+    graph.auto_layout(400, 200)
+    original_x = graph.state_records.fetch('q1').x
+
+    graph.update_state('q1', label: 'Updated')
+    graph.auto_layout(800, 200)
+
+    expect(graph.state_records.fetch('q1').x).not_to eq(original_x)
+  end
+
   it 'provides strict and deferred construction modes' do
     deferred = Graphomaton.new(validation: :deferred)
     expect { deferred.add_transition('q0', 'q1', 'go') }.not_to raise_error
@@ -154,6 +166,17 @@ RSpec.describe 'Graphomaton model API' do
     expect(diagnostics.map(&:message)).to include(/label "a"/)
   end
 
+  it 'preserves epsilon semantics in mixed transition labels' do
+    graph = Graphomaton.new
+    graph.add_state('q0').add_state('q1')
+    graph.add_transition('q0', 'q1', [:epsilon, 'a'])
+
+    label = graph.transition_records.first.label
+    expect(label.kind).to eq(:alternatives)
+    expect(graph.validation_diagnostics(profile: :dfa).map(&:code)).to include('epsilon-transition-in-dfa')
+    expect(Graphomaton.from_hash(graph.to_h)).to eq(graph)
+  end
+
   it 'provides indexed graph analyses with explicit semantics' do
     graph = Graphomaton.new
     %w[a b c sink].each { |state| graph.add_state(state) }
@@ -194,6 +217,22 @@ RSpec.describe 'Graphomaton model API' do
     expect(graph.semantic_diagnostics(:dot).map(&:message)).to include(/does not preserve state_style/)
     expect { graph.render(format: :dot, strict_semantics: true) }
       .to raise_error(Graphomaton::ExportError, /state_style/)
+  end
+
+  it 'distinguishes state and transition tooltip support by exporter options' do
+    graph = Graphomaton.new
+    graph.add_state('q0', metadata: { tooltip: 'state help' })
+    graph.add_state('q1')
+    graph.add_transition('q0', 'q1', 'go', metadata: { tooltip: 'transition help' })
+
+    expect(graph.semantic_diagnostics(:mermaid).map(&:message))
+      .to include(/state_tooltip/, /transition_tooltip/)
+    expect(graph.semantic_diagnostics(:mermaid, notes: true).map(&:message))
+      .to contain_exactly(/transition_tooltip/)
+    expect(graph.semantic_diagnostics(:png).map(&:message))
+      .to include(/state_tooltip/, /transition_tooltip/)
+    expect { graph.render(format: :mermaid, notes: true, strict_semantics: true) }
+      .to raise_error(Graphomaton::ExportError, /transition_tooltip/)
   end
 
   it 'renders exporter classes registered by applications' do

@@ -19,7 +19,8 @@ default in the CLI.
 State and transition `style` and `metadata` values must be mappings. State labels
 are scalar display text. Transition labels may be scalar text, a symbol array, or
 a structured label with an explicit `type`/`kind`; malformed collections are
-rejected instead of being stringified or ignored.
+rejected instead of being stringified or ignored. Ruby label arrays containing
+`:epsilon` preserve both meanings as a structured `alternatives` label.
 
 YAML aliases are disabled. Parsing limits input bytes, state and transition
 counts, label bytes, metadata depth, and hierarchy depth. Callers handling

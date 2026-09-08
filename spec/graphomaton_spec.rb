@@ -514,7 +514,7 @@ RSpec.describe Graphomaton do
       expect(automaton.transitions).to include({ from: 'q0', to: 'q1', label: Graphomaton::DEFAULT_EPSILON_LABEL })
       expect(automaton.transitions).to include({ from: 'q1', to: 'q0', label: 'eps, a' })
       expect(automaton.transition_records.first.label.kind).to eq(:epsilon)
-      expect(automaton.transition_records.last.label.kind).to eq(:symbols)
+      expect(automaton.transition_records.last.label.kind).to eq(:alternatives)
     end
 
     it 'distinguishes symbol lists from text containing the same punctuation' do
@@ -1638,11 +1638,12 @@ RSpec.describe Graphomaton do
       local = described_class.new
       local.add_state('q0', 100, 100, metadata: { group: 'alpha' })
       local.add_state('q1', 220, 100, metadata: { group: 'alpha' })
-      local.add_state('q2', 340, 100)
+      local.add_state('q2', 340, 100, kind: :choice)
       local.set_initial('q0')
       local.add_final('q1')
       local.add_transition('q0', 'q1', 'internal')
       local.add_transition('q1', 'q2', 'exit')
+      local.add_transition('q2', 'q2', 'outside loop')
 
       svg_output = local.to_svg(layout: :manual, fold_groups: true)
       doc = REXML::Document.new(svg_output)
@@ -1655,6 +1656,8 @@ RSpec.describe Graphomaton do
       expect(hidden_state).to be_empty
       expect(transition.attributes['data-label']).to eq('exit')
       expect(svg_output).not_to include('internal')
+      expect(svg_output).to include('outside loop')
+      expect(REXML::XPath.first(doc, '//*[@data-state="q2"]/polygon')).not_to be_nil
     end
 
     it 'does not retain folded state when an SVG exporter is reused' do

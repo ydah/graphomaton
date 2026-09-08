@@ -18,7 +18,7 @@ class Graphomaton
     COMPLETION_WORDS = %w[
       render validate themes list doctor completion man formats layouts converters
       --input --input-format --output --format --config --no-clobber --force --validate
-      --no-validate --diagnostics --fail-on-warning --strict-semantics --layout-warnings
+      --no-validate --profile --diagnostics --fail-on-warning --strict-semantics --layout-warnings
       --width --height --theme --theme-file --layout --direction --fit --padding
       --node-spacing --rank-spacing --force-iterations --layout-seed --graphviz-command
       --max-metadata-depth --max-label-length --max-group-depth
@@ -433,7 +433,7 @@ options[:format] = argument_format if argument_format
 
 parser = OptionParser.new do |opts|
   opts.banner = 'Usage: graphomaton [render] --input automaton.yml --output diagram.svg [options]'
-  opts.separator '       graphomaton validate automaton.yml [--diagnostics text|json]'
+  opts.separator '       graphomaton validate automaton.yml [--profile references|fsm_semantics|dfa|all]'
   opts.separator '       graphomaton list formats|layouts|themes|converters'
   opts.separator '       graphomaton themes | doctor'
   opts.separator '       graphomaton --theme-gallery --output theme_gallery.html [options]'
@@ -446,6 +446,7 @@ parser = OptionParser.new do |opts|
   opts.on('--force', 'Allow replacing an existing output file') { options[:no_clobber] = false }
   opts.on('-f', '--format FORMAT', 'Output format override') { |value| options[:format] = value.to_sym }
   opts.on('--[no-]validate', 'Validate automaton references before rendering (default: enabled)') { |value| options[:validate] = value }
+  opts.on('--profile PROFILE', 'Validation profile: references, fsm_semantics, dfa, or all') { |value| options[:profile] = value.to_sym }
   opts.on('--diagnostics FORMAT', 'Diagnostic output: text or json') { |value| options[:diagnostics] = value.to_sym }
   opts.on('--fail-on-warning', 'Return a failure status when warnings are emitted') { options[:fail_on_warning] = true }
   opts.on('--strict-semantics', 'Reject information loss in the selected output format') { options[:strict_semantics] = true }
@@ -651,7 +652,12 @@ rescue JSON::ParserError, Psych::Exception, ArgumentError, SystemCallError => e
 end
 
 if command == :validate
-  diagnostics = automaton.validation_diagnostics(profile: :all)
+  profile = options[:profile] || :references
+  unless (Graphomaton::VALIDATION_PROFILES + [:all]).include?(profile.to_sym)
+    warn "Unknown validation profile: #{profile}"
+    halt(EXIT_USAGE)
+  end
+  diagnostics = automaton.validation_diagnostics(profile: profile)
   emit_diagnostics(diagnostics, format: options[:diagnostics] || :text, stream: @stdout)
   has_errors = diagnostics.any? { |diagnostic| diagnostic.severity == :error }
   has_warnings = diagnostics.any? { |diagnostic| diagnostic.severity == :warning }

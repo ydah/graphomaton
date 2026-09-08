@@ -76,9 +76,9 @@ class Graphomaton
         graph.state_records.any? { |_, state| metadata_value(state.metadata, :url, :href) } ||
           graph.transition_records.any? { |transition| metadata_value(transition.metadata, :url, :href) }
       },
-      tooltip: lambda { |graph|
-        graph.state_records.any? { |_, state| metadata_value(state.metadata, :tooltip, :description) } ||
-          graph.transition_records.any? { |transition| metadata_value(transition.metadata, :tooltip, :description) }
+      state_tooltip: ->(graph) { graph.state_records.any? { |_, state| metadata_value(state.metadata, :tooltip, :description) } },
+      transition_tooltip: lambda { |graph|
+        graph.transition_records.any? { |transition| metadata_value(transition.metadata, :tooltip, :description) }
       },
       group: ->(graph) { graph.state_records.any? { |_, state| metadata_value(state.metadata, :group, :cluster) } },
       parent: ->(graph) { graph.state_records.any? { |_, state| metadata_value(state.metadata, :parent) } },
@@ -92,6 +92,9 @@ class Graphomaton
     }.freeze
 
     def self.losses_for(graph, capabilities)
+      if capabilities.include?(:tooltip)
+        capabilities = capabilities + %i[state_tooltip transition_tooltip]
+      end
       FEATURE_DETECTORS.filter_map do |feature, detector|
         feature if detector.call(graph) && !capabilities.include?(feature)
       end

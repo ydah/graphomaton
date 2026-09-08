@@ -4,9 +4,10 @@
 `graphomaton INPUT OUTPUT` command. Use `-` for stdin or stdout; stdout requires
 `--format`. Rendering validates references by default.
 
-`graphomaton validate INPUT --diagnostics json` validates references, hierarchy,
-FSM warnings, and DFA constraints without writing a diagram. Add
-`--fail-on-warning` for CI. `graphomaton list` reports formats, layouts, themes,
+`graphomaton validate INPUT --diagnostics json` validates references and hierarchy
+without writing a diagram. Select `--profile fsm_semantics`, `--profile dfa`, or
+`--profile all` for stronger checks, and add `--fail-on-warning` for CI.
+`graphomaton list` reports formats, layouts, themes,
 and converters; `doctor` reports the Ruby version plus discovered native renderer
 paths and bounded version probes.
 

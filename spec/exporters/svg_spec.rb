@@ -26,6 +26,13 @@ RSpec.describe Graphomaton::Exporters::Svg do
   end
 
   describe '#export' do
+    it 'uses one state snapshot throughout a render' do
+      automaton.add_state('A').add_state('B').add_transition('A', 'B', 'go')
+      expect(automaton).to receive(:state_records).once.and_call_original
+
+      svg_exporter.export
+    end
+
     context 'with empty automaton' do
       it 'generates valid SVG' do
         svg_output = svg_exporter.export(merge_parallel_transitions: false)
@@ -521,6 +528,17 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect(marker.attributes['id']).to eq('diagram-main-arrowhead')
         expect(style.text).to include('marker-end: url(#diagram-main-arrowhead)')
       end
+
+
+      it 'keeps element ids unique after sanitization and suffixing' do
+        local = Graphomaton.new
+        %w[a A a-2].each { |name| local.add_state(name) }
+
+        document = REXML::Document.new(described_class.new(local).export)
+        ids = REXML::XPath.match(document, '//*[@id]').map { |element| element.attributes['id'] }
+
+        expect(ids.uniq).to eq(ids)
+      end
     end
 
     context 'with skip states transitions' do
@@ -993,6 +1011,13 @@ RSpec.describe Graphomaton::Exporters::Svg do
       chunks = svg_exporter.send(:split_long_word, "#{family}A", 10)
 
       expect(chunks).to eq([family, 'A'])
+    end
+
+    it 'does not duplicate text before a long wrapped word' do
+      lines = svg_exporter.send(:wrap_paragraph, 'ok supercalifragilistic', 40)
+
+      expect(lines.count('ok')).to eq(1)
+      expect(lines.join).to eq('oksupercalifragilistic')
     end
 
     it 'uses the shared wrapping path for self-loop labels' do

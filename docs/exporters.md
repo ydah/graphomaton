@@ -3,7 +3,9 @@
 | Feature | SVG/PNG/PDF/WebP | DOT | Mermaid | PlantUML |
 | --- | --- | --- | --- | --- |
 | styles and line styles | yes | partial | partial | partial |
-| URL and tooltip | yes | yes | no | no |
+| URL | yes in SVG; no in raster output | yes | no | no |
+| state tooltip | yes in SVG; no in raster output | yes | with `notes: true` | with `notes: true` |
+| transition tooltip | yes in SVG; no in raster output | yes | no | no |
 | visual groups | yes | yes | partial | partial |
 | hierarchy and pseudostates | display | partial | yes | yes |
 | edge bundles | yes | no | no | no |

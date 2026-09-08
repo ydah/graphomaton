@@ -197,17 +197,18 @@ class Graphomaton
     puml: :plantuml
   }.freeze
   ALL_EXPORT_CAPABILITIES = %i[
-    state_style transition_style url tooltip group parent pseudostate bundle line_style
+    state_style transition_style url state_tooltip transition_tooltip group parent pseudostate bundle line_style
   ].freeze
+  RASTER_EXPORT_CAPABILITIES = (ALL_EXPORT_CAPABILITIES - %i[url state_tooltip transition_tooltip]).freeze
   EXPORTERS = ExporterRegistry.new.tap do |registry|
     registry.register(:svg, extensions: %w[svg], capabilities: ALL_EXPORT_CAPABILITIES) { Exporters::Svg }
-    registry.register(:png, extensions: %w[png], binary: true, capabilities: ALL_EXPORT_CAPABILITIES) { Exporters::Png }
-    registry.register(:pdf, extensions: %w[pdf], binary: true, capabilities: ALL_EXPORT_CAPABILITIES) { Exporters::Pdf }
-    registry.register(:webp, extensions: %w[webp], binary: true, capabilities: ALL_EXPORT_CAPABILITIES) { Exporters::Webp }
-    registry.register(:html, extensions: %w[html], capabilities: %i[group parent pseudostate tooltip]) { Exporters::Mermaid }
-    registry.register(:mermaid, aliases: %i[mmd], extensions: %w[mermaid mmd], capabilities: %i[group parent pseudostate tooltip]) { Exporters::Mermaid }
-    registry.register(:dot, aliases: %i[gv], extensions: %w[dot gv], capabilities: %i[url tooltip group pseudostate bundle line_style]) { Exporters::Dot }
-    registry.register(:plantuml, aliases: %i[puml], extensions: %w[plantuml puml], capabilities: %i[group parent pseudostate tooltip]) { Exporters::Plantuml }
+    registry.register(:png, extensions: %w[png], binary: true, capabilities: RASTER_EXPORT_CAPABILITIES) { Exporters::Png }
+    registry.register(:pdf, extensions: %w[pdf], binary: true, capabilities: RASTER_EXPORT_CAPABILITIES) { Exporters::Pdf }
+    registry.register(:webp, extensions: %w[webp], binary: true, capabilities: RASTER_EXPORT_CAPABILITIES) { Exporters::Webp }
+    registry.register(:html, extensions: %w[html], capabilities: %i[group parent pseudostate]) { Exporters::Mermaid }
+    registry.register(:mermaid, aliases: %i[mmd], extensions: %w[mermaid mmd], capabilities: %i[group parent pseudostate]) { Exporters::Mermaid }
+    registry.register(:dot, aliases: %i[gv], extensions: %w[dot gv], capabilities: %i[url state_tooltip transition_tooltip group pseudostate bundle line_style]) { Exporters::Dot }
+    registry.register(:plantuml, aliases: %i[puml], extensions: %w[plantuml puml], capabilities: %i[group parent pseudostate]) { Exporters::Plantuml }
   end
   DEFAULT_INITIAL_POSITION = :auto
   DEFAULT_FINAL_POSITION = :auto
@@ -453,6 +454,9 @@ class Graphomaton
         guard: input_value(value, :guard),
         action: input_value(value, :action)
       )
+    when :alternatives
+      values = Array(input_value(label, :value))
+      Label.alternatives(*values.map { |value| structured_label_from_input(value) })
     else
       raise ArgumentError, "Unknown label type: #{type.inspect}"
     end
@@ -706,10 +710,13 @@ class Graphomaton
       shape: immutable_copy(attributes.fetch(:shape, state.shape)),
       kind: resolve_state_kind(attributes.fetch(:kind, state.kind))
     )
-    return self if updated_state == state
+    coordinates_updated = attributes.key?(:x)
+    manual = !x.nil? && !y.nil?
+    manual_changed = coordinates_updated && @manual_states[name] != manual
+    return self if updated_state == state && !manual_changed
 
     @states[name] = updated_state
-    @manual_states[name] = !x.nil? && !y.nil?
+    @manual_states[name] = manual if coordinates_updated
     graph_changed!
     self
   end
@@ -1246,14 +1253,11 @@ class Graphomaton
   end
 
   def ordered_state_names
-    ordered_states = []
-    ordered_states << @initial_state if @initial_state && @states[@initial_state]
+    states = @states.keys
+    return states unless @states.key?(@initial_state)
 
-    @states.each_key do |name|
-      ordered_states << name unless ordered_states.include?(name)
-    end
-
-    ordered_states
+    states.delete(@initial_state)
+    states.unshift(@initial_state)
   end
 
   def auto_layout(width = 800, height = 600, layout: :linear, direction: :lr,
@@ -2018,9 +2022,10 @@ class Graphomaton
     io.write(output)
   end
 
-  def semantic_diagnostics(format)
+  def semantic_diagnostics(format, **options)
     resolved = resolve_format(format)
-    capabilities = self.class.exporter_capabilities(resolved)
+    capabilities = self.class.exporter_capabilities(resolved).dup
+    capabilities << :state_tooltip if options[:notes] && %i[html mermaid plantuml].include?(resolved)
     ExporterCapabilities.losses_for(self, capabilities).map do |feature|
       Diagnostic.new(
         code: 'unsupported-export-feature',
@@ -2034,7 +2039,7 @@ class Graphomaton
 
   def render(format: :svg, width: 800, height: 600, strict_semantics: false, **options)
     resolved_format = resolve_format(format)
-    losses = semantic_diagnostics(resolved_format)
+    losses = semantic_diagnostics(resolved_format, **options)
     if strict_semantics && losses.any?
       raise ExportError, losses.map(&:message).join("\n")
     end
@@ -2070,10 +2075,28 @@ class Graphomaton
 
   def render_result(format: :svg, width: 800, height: 600, strict_semantics: false, **options)
     resolved = resolve_format(format)
-    return Exporters::Svg.new(self).export_result(width, height, **options) if resolved == :svg
-    return Exporters::Png.new(self).export_result(width, height, **options) if resolved == :png
-    return Exporters::Pdf.new(self).export_result(width, height, **options) if resolved == :pdf
-    return Exporters::Webp.new(self).export_result(width, height, **options) if resolved == :webp
+    losses = semantic_diagnostics(resolved, **options)
+    if strict_semantics && losses.any?
+      raise ExportError, losses.map(&:message).join("\n")
+    end
+
+    exporter = case resolved
+               when :svg then Exporters::Svg
+               when :png then Exporters::Png
+               when :pdf then Exporters::Pdf
+               when :webp then Exporters::Webp
+               end
+    if exporter
+      result = exporter.new(self).export_result(width, height, **options)
+      return result if losses.empty?
+
+      return RenderResult.new(
+        output: result.output,
+        diagnostics: (losses + result.diagnostics).freeze,
+        bounds: result.bounds,
+        layout: result.layout
+      )
+    end
 
     output = render(
       format: resolved,
@@ -2084,7 +2107,7 @@ class Graphomaton
     )
     RenderResult.new(
       output: output,
-      diagnostics: semantic_diagnostics(resolved),
+      diagnostics: losses,
       bounds: nil,
       layout: nil
     )
@@ -2557,6 +2580,11 @@ class Graphomaton
     if label.is_a?(Array)
       labels = label.map { |item| normalize_single_transition_label(item, epsilon_label: epsilon_label) }.uniq
       labels = labels.sort_by(&:to_s) if sort_labels
+      if labels.any? { |item| item.is_a?(Label) && item.kind == :epsilon }
+        return labels.first if labels.one?
+
+        return Label.alternatives(*labels)
+      end
       return Label.symbols(*labels.map(&:to_s))
     end
 
@@ -2694,7 +2722,7 @@ class Graphomaton
     @states.each_key do |from|
       by_symbol = Hash.new { |hash, key| hash[key] = [] }
       @outgoing_by_state[from].each do |transition|
-        if transition.label.is_a?(Label) && transition.label.kind == :epsilon
+        if epsilon_transition_label?(transition.label)
           diagnostics << diagnostic(
             'epsilon-transition-in-dfa',
             :error,
@@ -2719,9 +2747,20 @@ class Graphomaton
   end
 
   def transition_label_symbols(label)
-    return label.value if label.is_a?(Label) && label.kind == :symbols
+    if label.is_a?(Label)
+      return label.value if label.kind == :symbols
+      return [] if label.kind == :epsilon
+      return label.value.flat_map { |item| transition_label_symbols(item) } if label.kind == :alternatives
+    end
 
     [label.to_s]
+  end
+
+  def epsilon_transition_label?(label)
+    return false unless label.is_a?(Label)
+    return true if label.kind == :epsilon
+
+    label.kind == :alternatives && label.value.any? { |item| epsilon_transition_label?(item) }
   end
 
   def diagnostic(code, severity, path, message, hint = nil)

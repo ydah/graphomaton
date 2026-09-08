@@ -29,6 +29,7 @@ class Graphomaton
     def self.symbols: (*untyped values) -> Label
     def self.epsilon: (?untyped display) -> Label
     def self.uml: (event: untyped, ?guard: untyped, ?action: untyped) -> Label
+    def self.alternatives: (*untyped values) -> Label
     def to_s: () -> String
     def to_h: () -> Hash[Symbol, untyped]
   end
@@ -108,6 +109,7 @@ class Graphomaton
   def to_json: (*untyped) -> String
   def to_yaml: (**untyped) -> String
   def render: (?format: Symbol | String, ?width: Numeric, ?height: Numeric, ?strict_semantics: bool, **untyped) -> String
+  def semantic_diagnostics: (Symbol | String format, **untyped) -> Array[Diagnostic]
   def render_result: (?format: Symbol | String, ?width: Numeric, ?height: Numeric, ?strict_semantics: bool, **untyped) -> RenderResult
   def render_with: (RenderOptions options) -> String
   def reachable_states: () -> Array[untyped]

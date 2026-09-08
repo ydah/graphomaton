@@ -37,7 +37,7 @@ class Graphomaton
   private_constant :ModelValue
 
   Label = Data.define(:kind, :value) do
-    KINDS = %i[text symbols epsilon uml].freeze
+    KINDS = %i[text symbols epsilon uml alternatives].freeze
 
     def initialize(kind:, value: nil)
       resolved_kind = kind.to_sym
@@ -64,6 +64,11 @@ class Graphomaton
                            raise ArgumentError, 'UML label requires an event' unless uml_value.key?(:event)
 
                            uml_value
+                         when :alternatives
+                           alternatives = Array(value)
+                           raise ArgumentError, 'Alternative label requires at least one label' if alternatives.empty?
+
+                           alternatives
                          end
       super(kind: resolved_kind, value: ModelValue.copy(normalized_value))
     end
@@ -84,6 +89,10 @@ class Graphomaton
       new(kind: :uml, value: { event: event, guard: guard, action: action }.compact)
     end
 
+    def self.alternatives(*values)
+      new(kind: :alternatives, value: values.flatten)
+    end
+
     def to_s
       case kind
       when :symbols
@@ -95,13 +104,16 @@ class Graphomaton
         guard = value[:guard] ? " [#{value[:guard]}]" : ''
         action = value[:action] ? " / #{value[:action]}" : ''
         "#{event}#{guard}#{action}"
+      when :alternatives
+        value.join(', ')
       else
         value.to_s
       end
     end
 
     def to_h
-      { type: kind, value: value }.compact
+      serialized = kind == :alternatives ? value.map { |label| label.is_a?(Label) ? label.to_h : label } : value
+      { type: kind, value: serialized }.compact
     end
   end
 

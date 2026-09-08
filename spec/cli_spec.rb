@@ -70,11 +70,34 @@ RSpec.describe 'graphomaton CLI' do
     _stdout, _stderr, status = Open3.capture3(
       RbConfig.ruby,
       executable,
-      'validate', '-', '--fail-on-warning',
+      'validate', '-', '--profile', 'fsm_semantics', '--fail-on-warning',
       stdin_data: "states: [q0]\ninitial: q0\n"
     )
 
     expect(status.exitstatus).to eq(Graphomaton::CLI::EXIT_VALIDATION)
+  end
+
+  it 'selects validation semantics explicitly' do
+    input = <<~YAML
+      states: [q0, q1]
+      initial: q0
+      final: [q1]
+      transitions:
+        - from: q0
+          to: q1
+          label: {type: epsilon}
+    YAML
+
+    _stdout, default_errors, default_status = Open3.capture3(
+      RbConfig.ruby, executable, 'validate', '-', stdin_data: input
+    )
+    dfa_output, dfa_errors, dfa_status = Open3.capture3(
+      RbConfig.ruby, executable, 'validate', '-', '--profile', 'dfa', '--diagnostics', 'json', stdin_data: input
+    )
+
+    expect(default_status).to be_success, default_errors
+    expect(dfa_status.exitstatus).to eq(Graphomaton::CLI::EXIT_VALIDATION), dfa_errors
+    expect(JSON.parse(dfa_output).map { |diagnostic| diagnostic.fetch('code') }).to include('epsilon-transition-in-dfa')
   end
 
   it 'lists capabilities and reports converter health through commands' do

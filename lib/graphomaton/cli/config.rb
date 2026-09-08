@@ -8,10 +8,10 @@ class Graphomaton
       FORMAT_SECTIONS = %i[svg png pdf webp html mermaid dot plantuml].freeze
       ENUM_KEYS = %i[
         format input_format theme layout direction fit converter initial_position final_position
-        state_shape edge_style arrow_shape state_effect unreachable_zone loop_position diagnostics
+        state_shape edge_style arrow_shape state_effect unreachable_zone loop_position diagnostics profile
       ].freeze
       OPTION_KEYS = %i[
-        input input_format output format validate no_clobber width height scale converter timeout
+        input input_format output format validate profile no_clobber width height scale converter timeout
         max_output_bytes max_input_bytes max_states max_transitions max_metadata_depth max_label_length
         max_group_depth theme theme_file layout_warnings
         layout direction fit padding node_spacing rank_spacing force_iterations layout_seed

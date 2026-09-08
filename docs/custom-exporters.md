@@ -34,3 +34,6 @@ Capability omissions are reported by `semantic_diagnostics` and rejected when
 `strict_semantics: true` is used. Set `binary: true` when output must be written in
 binary mode. A temporary registration can be removed with
 `Graphomaton::EXPORTERS.unregister(:text_graph)`.
+
+Tooltip capabilities are `state_tooltip` and `transition_tooltip`. The legacy
+`tooltip` capability continues to declare both.

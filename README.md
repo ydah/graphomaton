@@ -220,7 +220,8 @@ The command interface also supports structured workflows:
 ```bash
 graphomaton render automaton.yml diagram.svg
 graphomaton validate automaton.yml --diagnostics json
-graphomaton validate automaton.yml --fail-on-warning
+graphomaton validate automaton.yml --profile fsm_semantics --fail-on-warning
+graphomaton validate automaton.yml --profile dfa
 graphomaton list formats
 graphomaton list layouts
 graphomaton doctor
@@ -239,7 +240,7 @@ svg:
     wrap: true
 ```
 
-The CLI validates state references and hierarchy by default. `--no-validate` is available for intentionally deferred or partial diagrams. Standard input auto-detects JSON documents that start with `{` or `[`, otherwise YAML is assumed; use `--input-format` to override it. `--format` is required when `--output -` is used. Input limits can be lowered with `--max-input-bytes`, `--max-states`, `--max-transitions`, `--max-metadata-depth`, `--max-label-length`, and `--max-group-depth`. Use `--no-clobber` to protect an existing output (and `--force` to opt back into replacement). Usage, parse, validation, conversion, and security failures use distinct exit statuses and are reported without backtraces.
+The CLI validates state references and hierarchy by default. The `validate` command also defaults to that `references` profile; use `--profile fsm_semantics`, `--profile dfa`, or `--profile all` for stronger checks. `--no-validate` is available for intentionally deferred or partial diagrams. Standard input auto-detects JSON documents that start with `{` or `[`, otherwise YAML is assumed; use `--input-format` to override it. `--format` is required when `--output -` is used. Input limits can be lowered with `--max-input-bytes`, `--max-states`, `--max-transitions`, `--max-metadata-depth`, `--max-label-length`, and `--max-group-depth`. Use `--no-clobber` to protect an existing output (and `--force` to opt back into replacement). Usage, parse, validation, conversion, and security failures use distinct exit statuses and are reported without backtraces.
 
 Common SVG options:
 
