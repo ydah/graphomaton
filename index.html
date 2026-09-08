@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Graphomaton validates, analyzes, lays out, and exports finite state machines from Ruby.">
+    <meta name="theme-color" content="#f8fafc">
+    <meta property="og:title" content="Graphomaton — finite state machines from Ruby">
+    <meta property="og:description" content="Build one automaton and export it to SVG, PNG, PDF, WebP, Mermaid, DOT, PlantUML, or HTML.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://ydah.github.io/graphomaton/">
+    <link rel="canonical" href="https://ydah.github.io/graphomaton/">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='%23e0f2fe' stroke='%230369a1' stroke-width='4'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css">
+    <title>Graphomaton — finite state machines from Ruby</title>
+  </head>
+  <body>
+    <header class="border-b border-slate-200 bg-slate-50">
+      <nav class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8" aria-label="Primary navigation">
+        <a class="flex items-center gap-3 font-semibold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-600" href="#top">
+          <span class="size-3 rounded-full border-2 border-sky-600 bg-sky-100" aria-hidden="true"></span>
+          Graphomaton
+        </a>
+        <div class="flex items-center gap-5 text-sm font-medium">
+          <a class="hidden text-slate-600 underline-offset-4 hover:text-slate-950 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-600 sm:inline" href="#quick-start">Quick start</a>
+          <a class="text-slate-600 underline-offset-4 hover:text-slate-950 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-600" href="https://github.com/ydah/graphomaton">GitHub</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="mx-auto grid max-w-7xl items-center gap-16 px-6 py-20 lg:grid-cols-12 lg:px-8 lg:py-28">
+        <div class="lg:col-span-5">
+          <h1 class="max-w-xl text-balance text-5xl font-semibold leading-none sm:text-6xl lg:text-7xl">Finite state machines, rendered straight from Ruby.</h1>
+          <p class="mt-7 max-w-xl text-pretty text-lg leading-8 text-slate-600">Graphomaton validates, analyzes, lays out, and exports automata without making you leave your codebase.</p>
+          <div class="mt-9 flex flex-wrap items-center gap-4">
+            <a class="rounded-md bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-600" href="#quick-start">Install the gem</a>
+            <a class="px-2 py-3 text-sm font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-600" href="https://github.com/ydah/graphomaton">Explore the source</a>
+          </div>
+          <dl class="mt-12 grid max-w-md grid-cols-3 border-y border-slate-300 py-4 text-sm">
+            <div><dt class="text-slate-500">Release</dt><dd class="mt-1 font-semibold tabular-nums">v1.1.0</dd></div>
+            <div><dt class="text-slate-500">Ruby</dt><dd class="mt-1 font-semibold tabular-nums">3.2+</dd></div>
+            <div><dt class="text-slate-500">License</dt><dd class="mt-1 font-semibold">MIT</dd></div>
+          </dl>
+        </div>
+
+        <figure class="relative min-w-0 lg:col-span-7" aria-labelledby="diagram-caption">
+          <div class="border border-slate-300 bg-white shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 font-mono text-xs text-slate-500">
+              <span>runtime.yml</span><span class="text-sky-700">diagram.svg</span>
+            </div>
+            <svg class="h-auto w-full" viewBox="0 0 720 520" role="img" aria-labelledby="diagram-title diagram-desc">
+              <title id="diagram-title">A runtime finite state machine</title>
+              <desc id="diagram-desc">Idle transitions to running, then to done or failed, with recovery returning to idle.</desc>
+              <defs>
+                <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M 24 0 L 0 0 0 24" fill="none" stroke="#e2e8f0" stroke-width="1"/></pattern>
+                <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0369a1"/></marker>
+              </defs>
+              <rect width="720" height="520" fill="#f8fafc"/><rect width="720" height="520" fill="url(#grid)"/>
+              <g fill="none" stroke="#0369a1" stroke-width="3" marker-end="url(#arrow)">
+                <path d="M 42 260 H 127"/><path d="M 263 260 H 366"/><path d="M 492 232 C 548 191 573 184 602 189"/>
+                <path d="M 492 288 C 548 329 573 336 602 331"/><path d="M 615 392 C 490 485 240 458 196 329" stroke-dasharray="8 8"/>
+              </g>
+              <g font-family="IBM Plex Mono, monospace" font-size="13" fill="#0369a1" text-anchor="middle">
+                <text x="315" y="244">start</text><text x="568" y="187">finish</text><text x="568" y="344">error</text><text x="412" y="444">recover</text>
+              </g>
+              <g font-family="IBM Plex Sans, sans-serif" font-size="18" font-weight="600" text-anchor="middle" fill="#0f172a">
+                <g><circle cx="195" cy="260" r="68" fill="#e0f2fe" stroke="#0369a1" stroke-width="3"/><text x="195" y="267">idle</text></g>
+                <g><circle cx="430" cy="260" r="64" fill="#fff" stroke="#0369a1" stroke-width="3"/><text x="430" y="267">running</text></g>
+                <g><circle cx="650" cy="170" r="52" fill="#dcfce7" stroke="#0369a1" stroke-width="3"/><circle cx="650" cy="170" r="44" fill="none" stroke="#0369a1" stroke-width="2"/><text x="650" y="177">done</text></g>
+                <g><circle cx="650" cy="350" r="52" fill="#fff" stroke="#0369a1" stroke-width="3"/><text x="650" y="357">failed</text></g>
+              </g>
+            </svg>
+          </div>
+          <figcaption id="diagram-caption" class="mt-3 text-pretty text-sm text-slate-500">A readable SVG generated from the same model you validate and analyze.</figcaption>
+        </figure>
+      </section>
+
+      <section class="border-y border-slate-300 bg-white">
+        <div class="mx-auto max-w-7xl px-6 py-20 lg:px-8">
+          <div class="max-w-2xl"><h2 class="text-balance text-3xl font-semibold sm:text-4xl">One model. Eight useful destinations.</h2><p class="mt-4 text-pretty leading-7 text-slate-600">Keep the source of truth in Ruby, JSON, or YAML. Pick the output that fits the next place your diagram needs to live.</p></div>
+          <div class="mt-12 grid items-center gap-8 md:grid-cols-3">
+            <div class="flex justify-center md:justify-start"><div class="flex size-40 items-center justify-center rounded-full border-2 border-sky-600 bg-sky-100 text-center font-semibold shadow-sm">Graphomaton<br>model</div></div>
+            <div class="hidden h-px bg-slate-300 md:block" aria-hidden="true"></div>
+            <ul class="grid grid-cols-2 gap-3 font-mono text-sm" aria-label="Export formats">
+              <li class="border-l-4 border-sky-600 bg-slate-50 px-4 py-3">SVG</li><li class="border-l-4 border-sky-600 bg-slate-50 px-4 py-3">PNG</li>
+              <li class="border-l-4 border-sky-600 bg-slate-50 px-4 py-3">PDF</li><li class="border-l-4 border-sky-600 bg-slate-50 px-4 py-3">WebP</li>
+              <li class="border-l-4 border-sky-600 bg-slate-50 px-4 py-3">Mermaid</li><li class="border-l-4 border-sky-600 bg-slate-50 px-4 py-3">DOT</li>
+              <li class="border-l-4 border-sky-600 bg-slate-50 px-4 py-3">PlantUML</li><li class="border-l-4 border-sky-600 bg-slate-50 px-4 py-3">HTML</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="mx-auto max-w-7xl px-6 py-20 lg:px-8">
+        <h2 class="max-w-3xl text-balance text-3xl font-semibold sm:text-4xl">The diagram is an output. The model does more.</h2>
+        <div class="mt-12 grid border-y border-slate-300 md:grid-cols-3 md:divide-x md:divide-slate-300">
+          <article class="py-8 md:pr-8"><h3 class="text-xl font-semibold">Validate before export</h3><p class="mt-3 text-pretty leading-7 text-slate-600">Catch broken references and hierarchy errors, or fail CI when diagnostics include a warning.</p></article>
+          <article class="border-t border-slate-300 py-8 md:border-t-0 md:px-8"><h3 class="text-xl font-semibold">Inspect real behavior</h3><p class="mt-3 text-pretty leading-7 text-slate-600">Find reachable, dead, trap, and strongly connected states from the same automaton.</p></article>
+          <article class="border-t border-slate-300 py-8 md:border-t-0 md:pl-8"><h3 class="text-xl font-semibold">Choose the right layout</h3><p class="mt-3 text-pretty leading-7 text-slate-600">Use layered, force, manual, or Graphviz layouts with themes and semantic diagnostics.</p></article>
+        </div>
+      </section>
+
+      <section id="quick-start" class="bg-slate-900 text-slate-100">
+        <div class="mx-auto grid max-w-7xl gap-12 px-6 py-20 lg:grid-cols-5 lg:px-8">
+          <div class="lg:col-span-2"><h2 class="text-balance text-3xl font-semibold sm:text-4xl">From install to SVG in a few lines.</h2><p class="mt-5 max-w-md text-pretty leading-7 text-slate-300">Add the gem, define the states and transitions, then save the format you need.</p><code class="mt-6 inline-block border border-slate-700 bg-slate-800 px-4 py-3 font-mono text-sm text-slate-100">gem install graphomaton</code><br><a class="mt-7 inline-block text-sm font-semibold text-sky-300 underline decoration-sky-700 underline-offset-4 hover:text-sky-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-300" href="https://github.com/ydah/graphomaton#quick-start">Read the full documentation</a></div>
+          <div class="min-w-0 border border-slate-700 bg-slate-950 lg:col-span-3">
+            <div class="border-b border-slate-700 px-5 py-3 font-mono text-xs text-slate-400">quick_start.rb</div>
+            <pre class="overflow-x-auto p-5 font-mono text-sm leading-7 text-slate-200"><code><span class="text-sky-300">require</span> <span class="text-emerald-300">'graphomaton'</span>
+
+machine = Graphomaton.new
+machine.add_state(<span class="text-emerald-300">'idle'</span>)
+machine.add_state(<span class="text-emerald-300">'done'</span>)
+machine.set_initial(<span class="text-emerald-300">'idle'</span>)
+machine.add_final(<span class="text-emerald-300">'done'</span>)
+machine.add_transition(<span class="text-emerald-300">'idle'</span>, <span class="text-emerald-300">'done'</span>, <span class="text-emerald-300">'finish'</span>)
+machine.save_svg(<span class="text-emerald-300">'diagram.svg'</span>)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="mx-auto max-w-4xl px-6 py-24 text-center lg:px-8">
+        <div class="mx-auto flex size-16 items-center justify-center rounded-full border-2 border-sky-600 bg-sky-100" aria-hidden="true"><div class="size-3 rounded-full bg-sky-600"></div></div>
+        <h2 class="mt-8 text-balance text-4xl font-semibold sm:text-5xl">Keep the logic in Ruby. Put the diagram everywhere.</h2>
+        <p class="mx-auto mt-5 max-w-2xl text-pretty text-lg leading-8 text-slate-600">Graphomaton is open source, MIT licensed, and ready for the command line or your application.</p>
+        <a class="mt-8 inline-block rounded-md bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-600" href="https://rubygems.org/gems/graphomaton">Get Graphomaton on RubyGems</a>
+      </section>
+    </main>
+
+    <footer class="border-t border-slate-300">
+      <div class="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <p>Graphomaton is created by Yudai Takada.</p>
+        <div class="flex gap-5"><a class="underline-offset-4 hover:text-slate-900 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-600" href="https://github.com/ydah/graphomaton">Source</a><a class="underline-offset-4 hover:text-slate-900 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-600" href="https://github.com/ydah/graphomaton/blob/main/LICENSE.txt">License</a></div>
+      </div>
+    </footer>
+  </body>
+</html>

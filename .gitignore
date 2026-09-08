@@ -11,5 +11,6 @@ Gemfile.lock
 # Generated output files
 *.svg
 *.html
+!/index.html
 *.dot
 *.puml
