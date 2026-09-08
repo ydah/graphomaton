@@ -136,7 +136,7 @@ class Graphomaton
     private_class_method :signal_process
 
     def self.validate_limit(value, name)
-      return if value.is_a?(Numeric) && value.finite? && value.positive?
+      return if value.is_a?(Numeric) && value.real? && value.to_f.finite? && value.positive?
 
       raise ArgumentError, "#{name} must be a positive finite number"
     end

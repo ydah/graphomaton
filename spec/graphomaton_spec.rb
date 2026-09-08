@@ -354,6 +354,12 @@ RSpec.describe Graphomaton do
       expect do
         described_class.theme_from_hash(stroke: 'u\\72l(https://example.com/x)')
       end.to raise_error(Graphomaton::SecurityError, /Unsafe Graphomaton theme value/)
+      expect do
+        described_class.theme_from_hash(stroke: 'u/**/rl(https://example.com/x)')
+      end.to raise_error(Graphomaton::SecurityError, /Unsafe Graphomaton theme value/)
+      expect do
+        described_class.theme_from_hash(background: 'image-set("https://example.com/x" 1x)')
+      end.to raise_error(Graphomaton::SecurityError, /Unsafe Graphomaton theme value/)
 
       expect do
         described_class.theme_from_hash(label_opacity: 2)

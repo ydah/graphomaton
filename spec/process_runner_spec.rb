@@ -5,6 +5,12 @@ require 'rbconfig'
 require 'tmpdir'
 
 RSpec.describe Graphomaton::ProcessRunner do
+  it 'rejects non-real resource limits' do
+    expect do
+      described_class.capture3(RbConfig.ruby, '-e', 'exit', timeout: Complex(1, 1))
+    end.to raise_error(ArgumentError, /positive finite number/)
+  end
+
   it 'captures stdout, stderr, and exit status' do
     stdout, stderr, status = described_class.capture3(
       RbConfig.ruby,

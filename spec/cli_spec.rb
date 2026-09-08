@@ -100,6 +100,18 @@ RSpec.describe 'graphomaton CLI' do
     expect(JSON.parse(dfa_output).map { |diagnostic| diagnostic.fetch('code') }).to include('epsilon-transition-in-dfa')
   end
 
+  it 'retains reference checks in stronger validation profiles' do
+    output, errors, status = Open3.capture3(
+      RbConfig.ruby,
+      executable,
+      'validate', '-', '--profile', 'dfa', '--diagnostics', 'json',
+      stdin_data: "states: [q0]\ntransitions: [[q0, missing, a]]\n"
+    )
+
+    expect(status.exitstatus).to eq(Graphomaton::CLI::EXIT_VALIDATION), errors
+    expect(JSON.parse(output).map { |diagnostic| diagnostic.fetch('code') }).to include('undefined-transition-target')
+  end
+
   it 'lists capabilities and reports converter health through commands' do
     formats, format_errors, format_status = Open3.capture3(RbConfig.ruby, executable, 'list', 'formats')
     doctor, doctor_errors, doctor_status = Open3.capture3(RbConfig.ruby, executable, 'doctor')
@@ -194,6 +206,20 @@ RSpec.describe 'graphomaton CLI' do
       expect(status.exitstatus).to eq(Graphomaton::CLI::EXIT_EXPORT)
       expect(stderr).to include('already exists')
       expect(File.read(output)).to eq('original')
+    end
+  end
+
+  it 'reports a late theme-gallery no-clobber conflict as an export failure' do
+    Dir.mktmpdir do |directory|
+      output = File.join(directory, 'themes.html')
+      stderr = StringIO.new
+      cli = Graphomaton::CLI.new(stdin: StringIO.new, stdout: StringIO.new, stderr: stderr)
+      allow(Graphomaton::Theme).to receive(:save_gallery_html).and_raise(Errno::EEXIST)
+
+      status = cli.run(['--theme-gallery', '--output', output, '--no-clobber'])
+
+      expect(status).to eq(Graphomaton::CLI::EXIT_EXPORT)
+      expect(stderr.string).to include('Output file already exists')
     end
   end
 

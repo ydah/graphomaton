@@ -96,7 +96,8 @@ class Graphomaton
 
     def self.safe_css_value(value, context:)
       string = value.to_s
-      if string.match?(/[\u0000-\u001f\u007f;{}\\]/) || string.match?(/url\s*\(/i)
+      if string.match?(/[\u0000-\u001f\u007f;{}\\]/) ||
+         string.match?(/\/\*|(?:url|src|image(?:-set)?|cross-fade|element|paint)\s*\(/i)
         raise Graphomaton::SecurityError, "Unsafe #{context}: #{value.inspect}"
       end
 

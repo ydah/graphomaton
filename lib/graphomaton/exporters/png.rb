@@ -108,13 +108,14 @@ class Graphomaton
 
       def scaled_dimension(value, scale)
         scaled = value.to_f * scale
+        return scaled unless scaled.finite?
         return scaled.to_i if scaled == scaled.to_i
 
         scaled
       end
 
       def resolve_scale(scale)
-        unless scale.is_a?(Numeric) && scale.finite? && scale.positive?
+        unless scale.is_a?(Numeric) && scale.real? && scale.to_f.finite? && scale.positive?
           raise ArgumentError, 'PNG scale must be a positive finite number'
         end
 

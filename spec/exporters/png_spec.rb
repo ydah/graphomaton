@@ -140,6 +140,7 @@ RSpec.describe Graphomaton::Exporters::Png do
     it 'rejects invalid scales instead of coercing them' do
       expect { png_exporter.export(scale: 'large') }.to raise_error(ArgumentError, /positive finite number/)
       expect { png_exporter.export(scale: Float::INFINITY) }.to raise_error(ArgumentError, /positive finite number/)
+      expect { png_exporter.export(scale: Complex(1, 1)) }.to raise_error(ArgumentError, /positive finite number/)
       expect { png_exporter.export(scale: 0) }.to raise_error(ArgumentError, /positive finite number/)
     end
 
@@ -148,6 +149,8 @@ RSpec.describe Graphomaton::Exporters::Png do
 
       expect { png_exporter.export(100, 100, scale: 100_001) }
         .to raise_error(ArgumentError, /max_canvas/)
+      expect { png_exporter.export(100, 100, scale: Float::MAX) }
+        .to raise_error(ArgumentError, /positive finite number/)
     end
 
     it 'passes custom themes to the SVG renderer' do

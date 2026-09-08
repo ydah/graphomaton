@@ -613,13 +613,21 @@ if options[:theme_gallery]
 
   themes = Graphomaton::Exporters::Svg::THEMES.dup
   themes = themes.merge(custom: load_theme_file(options[:theme_file])) if options[:theme_file]
-  Graphomaton::Theme.save_gallery_html(
-    output_path,
-    no_clobber: options[:no_clobber],
-    title: options[:title] || 'Graphomaton Theme Gallery',
-    themes: themes,
-    animated: options[:theme_gallery_animated]
-  )
+  begin
+    Graphomaton::Theme.save_gallery_html(
+      output_path,
+      no_clobber: options[:no_clobber],
+      title: options[:title] || 'Graphomaton Theme Gallery',
+      themes: themes,
+      animated: options[:theme_gallery_animated]
+    )
+  rescue Errno::EEXIST
+    warn "Output file already exists: #{output_path}"
+    halt(EXIT_EXPORT)
+  rescue SystemCallError => e
+    report_exception(e)
+    halt(EXIT_EXPORT)
+  end
   halt(EXIT_SUCCESS)
 end
 
@@ -652,12 +660,18 @@ rescue JSON::ParserError, Psych::Exception, ArgumentError, SystemCallError => e
 end
 
 if command == :validate
-  profile = options[:profile] || :references
-  unless (Graphomaton::VALIDATION_PROFILES + [:all]).include?(profile.to_sym)
+  profile = (options[:profile] || :references).to_s.to_sym
+  profiles = {
+    references: :references,
+    fsm_semantics: %i[references fsm_semantics],
+    dfa: %i[references dfa],
+    all: :all
+  }
+  unless profiles.key?(profile)
     warn "Unknown validation profile: #{profile}"
     halt(EXIT_USAGE)
   end
-  diagnostics = automaton.validation_diagnostics(profile: profile)
+  diagnostics = automaton.validation_diagnostics(profile: profiles.fetch(profile))
   emit_diagnostics(diagnostics, format: options[:diagnostics] || :text, stream: @stdout)
   has_errors = diagnostics.any? { |diagnostic| diagnostic.severity == :error }
   has_warnings = diagnostics.any? { |diagnostic| diagnostic.severity == :warning }

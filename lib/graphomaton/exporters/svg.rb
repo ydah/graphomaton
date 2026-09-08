@@ -361,6 +361,7 @@ class Graphomaton
         @scc_groups = scc_groups
         @max_transition_label_width = finite_number!(max_transition_label_width, 'max_transition_label_width', nonnegative: true)
         @sort_labels = sort_labels
+        @auto_size = auto_size
         @label_tooltips = label_tooltips
         @html_tooltips = html_tooltips
         @font_family = safe_css_value(font_family, context: 'font_family')
@@ -416,7 +417,7 @@ class Graphomaton
         @svg_id = svg_id ? svg_id_component(svg_id) : default_svg_id(width, height)
         @arrowhead_id = "#{@svg_id}-arrowhead"
         @element_id_counts = Hash.new(0)
-        @element_ids = Set.new
+        @element_ids = Set.new([@svg_id, @arrowhead_id, "#{@svg_id}-title", "#{@svg_id}-desc"])
 
         doc = REXML::Document.new
         svg = doc.add_element('svg', svg_root_attributes(width, height, responsive: responsive))
@@ -958,7 +959,7 @@ class Graphomaton
       def add_style(svg)
         style = svg.add_element('style')
         background = theme_css_value(:background, fallback: 'transparent')
-        scope = "##{@svg_id}"
+        scope = %(svg[id="#{@svg_id}"])
         style.text = <<-CSS
 #{css_variables_css}      
       #{scope} .diagram-background { fill: #{background}; }
@@ -1023,7 +1024,7 @@ class Graphomaton
           "#{indentation}  --graphomaton-#{css_variable_name(key)}: #{value};"
         end.join("\n")
 
-        "#{indentation}##{svg_id} {\n#{declarations}\n#{indentation}}\n"
+        %(#{indentation}svg[id="#{svg_id}"] {\n#{declarations}\n#{indentation}}\n)
       end
 
       def theme_css_value(key, fallback: nil)
@@ -1403,7 +1404,7 @@ class Graphomaton
         if label_box_overlap?(collision_box) || label_box_overlaps_state?(collision_box)
           @diagnostics << layout_diagnostic('label-overlap-unresolved', 'Transition label overlap could not be resolved')
         end
-        if label_box_outside_canvas?(collision_box)
+        if !@auto_size && label_box_outside_canvas?(collision_box)
           @diagnostics << layout_diagnostic('label-outside-canvas', 'Transition label extends outside the SVG canvas')
         end
         box
@@ -2292,18 +2293,21 @@ class Graphomaton
 
         folded = Graphomaton.new
         group_ids = {}
+        reserved_group_ids = Set.new
         member_to_group = {}
 
         groups.each do |group_name, members|
-          group_id = folded_group_state_id(group_name, states, group_ids.values)
+          group_id = folded_group_state_id(group_name, states, reserved_group_ids)
           group_ids[group_name] = group_id
+          reserved_group_ids << group_id
           members.each { |member| member_to_group[member] = group_id }
         end
 
+        added_groups = Set.new
         states.each do |name, state|
           group_name = state_group_name(state)
           if group_name && groups.key?(group_name)
-            next if folded.state_records.key?(group_ids[group_name])
+            next unless added_groups.add?(group_name)
 
             position = folded_group_position(groups[group_name], states)
             folded.add_state(

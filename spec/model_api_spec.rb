@@ -175,6 +175,8 @@ RSpec.describe 'Graphomaton model API' do
     expect(label.kind).to eq(:alternatives)
     expect(graph.validation_diagnostics(profile: :dfa).map(&:code)).to include('epsilon-transition-in-dfa')
     expect(Graphomaton.from_hash(graph.to_h)).to eq(graph)
+    expect(Graphomaton.from_json(graph.to_json)).to eq(graph)
+    expect(Graphomaton.from_yaml(graph.to_yaml)).to eq(graph)
   end
 
   it 'provides indexed graph analyses with explicit semantics' do
@@ -233,6 +235,8 @@ RSpec.describe 'Graphomaton model API' do
       .to include(/state_tooltip/, /transition_tooltip/)
     expect { graph.render(format: :mermaid, notes: true, strict_semantics: true) }
       .to raise_error(Graphomaton::ExportError, /transition_tooltip/)
+    expect { graph.render_result(format: :png, strict_semantics: true) }
+      .to raise_error(Graphomaton::ExportError, /state_tooltip.*transition_tooltip/m)
   end
 
   it 'renders exporter classes registered by applications' do

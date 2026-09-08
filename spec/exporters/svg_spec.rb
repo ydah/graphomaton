@@ -60,8 +60,8 @@ RSpec.describe Graphomaton::Exporters::Svg do
         root_id = document.root.attributes['id']
         css = REXML::XPath.first(document, '//style').text
 
-        expect(css).to include("##{root_id} .state-circle")
-        expect(css).to include("##{root_id} .transition-line")
+        expect(css).to include(%(svg[id="#{root_id}"] .state-circle))
+        expect(css).to include(%(svg[id="#{root_id}"] .transition-line))
         expect(css).not_to match(/^\s*\.state-circle/m)
       end
 
@@ -539,6 +539,26 @@ RSpec.describe Graphomaton::Exporters::Svg do
 
         expect(ids.uniq).to eq(ids)
       end
+
+      it 'keeps generated element ids distinct from a caller-provided root id' do
+        local = Graphomaton.new.add_state('a')
+
+        document = REXML::Document.new(described_class.new(local).export(svg_id: 'state-a'))
+        ids = REXML::XPath.match(document, '//*[@id]').map { |element| element.attributes['id'] }
+
+        expect(ids.uniq).to eq(ids)
+      end
+
+      it 'scopes styles safely when the root id starts with a digit' do
+        local = Graphomaton.new.add_state('a')
+
+        document = REXML::Document.new(described_class.new(local).export(svg_id: '123', css_variables: true))
+        style = REXML::XPath.first(document, '//style').text
+
+        expect(document.root.attributes['id']).to eq('123')
+        expect(style).to include('svg[id="123"] {')
+        expect(style).to include('svg[id="123"] .state-circle')
+      end
     end
 
     context 'with skip states transitions' do
@@ -634,7 +654,8 @@ RSpec.describe Graphomaton::Exporters::Svg do
         result = svg_exporter.export_result(100, 100, auto_size: true)
         view_box = REXML::Document.new(result.output).root.attributes['viewBox'].split.map(&:to_f)
         expect(result.bounds).to eq(width: view_box[2], height: view_box[3])
-        expect(result.diagnostics.map(&:code)).not_to include('state-clipped-horizontal', 'state-clipped-vertical')
+        expect(result.diagnostics.map(&:code))
+          .not_to include('state-clipped-horizontal', 'state-clipped-vertical', 'label-outside-canvas')
 
         automaton.update_state('A', x: 0, y: 100)
         automaton.add_state('far', Graphomaton::DEFAULT_MAX_CANVAS_DIMENSION + 100, 100)
@@ -783,6 +804,9 @@ RSpec.describe Graphomaton::Exporters::Svg do
         expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG style value/)
 
         automaton.update_state('value', style: { fill: 'u\\72l(https://example.com/x)' })
+        expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG style value/)
+
+        automaton.update_state('value', style: { fill: 'u/**/rl(https://example.com/x)' })
         expect { svg_exporter.export }.to raise_error(Graphomaton::SecurityError, /Unsafe SVG style value/)
       end
 
@@ -1014,10 +1038,10 @@ RSpec.describe Graphomaton::Exporters::Svg do
     end
 
     it 'does not duplicate text before a long wrapped word' do
-      lines = svg_exporter.send(:wrap_paragraph, 'ok supercalifragilistic', 40)
+      lines = svg_exporter.send(:wrap_paragraph, 'ok abcdefghijklmnopqrstuvwxyz', 60)
 
       expect(lines.count('ok')).to eq(1)
-      expect(lines.join).to eq('oksupercalifragilistic')
+      expect(lines.join).to eq('okabcdefghijklmnopqrstuvwxyz')
     end
 
     it 'uses the shared wrapping path for self-loop labels' do
